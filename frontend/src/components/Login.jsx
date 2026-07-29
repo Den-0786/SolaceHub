@@ -23,7 +23,7 @@ function Login() {
       const response = await fetch(API_CONFIG.ENDPOINTS.AUTH.LOGIN, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, role: null }),
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await response.json();

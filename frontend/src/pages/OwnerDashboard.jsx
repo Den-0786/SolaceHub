@@ -200,37 +200,6 @@ function OwnerDashboard() {
 
   const maxValue = useMemo(() => Math.max(...analyticsData[analyticsPeriod], 0), [analyticsPeriod]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const start = new Date(startTimestamp).getTime();
-      const durationMs = ((durationDays * 24) + durationHours) * 60 * 60 * 1000;
-      const end = start + durationMs;
-      const now = Date.now();
-      const diff = end - now;
-
-      if (isLocked || diff <= 0) {
-        setTimeRemaining('00:00:00:00');
-        
-        // Trigger expiration lock handler when timer reaches 00:00:00
-        if (diff <= 0 && !isLocked) {
-          handleExpirationLock();
-        }
-        return;
-      }
-
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-      setTimeRemaining(
-        `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`
-      );
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [startTimestamp, durationDays, durationHours, isLocked, handleExpirationLock]);
-
   const handleExtend24Hours = () => {
     setDurationHours((prev) => prev + 24);
   };
