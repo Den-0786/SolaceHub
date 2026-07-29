@@ -4,6 +4,7 @@ import { Search, Printer, Share2, Settings, User, Plus, ArrowUp, LogOut, Chevron
 import logo from '/SolaceHubLogo.jpeg';
 import { useToast } from '../hooks/useToast.js';
 import { useDeployment } from '../contexts/DeploymentContext';
+import { API_CONFIG, getAuthHeaders } from '../config/api.js';
 
 function RegistryConsole() {
   const navigate = useNavigate();
@@ -17,15 +18,9 @@ function RegistryConsole() {
   const [donorName, setDonorName] = useState('');
   const [amount, setAmount] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('+233');
-  const [transactions, setTransactions] = useState([
-    { id: 1, receiptId: 'FP-0024', donor: 'Kofi Mensah', time: '14:30', method: 'Cash', amount: 500, status: 'PRINTED' },
-    { id: 2, receiptId: 'FP-0023', donor: 'Ama Serwaa', time: '14:12', method: 'Mobile Money', amount: 200, status: 'PRINTED' },
-    { id: 3, receiptId: 'FP-0022', donor: 'Kwame Asante', time: '13:45', method: 'Cash', amount: 1000, status: 'PRINTED' },
-    { id: 4, receiptId: 'FP-0021', donor: 'Efua Dufie', time: '13:30', method: 'Mobile Money', amount: 300, status: 'PRINTED' },
-    { id: 5, receiptId: 'FP-0020', donor: 'Nana Yaw', time: '13:15', method: 'Cash', amount: 150, status: 'PRINTED' }
-  ]);
-  const [totalAmount, setTotalAmount] = useState(12450);
-  const [entryCount, setEntryCount] = useState(24);
+  const [transactions, setTransactions] = useState([]);
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [entryCount, setEntryCount] = useState(0);
   const [currentView, setCurrentView] = useState('desk');
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
@@ -41,26 +36,60 @@ function RegistryConsole() {
     return () => clearInterval(interval);
   }, []);
 
-  const handlePrint = () => {
-    window.print();
-    // Clear form after printing
-    setDonorName('');
-    setAmount('');
-    setPhoneNumber('+233');
-    // Update totals
+  useEffect(() => {
+    fetchDonors();
+  }, []);
+
+  const fetchDonors = async () => {
+    try {
+      const response = await fetch(API_CONFIG.ENDPOINTS.DONORS, {
+        headers: getAuthHeaders(),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTransactions(data);
+        setTotalAmount(data.reduce((sum, d) => sum + d.amount, 0));
+        setEntryCount(data.length);
+      }
+    } catch (err) {
+      console.error('Failed to fetch donors:', err);
+    }
+  };
+
+  const handlePrint = async () => {
     const newAmount = parseFloat(amount.replace(/[^0-9.]/g, '')) || 0;
-    setTotalAmount(prev => prev + newAmount);
-    setEntryCount(prev => prev + 1);
-    // Add to transactions
-    const newTransaction = {
-      id: transactions.length + 1,
-      donor: donorName || 'Anonymous',
-      time: currentTime,
-      method: 'Cash',
-      amount: newAmount,
-      status: 'PRINTED'
-    };
-    setTransactions([newTransaction, ...transactions].slice(0, 5));
+    
+    try {
+      const response = await fetch(API_CONFIG.ENDPOINTS.DONORS, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          donor_name: donorName || 'Anonymous',
+          phone_number: phoneNumber,
+          amount: newAmount,
+          receipt_id: `FP-${String(transactions.length + 1).padStart(4, '0')}`,
+          time: currentTime,
+          method: 'Cash',
+          event_day: 1,
+        }),
+      });
+
+      if (response.ok) {
+        const newDonor = await response.json();
+        setTransactions([newDonor, ...transactions].slice(0, 5));
+        setTotalAmount(prev => prev + newAmount);
+        setEntryCount(prev => prev + 1);
+        window.print();
+        setDonorName('');
+        setAmount('');
+        setPhoneNumber('+233');
+        addToast('Donor registered successfully', 'success');
+      } else {
+        addToast('Failed to register donor', 'error');
+      }
+    } catch (err) {
+      addToast('Connection error', 'error');
+    }
   };
 
   const handleDigitalSend = () => {
@@ -369,13 +398,13 @@ function RegistryConsole() {
                   <tbody>
                     {transactions.map((transaction) => (
                       <tr key={transaction.id} className="border-b border-gray-100">
-                        <td className="py-3 px-4 text-sm font-medium text-gray-900">{transaction.receiptId}</td>
+                        <td className="py-3 px-4 text-sm font-medium text-gray-900">{transaction.receipt_id}</td>
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
                               <User size={16} className="text-indigo-950" />
                             </div>
-                            <span className="text-sm font-medium text-gray-900">{transaction.donor}</span>
+                            <span className="text-sm font-medium text-gray-900">{transaction.donor_name}</span>
                           </div>
                         </td>
                         <td className="py-3 px-4 text-sm text-gray-600">{transaction.time} • {transaction.method}</td>
@@ -411,8 +440,8 @@ function RegistryConsole() {
                   <tbody className="divide-y divide-gray-200">
                     {transactions.map((transaction) => (
                       <tr key={transaction.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{transaction.receiptId}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900">{transaction.donor}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{transaction.receipt_id}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900">{transaction.donor_name}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{transaction.time}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{transaction.method}</td>
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">GH₵ {transaction.amount.toFixed(2)}</td>

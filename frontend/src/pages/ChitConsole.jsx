@@ -21,6 +21,7 @@ import {
 import logo from "/SolaceHubLogo.jpeg";
 import { useToast } from "../hooks/useToast.js";
 import { useDeployment } from "../contexts/DeploymentContext";
+import { API_CONFIG, getAuthHeaders } from "../config/api.js";
 
 function ChitConsole() {
   const navigate = useNavigate();
@@ -32,57 +33,11 @@ function ChitConsole() {
   const [staffName, setStaffName] = useState("");
   const [representativeName, setRepresentativeName] = useState("");
   const [numberOfPeople, setNumberOfPeople] = useState(1);
-  const [voucherType, setVoucherType] = useState("Food & Soft Drink");
+  const [voucherType, setVoucherType] = useState("full_meal");
   const [securityCode, setSecurityCode] = useState("CHIT-402");
-  const [issuedToday, setIssuedToday] = useState(142);
+  const [issuedToday, setIssuedToday] = useState(0);
   const [currentView, setCurrentView] = useState("desk");
-  const [chitHistory, setChitHistory] = useState([
-    {
-      id: 1,
-      code: "CHIT-401",
-      representative: "Ama Serwaa",
-      guests: 3,
-      type: "Food & Soft Drink",
-      time: "14:12",
-      status: "ISSUED",
-    },
-    {
-      id: 2,
-      code: "CHIT-400",
-      representative: "Kwame Asante",
-      guests: 2,
-      type: "Food Only",
-      time: "13:45",
-      status: "ISSUED",
-    },
-    {
-      id: 3,
-      code: "CHIT-399",
-      representative: "Efua Dufie",
-      guests: 5,
-      type: "VIP Package",
-      time: "13:30",
-      status: "ISSUED",
-    },
-    {
-      id: 4,
-      code: "CHIT-398",
-      representative: "Nana Yaw",
-      guests: 1,
-      type: "Beverage / Water Only",
-      time: "13:15",
-      status: "ISSUED",
-    },
-    {
-      id: 5,
-      code: "CHIT-397",
-      representative: "Kofi Mensah",
-      guests: 4,
-      type: "Food & Soft Drink",
-      time: "12:50",
-      status: "ISSUED",
-    },
-  ]);
+  const [chitHistory, setChitHistory] = useState([]);
   const [currentTime, setCurrentTime] = useState("");
   const [currentDate, setCurrentDate] = useState("");
 
@@ -99,44 +54,37 @@ function ChitConsole() {
     setShowStaffLoginModal(false);
   };
 
-  const handlePrintVoucher = useCallback(() => {
-    console.log("Printing voucher:", {
-      representativeName,
-      numberOfPeople,
-      voucherType,
-      securityCode,
-    });
-    window.print();
+  const handlePrintVoucher = useCallback(async () => {
+    try {
+      const response = await fetch(API_CONFIG.ENDPOINTS.CHITS, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          security_code: securityCode,
+          representative_name: representativeName || "Guest",
+          number_of_people: numberOfPeople,
+          voucher_type: voucherType,
+          event_day: 1,
+          time: currentTime,
+        }),
+      });
 
-    // Add new chit to history
-    const newChit = {
-      code: securityCode,
-      representative: representativeName || "Guest",
-      guests: numberOfPeople,
-      type: voucherType,
-      time: currentTime,
-      status: "ISSUED",
-    };
-    setChitHistory((prev) => [{ ...newChit, id: prev.length + 1 }, ...prev]);
-
-    // Reset form after printing
-    setRepresentativeName("");
-    setNumberOfPeople(1);
-    setVoucherType("Food & Soft Drink");
-
-    // Update counters
-    setIssuedToday((prev) => prev + 1);
-
-    // Generate new security code
-    const codeNumber = parseInt(securityCode.split("-")[1]) + 1;
-    setSecurityCode(`CHIT-${codeNumber}`);
-  }, [
-    representativeName,
-    numberOfPeople,
-    voucherType,
-    securityCode,
-    currentTime,
-  ]);
+      if (response.ok) {
+        const newChit = await response.json();
+        setChitHistory((prev) => [newChit, ...prev]);
+        setIssuedToday((prev) => prev + 1);
+        window.print();
+        setRepresentativeName("");
+        setNumberOfPeople(1);
+        setVoucherType("full_meal");
+        addToast("Chit issued successfully", "success");
+      } else {
+        addToast("Failed to issue chit", "error");
+      }
+    } catch (err) {
+      addToast("Connection error", "error");
+    }
+  }, [representativeName, numberOfPeople, voucherType, securityCode, currentTime, addToast]);
 
   const handleDecreasePeople = () => {
     if (numberOfPeople > 1) {

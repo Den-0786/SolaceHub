@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Menu,
   X,
@@ -12,18 +13,23 @@ import {
   Search,
   Bell,
   Download,
-  Timer,
+  Plus,
+  Users,
   BarChart3,
+  Timer,
   Circle
 } from 'lucide-react';
 import OwnerSettingsModal from '../components/OwnerSettingsModal.jsx';
 import DeploymentTab from '../components/owner/DeploymentTab.jsx';
 import SessionTimerTab from '../components/owner/SessionTimerTab.jsx';
 import AnalyticsTab from '../components/owner/AnalyticsTab.jsx';
+import TenantManagement from '../components/owner/TenantManagement.jsx';
 import { useOwnerSettings } from '../hooks/useOwnerSettings.js';
 import { useToast } from '../hooks/useToast.js';
+import { API_CONFIG, getAuthHeaders } from '../config/api.js';
 
 function OwnerDashboard() {
+  const navigate = useNavigate();
   const { settings } = useOwnerSettings();
   const { addToast } = useToast();
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
@@ -31,6 +37,11 @@ function OwnerDashboard() {
   const [activeLink, setActiveLink] = useState('Dashboard');
   const [showSettings, setShowSettings] = useState(false);
   const [analyticsPeriod, setAnalyticsPeriod] = useState('Weekly');
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
   
   // Deployment state shared with DeploymentTab
   const [deployments, setDeployments] = useState([
@@ -99,6 +110,7 @@ function OwnerDashboard() {
 
   const sidebarLinks = [
     { name: 'Dashboard', icon: LayoutDashboard },
+    { name: 'Tenants', icon: Users },
     { name: 'Deployments', icon: Calendar },
     { name: 'Session Timer', icon: Clock },
     { name: 'Analytics', icon: BarChart3 },
@@ -108,6 +120,64 @@ function OwnerDashboard() {
   const bottomLinks = [
     { name: 'Sign Out', icon: LogOut }
   ];
+
+  const handleLogout = async () => {
+    try {
+      await fetch(API_CONFIG.ENDPOINTS.AUTH.LOGOUT, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+      localStorage.removeItem('familyHeadPassword');
+      localStorage.removeItem('deskOperatorPassword');
+      localStorage.removeItem('isTempLogin');
+      addToast('Signed out successfully.', 'info', 2000);
+      navigate('/login');
+    }
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      addToast('Passwords do not match', 'error');
+      return;
+    }
+    if (newPassword.length < 6) {
+      addToast('Password must be at least 6 characters', 'error');
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const response = await fetch(API_CONFIG.ENDPOINTS.AUTH.CHANGE_PASSWORD, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          old_password: oldPassword,
+          new_password: newPassword,
+        }),
+      });
+
+      if (response.ok) {
+        addToast('Password changed successfully', 'success');
+        setShowPasswordChange(false);
+        setOldPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        const data = await response.json();
+        addToast(data.error || 'Failed to change password', 'error');
+      }
+    } catch (err) {
+      addToast('Connection error', 'error');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
 
   const events = [
     { title: 'Agyeman Memorial Service', date: '2026-07-20', transactions: 124, status: 'Expired' },
@@ -249,6 +319,10 @@ function OwnerDashboard() {
           setHardwareInventory={setHardwareInventory}
         />
       );
+    }
+
+    if (activeLink === 'Tenants') {
+      return <TenantManagement />;
     }
 
     if (activeLink === 'Session Timer') {
@@ -475,10 +549,7 @@ function OwnerDashboard() {
                 key={link.name}
                 onClick={() => {
                   if (link.name === 'Sign Out') {
-                    addToast('Signed out successfully.', 'info', 2000);
-                    setTimeout(() => {
-                      window.location.href = '/login';
-                    }, 800);
+                    handleLogout();
                   }
                 }}
                 className="w-full text-left px-3 py-3 rounded-xl text-sm font-medium flex items-center gap-3 text-indigo-200 hover:bg-indigo-800 transition-colors"

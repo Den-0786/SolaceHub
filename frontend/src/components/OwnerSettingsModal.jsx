@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useOwnerSettings } from '../hooks/useOwnerSettings.js';
 import { useToast } from '../hooks/useToast.js';
+import { API_CONFIG, getAuthHeaders } from '../config/api.js';
 
 function OwnerSettingsModal({ onClose }) {
   const { settings, updateSettings, updateContact } = useOwnerSettings();
@@ -41,6 +42,7 @@ function OwnerSettingsModal({ onClose }) {
   const [showConfirmPin, setShowConfirmPin] = useState(false);
   const [showMasterFallbackPassword, setShowMasterFallbackPassword] = useState(false);
   const [showTempFamilyPassword, setShowTempFamilyPassword] = useState(false);
+  const [passwordChangeLoading, setPasswordChangeLoading] = useState(false);
   const [credentialFields, setCredentialFields] = useState({
     currentUsername: '',
     newUsername: '',
@@ -150,6 +152,49 @@ function OwnerSettingsModal({ onClose }) {
     setSaveMessage('System reset to defaults.');
     addToast('System reset to defaults successfully.', 'success', 3000);
     setTimeout(() => setSaveMessage(''), 3000);
+  };
+
+  const handlePasswordChange = async () => {
+    if (credentialFields.newPassword !== credentialFields.confirmPassword) {
+      addToast('Passwords do not match', 'error');
+      return;
+    }
+    if (credentialFields.newPassword.length < 6) {
+      addToast('Password must be at least 6 characters', 'error');
+      return;
+    }
+
+    setPasswordChangeLoading(true);
+    try {
+      const response = await fetch(API_CONFIG.ENDPOINTS.AUTH.CHANGE_PASSWORD, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          old_password: credentialFields.currentPassword,
+          new_password: credentialFields.newPassword,
+        }),
+      });
+
+      if (response.ok) {
+        addToast('Password changed successfully', 'success');
+        setShowCredentialForm(false);
+        setCredentialFields({
+          ...credentialFields,
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+        setSaveMessage('Password updated successfully.');
+        setTimeout(() => setSaveMessage(''), 3000);
+      } else {
+        const data = await response.json();
+        addToast(data.error || 'Failed to change password', 'error');
+      }
+    } catch (err) {
+      addToast('Connection error', 'error');
+    } finally {
+      setPasswordChangeLoading(false);
+    }
   };
 
   const cancelMasterReset = () => {
@@ -612,17 +657,11 @@ function OwnerSettingsModal({ onClose }) {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => {
-                      if (credentialFields.newPassword && credentialFields.newPassword === credentialFields.confirmPassword) {
-                        handleInputChange('masterPassword', credentialFields.newPassword);
-                        setShowCredentialForm(false);
-                        setSaveMessage('Password updated successfully.');
-                        setTimeout(() => setSaveMessage(''), 3000);
-                      }
-                    }}
-                    className="flex-1 py-2 bg-indigo-950 hover:bg-indigo-900 text-white rounded-lg text-xs font-medium transition-colors"
+                    onClick={handlePasswordChange}
+                    disabled={passwordChangeLoading}
+                    className="flex-1 py-2 bg-indigo-950 hover:bg-indigo-900 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
                   >
-                    Update
+                    {passwordChangeLoading ? 'Updating...' : 'Update'}
                   </button>
                   <button
                     onClick={() => setShowCredentialForm(false)}

@@ -1,15 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Bell, HelpCircle, User, LayoutDashboard, ClipboardList, Ticket, BarChart, Settings, LogOut, Plus, TrendingUp, Filter, MoreHorizontal, Activity, Circle, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import logo from '/SolaceHubLogo.jpeg';
 import { useToast } from '../hooks/useToast.js';
+import { useNavigate } from 'react-router-dom';
 import DeceasedEntryForm from '../components/admin/DeceasedEntryForm.jsx';
 import RegistriesTab from '../components/admin/RegistriesTab.jsx';
 import ChitManagementTab from '../components/admin/ChitManagementTab.jsx';
 import ReportsTab from '../components/admin/ReportsTab.jsx';
 import FamilySettings from './FamilySettings.jsx';
 import NotificationBell from '../components/NotificationBell.jsx';
+import { API_CONFIG, getAuthHeaders } from '../config/api.js';
 
 function AdminDashboard() {
+  const navigate = useNavigate();
   const { addToast } = useToast();
   const [activeLedgerTab, setActiveLedgerTab] = useState('donation');
   const [activeSidebarLink, setActiveSidebarLink] = useState('Dashboard');
@@ -18,13 +21,7 @@ function AdminDashboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [deceasedEntries, setDeceasedEntries] = useState([]);
-  const [notifications, setNotifications] = useState([
-    { id: 1, type: 'donation', message: 'New donation of GH₵ 2,500.00 from Daniel Boateng', time: '2 minutes ago', read: false },
-    { id: 2, type: 'chit', message: '5 chits issued for Day 1 catering', time: '15 minutes ago', read: false },
-    { id: 3, type: 'registry', message: 'VIP registry updated with 3 new entries', time: '1 hour ago', read: false },
-    { id: 4, type: 'alert', message: 'Daily donation target reached', time: '2 hours ago', read: true },
-    { id: 5, type: 'system', message: 'System backup completed successfully', time: '3 hours ago', read: true }
-  ]);
+  const [notifications, setNotifications] = useState([]);
 
   const sidebarLinks = [
     { name: 'Dashboard', icon: LayoutDashboard },
@@ -45,6 +42,22 @@ function AdminDashboard() {
 
   const markAllAsRead = () => {
     setNotifications(notifications.map(notif => ({ ...notif, read: true })));
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch(API_CONFIG.ENDPOINTS.AUTH.LOGOUT, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+      addToast('Signed out successfully.', 'info', 2000);
+      navigate('/login');
+    }
   };
 
   const donationLedger = [
@@ -196,10 +209,7 @@ function AdminDashboard() {
                     if (link.name === 'New Entry') {
                       setShowDeceasedForm(true);
                     } else if (link.name === 'Sign Out') {
-                      addToast('Signed out successfully.', 'info', 2000);
-                      setTimeout(() => {
-                        window.location.href = '/login';
-                      }, 800);
+                      handleLogout();
                     } else {
                       setActiveSidebarLink(link.name);
                     }

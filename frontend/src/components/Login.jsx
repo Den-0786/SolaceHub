@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { User, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
 import logo from '/SolaceHubLogo.jpeg';
 import { useToast } from '../hooks/useToast.js';
+import { API_CONFIG, getAuthHeaders } from '../config/api.js';
 
 function Login() {
   const [username, setUsername] = useState('');
@@ -10,30 +11,52 @@ function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const { addToast } = useToast();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    const credentials = [
-      { username: 'admin1', password: 'admin123', role: 'System Owner', route: '/owner-dashboard' },
-      { username: 'admin2', password: 'admin456', role: 'Family Head', route: '/admin-dashboard' },
-      { username: 'admin3', password: 'admin789', role: 'Chit Console', route: '/chit-console' }
-    ];
+    try {
+      const response = await fetch(API_CONFIG.ENDPOINTS.AUTH.LOGIN, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, role: null }),
+      });
 
-    const match = credentials.find(
-      (cred) => cred.username === username.trim() && cred.password === password
-    );
+      const data = await response.json();
 
-    if (match) {
-      addToast(`Welcome back, ${match.role} (${username})`, 'success', 2500);
-      setTimeout(() => {
-        window.location.href = match.route;
-      }, 800);
-    } else {
-      setError('Invalid username or password.');
-      addToast('Invalid username or password.', 'error');
+      if (response.ok) {
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        
+        const routeMap = {
+          'owner': '/owner-dashboard',
+          'admin': '/admin-dashboard',
+          'family_head': '/admin-dashboard',
+          'desk_operator': '/chit-console',
+        };
+        
+        const route = routeMap[data.user.role] || '/';
+        addToast(`Welcome back, ${data.user.role} (${username})`, 'success', 2500);
+        setTimeout(() => {
+          window.location.href = route;
+        }, 800);
+      } else if (response.status === 403 && data.fallback !== undefined) {
+        // Handle subscription expiration
+        setError(data.message || 'Subscription expired');
+        addToast(data.message || 'Subscription expired. Please contact system administration.', 'error', 5000);
+      } else {
+        setError(data.error || 'Invalid username or password.');
+        addToast(data.error || 'Invalid username or password.', 'error');
+      }
+    } catch (err) {
+      setError('Connection error. Please try again.');
+      addToast('Connection error. Please try again.', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -121,9 +144,10 @@ function Login() {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full bg-indigo-950 text-white py-3 rounded-full font-medium hover:bg-indigo-900 transition flex items-center justify-center gap-2 text-sm"
+              disabled={loading}
+              className="w-full bg-indigo-950 text-white py-3 rounded-full font-medium hover:bg-indigo-900 transition flex items-center justify-center gap-2 text-sm disabled:opacity-50"
             >
-              Sign In <LogIn size={16} />
+              {loading ? 'Signing in...' : 'Sign In'} <LogIn size={16} />
             </button>
           </form>
         </div>
