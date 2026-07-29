@@ -1,0 +1,1 @@
+web: gunicorn solacehub.wsgi --log-file -
