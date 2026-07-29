@@ -4,7 +4,7 @@ from .models import User, Tenant, TenantCredential
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'phone', 'tenant', 'is_using_fallback', 'created_at']
+        fields = ['id', 'username', 'role', 'tenant', 'is_using_fallback', 'created_at']
         read_only_fields = ['id', 'created_at']
 
 class TenantSerializer(serializers.ModelSerializer):

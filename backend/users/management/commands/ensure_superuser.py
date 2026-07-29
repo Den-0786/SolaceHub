@@ -9,7 +9,6 @@ class Command(BaseCommand):
         User = get_user_model()
         username = os.getenv('ADMIN_USERNAME', 'admin')
         password = os.getenv('ADMIN_PASSWORD')
-        email = os.getenv('ADMIN_EMAIL', 'admin@solacehub.com')
         
         if not password:
             self.stdout.write(self.style.WARNING('ADMIN_PASSWORD not set in environment variables'))
@@ -20,9 +19,8 @@ class Command(BaseCommand):
         else:
             User.objects.create_superuser(
                 username=username,
-                email=email,
+                email='',
                 password=password,
-                role='owner',
-                phone='+233000000000'
+                role='owner'
             )
             self.stdout.write(self.style.SUCCESS('Superuser created successfully'))

@@ -11,11 +11,14 @@ class User(AbstractUser):
     ]
     
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='donation_staff')
-    phone = models.CharField(max_length=20, blank=True)
     tenant = models.ForeignKey('Tenant', on_delete=models.CASCADE, null=True, blank=True, related_name='users')
     is_using_fallback = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    first_name = None
+    last_name = None
+    email = None
     
     class Meta:
         verbose_name = 'User'
