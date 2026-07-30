@@ -25,6 +25,7 @@ import SessionTimerTab from '../components/owner/SessionTimerTab.jsx';
 import AnalyticsTab from '../components/owner/AnalyticsTab.jsx';
 import { useOwnerSettings } from '../hooks/useOwnerSettings.js';
 import { useToast } from '../hooks/useToast.js';
+import { useDeployment } from '../contexts/DeploymentContext.js';
 import { API_CONFIG, getAuthHeaders } from '../config/api.js';
 
 function OwnerDashboard() {
