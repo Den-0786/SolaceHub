@@ -79,6 +79,14 @@ function ChitConsole() {
   };
 
   const handlePrintVoucher = useCallback(async () => {
+    // Check if user is authenticated
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) {
+      addToast('Please login to issue chits', 'error');
+      navigate('/login');
+      return;
+    }
+    
     try {
       const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.CHITS, {
         method: 'POST',
@@ -102,12 +110,22 @@ function ChitConsole() {
         addToast("Chit issued successfully", "success");
       } else {
         const errorData = await response.json().catch(() => ({}));
-        addToast(errorData.error || "Failed to issue chit", "error");
+        if (response.status === 401) {
+          addToast('Authentication failed. Please login again.', 'error');
+          navigate('/login');
+        } else {
+          addToast(errorData.error || errorData.detail || "Failed to issue chit", "error");
+        }
       }
     } catch (err) {
-      addToast("Connection error", "error");
+      if (err.message === 'Session expired') {
+        addToast('Session expired. Please login again.', 'error');
+        navigate('/login');
+      } else {
+        addToast("Connection error", "error");
+      }
     }
-  }, [securityCode, representativeName, numberOfPeople, voucherType]);
+  }, [securityCode, representativeName, numberOfPeople, voucherType, navigate, addToast]);
 
   const handleDecreasePeople = () => {
     if (numberOfPeople > 1) {
@@ -151,6 +169,15 @@ function ChitConsole() {
   useEffect(() => {
     if (settings.sessionExpired) {
       addToast('Session expired. Logging out...', 'warning', 3000);
+      setTimeout(() => {
+        navigate('/login');
+      }, 3000);
+    }
+    
+    // Check if user is authenticated
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) {
+      addToast('Please login to access chit console', 'error', 3000);
       setTimeout(() => {
         navigate('/login');
       }, 3000);

@@ -45,6 +45,15 @@ function RegistryConsole() {
         navigate('/login');
       }, 3000);
     }
+    
+    // Check if user is authenticated
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) {
+      addToast('Please login to access registry console', 'error', 3000);
+      setTimeout(() => {
+        navigate('/login');
+      }, 3000);
+    }
   }, [settings.sessionExpired, navigate, addToast]);
 
   useEffect(() => {
