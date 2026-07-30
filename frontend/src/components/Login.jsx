@@ -10,7 +10,6 @@ function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
-  const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { addToast } = useToast();
@@ -18,7 +17,6 @@ function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     // Try backend API login first for owner
@@ -83,13 +81,11 @@ function Login() {
 
     // If session expired and not using fallback, show error
     if (isSessionExpired) {
-      setError('Session expired. Please use Master Fallback credentials.');
       addToast('Session expired. Please use Master Fallback credentials.', 'error', 5000);
       setLoading(false);
       return;
     }
 
-    setError('Invalid username or password.');
     addToast('Invalid username or password.', 'error');
     setLoading(false);
   };
@@ -170,10 +166,6 @@ function Login() {
               </div>
               <Link to="/forgot-password" className="text-xs text-gray-400 hover:text-gray-600">Forgot?</Link>
             </div>
-
-            {error && (
-              <p className="text-xs text-red-600 text-center bg-red-50 py-2 rounded-lg">{error}</p>
-            )}
 
             {/* Submit Button */}
             <button
