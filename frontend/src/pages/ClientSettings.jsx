@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { X, User, Users, Shield, Save, Eye, EyeOff, Key, Receipt, Clock, MapPin, Calendar } from 'lucide-react';
 import { useToast } from '../hooks/useToast.js';
 import { useDeployment } from '../contexts/DeploymentContext';
+import { useOwnerSettings } from '../hooks/useOwnerSettings.js';
 import logo from '/SolaceHubLogo.jpeg';
 
-export default function FamilySettings({ onClose }) {
+export default function ClientSettings({ onClose }) {
   const { addToast } = useToast();
   const { activeDeployment } = useDeployment();
+  const { settings, updateSettings } = useOwnerSettings();
   const [activeTab, setActiveTab] = useState('Security');
   const [showPassword, setShowPassword] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -30,28 +32,27 @@ export default function FamilySettings({ onClose }) {
   });
 
   useEffect(() => {
-    // Check if this is first login (using temporary credentials)
-    const isTempLogin = localStorage.getItem('isTempLogin') === 'true';
-    setIsFirstLogin(isTempLogin);
-    
+    // Check if this is first login (using temporary credentials from context)
+    setIsFirstLogin(settings.clientTempLogin);
+
     const handleEsc = (e) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [onClose]);
+  }, [onClose, settings.clientTempLogin]);
 
   const handlePasswordChange = () => {
-    const currentStoredPassword = localStorage.getItem('familyHeadPassword');
-    
-    if (!isFirstLogin && credentialFields.currentPassword !== currentStoredPassword) {
+    if (!isFirstLogin && credentialFields.currentPassword !== settings.clientPassword) {
       addToast('Current password is incorrect. Please try again.', 'error');
       return;
     }
-    
+
     if (credentialFields.newPassword && credentialFields.newPassword === credentialFields.confirmPassword) {
-      localStorage.setItem('familyHeadPassword', credentialFields.newPassword);
-      localStorage.setItem('isTempLogin', 'false');
+      updateSettings({
+        clientPassword: credentialFields.newPassword,
+        clientTempLogin: false
+      });
       setIsFirstLogin(false);
       setSaveMessage('Password changed successfully.');
       addToast('Password changed successfully. You can now access your dashboard.', 'success', 3000);
@@ -68,11 +69,13 @@ export default function FamilySettings({ onClose }) {
   };
 
   const handleDeskOperatorSetup = () => {
-    if (credentialFields.deskOperatorUsername && 
-        credentialFields.deskOperatorPassword && 
+    if (credentialFields.deskOperatorUsername &&
+        credentialFields.deskOperatorPassword &&
         credentialFields.deskOperatorPassword === credentialFields.deskOperatorConfirmPassword) {
-      localStorage.setItem('deskOperatorUsername', credentialFields.deskOperatorUsername);
-      localStorage.setItem('deskOperatorPassword', credentialFields.deskOperatorPassword);
+      updateSettings({
+        deskOperatorUsername: credentialFields.deskOperatorUsername,
+        deskOperatorPassword: credentialFields.deskOperatorPassword
+      });
       setSaveMessage('Desk Operator credentials updated successfully.');
       addToast('Desk Operator credentials updated successfully.', 'success', 3000);
       setTimeout(() => setSaveMessage(''), 3000);
@@ -101,7 +104,7 @@ export default function FamilySettings({ onClose }) {
         {/* Header */}
         <div className="bg-gradient-to-r from-indigo-900 to-indigo-800 px-5 py-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-white">Family Settings</h2>
+            <h2 className="text-lg font-bold text-white">Client Settings</h2>
             <p className="text-xs text-gray-200">Manage security & receipts</p>
           </div>
           <button
@@ -122,7 +125,7 @@ export default function FamilySettings({ onClose }) {
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-accent-900">First-Time Login</p>
-                  <p className="text-xs text-accent-700 mt-1">Set your new Family Head password to continue.</p>
+                  <p className="text-xs text-accent-700 mt-1">Set your new Client password to continue.</p>
                 </div>
               </div>
             </div>
@@ -194,14 +197,14 @@ export default function FamilySettings({ onClose }) {
           {/* Security Tab */}
           {activeTab === 'Security' && (
             <div className="space-y-4">
-              {/* Family Head Password */}
+              {/* Client Password */}
               <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-xl flex items-center justify-center">
                     <User size={20} className="text-gray-900" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-gray-900">Family Head Password</p>
+                    <p className="text-sm font-bold text-gray-900">Client Password</p>
                     <p className="text-xs text-gray-500">Your private password</p>
                   </div>
                 </div>

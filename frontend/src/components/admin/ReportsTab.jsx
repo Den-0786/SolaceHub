@@ -1,11 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Download, FileText, TrendingUp, Users, Utensils, BarChart, Award, Calendar, DollarSign, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import { Download, FileText, TrendingUp, Users, Utensils, BarChart, Award, Calendar, DollarSign, Info, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { API_CONFIG, getAuthHeaders } from '../../config/api.js';
 
 export default function ReportsTab() {
   const [activeModule, setActiveModule] = useState('financial');
   const [expandedSections, setExpandedSections] = useState({});
   const [modalSection, setModalSection] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
+  // Data state
+  const [summaryData, setSummaryData] = useState(null);
+  const [financialAuditData, setFinancialAuditData] = useState(null);
+  const [topDonors, setTopDonors] = useState([]);
+  const [refreshmentAuditData, setRefreshmentAuditData] = useState(null);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -15,6 +23,30 @@ export default function ReportsTab() {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  useEffect(() => {
+    fetchReportData();
+  }, []);
+
+  const fetchReportData = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(API_CONFIG.ENDPOINTS.REPORTS, {
+        headers: getAuthHeaders(),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSummaryData(data.summary);
+        setFinancialAuditData(data.financialAudit);
+        setTopDonors(data.topDonors);
+        setRefreshmentAuditData(data.refreshmentAudit);
+      }
+    } catch (err) {
+      console.error('Failed to fetch report data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleSection = (section) => {
     setModalSection(section);
@@ -32,53 +64,16 @@ export default function ReportsTab() {
     console.log('Exporting raw data to Excel/CSV...');
   };
 
-  // Mock data for summary cards
-  const summaryData = {
-    totalRevenue: 45230.00,
-    cashRevenue: 28500.00,
-    momoRevenue: 16730.00,
-    totalDonors: 142,
-    totalChitsIssued: 88,
-    estimatedGuests: 210,
-    averageDonation: 318.52
-  };
-
-  // Mock data for financial audit
-  const financialAuditData = {
-    deceasedName: 'Agyeman Memorial Service',
-    memorialDates: 'Jan 24-26, 2026',
-    dayBreakdown: [
-      { day: 'Day 1', date: 'Jan 24, 2026', total: 21100.00, donors: 68 },
-      { day: 'Day 2', date: 'Jan 25, 2026', total: 24130.00, donors: 74 }
-    ],
-    deskAttendants: [
-      { name: 'Kwame Akoto', entries: 48, amount: 15200.00 },
-      { name: 'Sister Abena', entries: 52, amount: 16800.00 },
-      { name: 'Nana Yaw', entries: 42, amount: 13230.00 }
-    ]
-  };
-
-  // Mock data for top donors
-  const topDonors = [
-    { rank: 1, name: 'Dr. Osei Mensah', amount: 5000.00, phone: '+233 24 123 4567', type: 'VIP' },
-    { rank: 2, name: 'Mrs. Abena Kusi', amount: 3500.00, phone: '+233 24 234 5678', type: 'VIP' },
-    { rank: 3, name: 'Nana Kwame Ofori', amount: 2800.00, phone: '+233 24 345 6789', type: 'Regular' },
-    { rank: 4, name: 'Akosua Serwaa', amount: 2200.00, phone: '+233 24 456 7890', type: 'Regular' },
-    { rank: 5, name: 'Kofi Boateng', amount: 1800.00, phone: '+233 24 567 8901', type: 'Regular' }
-  ];
-
-  // Mock data for refreshment audit
-  const refreshmentAuditData = {
-    chitBreakdown: [
-      { type: 'Food & Soft Drink', count: 45, percentage: 51 },
-      { type: 'Beverage Only', count: 25, percentage: 28 },
-      { type: 'VIP Package', count: 18, percentage: 21 }
-    ],
-    dailyIssuance: [
-      { day: 'Day 1', food: 25, beverage: 12, vip: 8 },
-      { day: 'Day 2', food: 20, beverage: 13, vip: 10 }
-    ]
-  };
+  if (loading || !summaryData) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="animate-spin text-indigo-950" size={32} />
+          <p className="text-sm text-gray-500">Loading report data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

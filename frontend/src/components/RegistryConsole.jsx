@@ -4,16 +4,19 @@ import { Search, Printer, Share2, Settings, User, Plus, ArrowUp, LogOut, Chevron
 import logo from '/SolaceHubLogo.jpeg';
 import { useToast } from '../hooks/useToast.js';
 import { useDeployment } from '../contexts/DeploymentContext';
+import { useOwnerSettings } from '../hooks/useOwnerSettings.js';
 import { API_CONFIG, getAuthHeaders } from '../config/api.js';
 
 function RegistryConsole() {
   const navigate = useNavigate();
   const { addToast } = useToast();
   const { activeDeployment } = useDeployment();
+  const { settings, updateSettings } = useOwnerSettings();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [visitorName, setVisitorName] = useState('');
+  const [visitorPassword, setVisitorPassword] = useState('');
   const [visitorPhone, setVisitorPhone] = useState('');
   const [donorName, setDonorName] = useState('');
   const [amount, setAmount] = useState('');
@@ -35,6 +38,16 @@ function RegistryConsole() {
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Auto-logout when session expires
+  useEffect(() => {
+    if (settings.sessionExpired) {
+      addToast('Session expired. Logging out...', 'warning', 3000);
+      setTimeout(() => {
+        navigate('/login');
+      }, 3000);
+    }
+  }, [settings.sessionExpired, navigate, addToast]);
 
   useEffect(() => {
     fetchDonors();
@@ -109,11 +122,32 @@ function RegistryConsole() {
 
   const handleVisitorRegistration = (e) => {
     e.preventDefault();
-    console.log('Visitor registered:', { visitorName, visitorPhone });
-    // Clear form and close modal
-    setVisitorName('');
-    setVisitorPhone('');
-    setShowRegistrationForm(false);
+    // Check if session expired - only allow fallback credentials
+    if (settings.sessionExpired) {
+      if (visitorName === settings.masterFallbackUsername && visitorPassword === settings.masterFallbackPassword) {
+        updateSettings({ deskOperatorName: visitorName });
+        setVisitorName('');
+        setVisitorPassword('');
+        setVisitorPhone('');
+        setShowRegistrationForm(false);
+        addToast('Logged in with Master Fallback credentials', 'success');
+      } else {
+        addToast('Session expired. Please use Master Fallback credentials.', 'error');
+      }
+      return;
+    }
+
+    // Normal desk operator validation
+    if (visitorName === settings.deskOperatorUsername && visitorPassword === settings.deskOperatorPassword) {
+      updateSettings({ deskOperatorName: visitorName });
+      setVisitorName('');
+      setVisitorPassword('');
+      setVisitorPhone('');
+      setShowRegistrationForm(false);
+      addToast('Desk operator logged in successfully', 'success');
+    } else {
+      addToast('Invalid credentials', 'error');
+    }
   };
 
   return (
@@ -167,7 +201,7 @@ function RegistryConsole() {
                   <User size={20} className="text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-white">Samuel Adjetey</p>
+                  <p className="text-sm font-medium text-white">{settings.deskOperatorName || 'Samuel Adjetey'}</p>
                   <p className="text-xs text-emerald-400">Online</p>
                 </div>
               </div>
@@ -541,6 +575,17 @@ function RegistryConsole() {
                   value={visitorName}
                   onChange={(e) => setVisitorName(e.target.value)}
                   placeholder="Enter operator name"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-950"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input
+                  type="password"
+                  value={visitorPassword}
+                  onChange={(e) => setVisitorPassword(e.target.value)}
+                  placeholder="Enter password"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-950"
                   required
                 />

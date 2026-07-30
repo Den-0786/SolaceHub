@@ -54,8 +54,11 @@ function OwnerSettingsModal({ onClose }) {
     confirmPin: '',
     masterFallbackUsername: '',
     masterFallbackPassword: '',
-    tempFamilyUsername: '',
-    tempFamilyPassword: ''
+    clientUsername: '',
+    clientPassword: '',
+    deskOperatorUsername: '',
+    deskOperatorPassword: '',
+    deskOperatorName: ''
   });
 
   const [localSettings, setLocalSettings] = useState({
@@ -453,30 +456,30 @@ function OwnerSettingsModal({ onClose }) {
                   <Users size={24} className="text-white" />
                 </div>
                 <div>
-                  <h4 className="text-base font-bold text-gray-900">Family Credentials</h4>
-                  <p className="text-xs text-gray-500">Temporary Family Head Credentials</p>
+                  <h4 className="text-base font-bold text-gray-900">Client Credentials</h4>
+                  <p className="text-xs text-gray-500">Client & Desk Operator Credentials</p>
                 </div>
               </div>
-              
+
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Temp Family Username</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Client Username</label>
                   <input
                     type="text"
-                    value={credentialFields.tempFamilyUsername}
-                    onChange={(e) => setCredentialFields({ ...credentialFields, tempFamilyUsername: e.target.value })}
-                    placeholder="Enter temporary family username"
+                    value={credentialFields.clientUsername}
+                    onChange={(e) => setCredentialFields({ ...credentialFields, clientUsername: e.target.value })}
+                    placeholder="Enter client username"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-950"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Temp Family Password</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Client Password</label>
                   <div className="relative">
                     <input
                       type={showTempFamilyPassword ? 'text' : 'password'}
-                      value={credentialFields.tempFamilyPassword}
-                      onChange={(e) => setCredentialFields({ ...credentialFields, tempFamilyPassword: e.target.value })}
-                      placeholder="Enter temporary family password"
+                      value={credentialFields.clientPassword}
+                      onChange={(e) => setCredentialFields({ ...credentialFields, clientPassword: e.target.value })}
+                      placeholder="Enter client password"
                       className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-950"
                     />
                     <button
@@ -488,16 +491,66 @@ function OwnerSettingsModal({ onClose }) {
                     </button>
                   </div>
                 </div>
+
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                  <p className="text-xs font-medium text-gray-500 mb-3">Desk Operator (Shared for Chit & Donation)</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Desk Operator Username</label>
+                  <input
+                    type="text"
+                    value={credentialFields.deskOperatorUsername}
+                    onChange={(e) => setCredentialFields({ ...credentialFields, deskOperatorUsername: e.target.value })}
+                    placeholder="Enter desk operator username"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-950"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Desk Operator Password</label>
+                  <div className="relative">
+                    <input
+                      type={showTempFamilyPassword ? 'text' : 'password'}
+                      value={credentialFields.deskOperatorPassword}
+                      onChange={(e) => setCredentialFields({ ...credentialFields, deskOperatorPassword: e.target.value })}
+                      placeholder="Enter desk operator password"
+                      className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-950"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowTempFamilyPassword(!showTempFamilyPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      {showTempFamilyPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Desk Operator Name</label>
+                  <input
+                    type="text"
+                    value={credentialFields.deskOperatorName}
+                    onChange={(e) => setCredentialFields({ ...credentialFields, deskOperatorName: e.target.value })}
+                    placeholder="e.g. Samuel Adjetey"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-950"
+                  />
+                </div>
+
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
-                      if (credentialFields.tempFamilyUsername && credentialFields.tempFamilyPassword) {
+                      if (credentialFields.clientUsername && credentialFields.clientPassword) {
                         updateSettings({
-                          tempFamilyUsername: credentialFields.tempFamilyUsername,
-                          tempFamilyPassword: credentialFields.tempFamilyPassword
+                          clientUsername: credentialFields.clientUsername,
+                          clientPassword: credentialFields.clientPassword,
+                          clientTempLogin: false,
+                          deskOperatorUsername: credentialFields.deskOperatorUsername || '',
+                          deskOperatorPassword: credentialFields.deskOperatorPassword || '',
+                          deskOperatorName: credentialFields.deskOperatorName || 'Samuel Adjetey',
+                          sessionExpired: false
                         });
                         setShowFamilyCredentials(false);
-                        setSaveMessage('Family credentials provisioned successfully.');
+                        setSaveMessage('Client credentials provisioned successfully.');
                         setTimeout(() => setSaveMessage(''), 3000);
                       }
                     }}

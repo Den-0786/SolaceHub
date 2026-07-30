@@ -1,7 +1,8 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useMemo, useEffect } from 'react';
-import { Search, Download, Wallet, Calendar,FileText, TrendingUp } from 'lucide-react';
+import { Search, Download, Wallet, Calendar, FileText, TrendingUp, Loader2 } from 'lucide-react';
 import { useOwnerSettings } from '../../hooks/useOwnerSettings.js';
+import { API_CONFIG, getAuthHeaders } from '../../config/api.js';
 
 export default function RegistriesTab() {
   const { settings } = useOwnerSettings();
@@ -9,6 +10,8 @@ export default function RegistriesTab() {
   const [dayFilter, setDayFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [donorData, setDonorData] = useState([]);
   const entriesPerPage = 15;
 
   useEffect(() => {
@@ -20,26 +23,37 @@ export default function RegistriesTab() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Mock data for demonstration with actual calendar dates
-  const donorData = [
-    { id: '#RC-8821', name: 'Daniel Boateng', phone: '+233 24 123 4567', amount: 2500.00, calendarDate: '2024-01-24', dayNumber: 1, time: '14:22 PM', date: 'Jan 24', loggedBy: 'Kwame Akoto' },
-    { id: '#RC-8820', name: 'Ama Serwaa', phone: '+233 24 234 5678', amount: 1200.00, calendarDate: '2024-01-24', dayNumber: 1, time: '14:15 PM', date: 'Jan 24', loggedBy: 'Sister Abena' },
-    { id: '#RC-8819', name: 'Kwame Asante', phone: '+233 24 345 6789', amount: 500.00, calendarDate: '2024-01-25', dayNumber: 2, time: '14:05 PM', date: 'Jan 25', loggedBy: 'Kwame Akoto' },
-    { id: '#RC-8818', name: 'Efua Dufie', phone: '+233 24 456 7890', amount: 3000.00, calendarDate: '2024-01-24', dayNumber: 1, time: '13:58 PM', date: 'Jan 24', loggedBy: 'Nana Yaw' },
-    { id: '#RC-8817', name: 'Kofi Mensah', phone: '+233 24 567 8901', amount: 750.00, calendarDate: '2024-01-25', dayNumber: 2, time: '13:45 PM', date: 'Jan 25', loggedBy: 'Kwame Akoto' },
-    { id: '#RC-8816', name: 'Yaa Asantewaa', phone: '+233 24 678 9012', amount: 1800.00, calendarDate: '2024-01-24', dayNumber: 1, time: '13:30 PM', date: 'Jan 24', loggedBy: 'Sister Abena' },
-    { id: '#RC-8815', name: 'Nana Kwame', phone: '+233 24 789 0123', amount: 1200.00, calendarDate: '2024-01-25', dayNumber: 2, time: '13:20 PM', date: 'Jan 25', loggedBy: 'Nana Yaw' },
-    { id: '#RC-8814', name: 'Akosua Mensah', phone: '+233 24 890 1234', amount: 950.00, calendarDate: '2024-01-24', dayNumber: 1, time: '13:10 PM', date: 'Jan 24', loggedBy: 'Kwame Akoto' },
-    { id: '#RC-8813', name: 'Kofi Boateng', phone: '+233 24 901 2345', amount: 2100.00, calendarDate: '2024-01-25', dayNumber: 2, time: '13:00 PM', date: 'Jan 25', loggedBy: 'Sister Abena' },
-    { id: '#RC-8812', name: 'Efua Danso', phone: '+233 24 012 3456', amount: 1500.00, calendarDate: '2024-01-24', dayNumber: 1, time: '12:50 PM', date: 'Jan 24', loggedBy: 'Nana Yaw' },
-    { id: '#RC-8811', name: 'Kwame Duah', phone: '+233 24 123 4568', amount: 800.00, calendarDate: '2024-01-25', dayNumber: 2, time: '12:40 PM', date: 'Jan 25', loggedBy: 'Kwame Akoto' },
-    { id: '#RC-8810', name: 'Yaa Manu', phone: '+233 24 234 5679', amount: 1750.00, calendarDate: '2024-01-24', dayNumber: 1, time: '12:30 PM', date: 'Jan 24', loggedBy: 'Sister Abena' },
-    { id: '#RC-8809', name: 'Nana Osei', phone: '+233 24 345 6780', amount: 2200.00, calendarDate: '2024-01-25', dayNumber: 2, time: '12:20 PM', date: 'Jan 25', loggedBy: 'Nana Yaw' },
-    { id: '#RC-8808', name: 'Akosua Ofori', phone: '+233 24 456 7891', amount: 1300.00, calendarDate: '2024-01-24', dayNumber: 1, time: '12:10 PM', date: 'Jan 24', loggedBy: 'Kwame Akoto' },
-    { id: '#RC-8807', name: 'Kofi Osei', phone: '+233 24 567 8902', amount: 900.00, calendarDate: '2024-01-25', dayNumber: 2, time: '12:00 PM', date: 'Jan 25', loggedBy: 'Sister Abena' },
-    { id: '#RC-8806', name: 'Yaa Amoako', phone: '+233 24 678 9013', amount: 1600.00, calendarDate: '2024-01-24', dayNumber: 1, time: '11:50 AM', date: 'Jan 24', loggedBy: 'Nana Yaw' },
-    { id: '#RC-8805', name: 'Nana Mensah', phone: '+233 24 789 0124', amount: 1950.00, calendarDate: '2024-01-25', dayNumber: 2, time: '11:40 AM', date: 'Jan 25', loggedBy: 'Kwame Akoto' },
-  ];
+  useEffect(() => {
+    fetchDonorData();
+  }, []);
+
+  const fetchDonorData = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(API_CONFIG.ENDPOINTS.DONORS, {
+        headers: getAuthHeaders(),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setDonorData(data.results || data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch donor data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="animate-spin text-indigo-950" size={32} />
+          <p className="text-sm text-gray-500">Loading registry data...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Calculate analytics - group by calendar date dynamically
   const analytics = useMemo(() => {

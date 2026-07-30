@@ -34,68 +34,16 @@ function Hero({ id, onGetStarted }) {
           </div>
 
           <div className="relative">
-            <div className="bg-white rounded-3xl p-4 sm:p-6 lg:p-8 h-[400px] sm:h-[450px] lg:h-[500px] flex items-center justify-center shadow-2xl relative">
-              <div className="rounded-2xl p-1 relative overflow-hidden h-full w-full">
-                <img 
-                  src="https://images.unsplash.com/photo-1762990006179-1d8d7c05eb89?fm=jpg&q=60&w=3000&auto=format&fit=crop" 
-                  alt="Memorial candles and flowers" 
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
-                
-                <div className="relative bg-dark-midnight rounded-xl p-2 sm:p-3 transform -rotate-4 transition-transform duration-300 w-[80%] sm:w-3/4 max-h-[90%] border-2 sm:border-4 border-black absolute top-[45%] sm:top-[43%] left-1/2 -translate-x-1/2 -translate-y-1/2">
-                  <div className="bg-white rounded-lg p-2 sm:p-3 space-y-2 sm:space-y-3">
-                    <div className="flex items-center justify-between border-b border-gray-200 pb-1.5 sm:pb-2">
-                      <div className="flex items-center gap-1">
-                        <img src="/SolaceHubLogo.jpeg" alt="SolaceHub" className="h-4 w-4 sm:h-5 sm:w-5 rounded-full" />
-                        <span className="text-text-primary font-bold text-[10px] sm:text-xs">SolaceHub</span>
-                      </div>
-                      <button className="bg-accent-gold text-white font-semibold text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 rounded-full hover:bg-amber-500 transition">Login</button>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-text-primary font-bold text-base sm:text-xl mb-1.5 sm:mb-2">Make a Donation</p>
-                      <p className="text-text-muted text-xs sm:text-sm">Select an amount</p>
-                    </div>
-                    
-                    <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
-                      <button className="bg-light-cream border border-gray-200 sm:border-2 rounded-lg py-1.5 sm:py-2 text-text-primary font-semibold text-xs sm:text-sm hover:border-primary-green hover:text-primary-green transition">
-                        $50
-                      </button>
-                      <button className="bg-light-cream border border-gray-200 sm:border-2 rounded-lg py-1.5 sm:py-2 text-text-primary font-semibold text-xs sm:text-sm hover:border-primary-green hover:text-primary-green transition">
-                        $100
-                      </button>
-                      <button className="bg-black border border-gold sm:border-2 rounded-lg py-1.5 sm:py-2 text-white font-semibold text-xs sm:text-sm">
-                        $250
-                      </button>
-                    </div>
-                    
-                    <div className="space-y-2 sm:space-y-3">
-                      <input 
-                        type="text" 
-                        placeholder="Donor Name" 
-                        className="w-full bg-light-cream border border-gray-200 rounded-lg px-3 sm:px-4 py-1.5 sm:py-2 text-text-primary placeholder-gray-400 focus:outline-none focus:border-primary-green text-xs sm:text-sm"
-                      />
-                      <input 
-                        type="text" 
-                        placeholder="Memorial Name" 
-                        className="w-full bg-light-cream border border-gray-200 rounded-lg px-3 sm:px-4 py-1.5 sm:py-2 text-text-primary placeholder-gray-400 focus:outline-none focus:border-primary-green text-xs sm:text-sm"
-                      />
-                    </div>
-                    
-                      <button className="w-full bg-dark-slate text-white py-1.5 sm:py-2 rounded-lg font-semibold hover:bg-gray-800 transition text-xs sm:text-sm">
-                      Donate Now
-                    </button>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 bg-white rounded-xl p-1.5 sm:p-2 px-3 sm:px-4 w-[90%] sm:w-[30rem] max-w-[400px] border border-gray-100">
-                <p className="text-[8px] sm:text-[10px] tracking-wider text-amber-600 font-bold">RECENT TRIBUTE</p>
-                <div className="flex items-center justify-between">
-                  <p className="text-text-primary font-semibold text-xs sm:text-sm">$250.00 - Anonymous</p>
-                  <div className="bg-amber-100 rounded-full p-0.5 sm:p-1">
-                    <Check size={10} className="text-amber-600" />
-                  </div>
-                </div>
+            <div className="bg-white rounded-3xl p-4 sm:p-6 lg:p-8 h-[400px] sm:h-[450px] lg:h-[500px] flex items-center justify-center shadow-2xl relative overflow-hidden">
+              <img 
+                src="/pos.jpg" 
+                alt="Memorial candles and flowers" 
+                className="w-full h-full object-cover rounded-2xl"
+              />
+              <div className="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-tl from-black/20 to-transparent rounded-tl-3xl"></div>
+              <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg">
+                <p className="text-xs font-semibold text-gray-900">SolaceHub</p>
+                <p className="text-[10px] text-gray-600">Tribute Management</p>
               </div>
             </div>
           </div>

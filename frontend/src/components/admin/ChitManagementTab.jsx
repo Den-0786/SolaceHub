@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Search, Filter, Download, Utensils, Calendar, Users, FileText, TrendingUp } from 'lucide-react';
+import { Search, Filter, Download, Utensils, Calendar, Users, FileText, TrendingUp, Loader2 } from 'lucide-react';
 import { useOwnerSettings } from '../../hooks/useOwnerSettings.js';
+import { API_CONFIG, getAuthHeaders } from '../../config/api.js';
 
 export default function ChitManagementTab() {
   const { settings } = useOwnerSettings();
@@ -8,6 +9,8 @@ export default function ChitManagementTab() {
   const [dayFilter, setDayFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [chitData, setChitData] = useState([]);
   const entriesPerPage = 15;
 
   useEffect(() => {
@@ -19,26 +22,37 @@ export default function ChitManagementTab() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Mock data for demonstration with actual calendar dates
-  const chitData = useMemo(() => [
-    { id: '#CH-1024', representative: 'Elder Owusu', guests: 4, type: 'VIP Package', calendarDate: '2024-01-24', dayNumber: 1, time: '14:18 PM', date: 'Jan 24', issuedBy: 'Kwame Akoto' },
-    { id: '#CH-1023', representative: 'Akosua Mensah', guests: 3, type: 'Food & Soft Drink', calendarDate: '2024-01-24', dayNumber: 1, time: '14:10 PM', date: 'Jan 24', issuedBy: 'Sister Abena' },
-    { id: '#CH-1022', representative: 'Nana Kwame', guests: 2, type: 'Food Only', calendarDate: '2024-01-25', dayNumber: 2, time: '13:55 PM', date: 'Jan 25', issuedBy: 'Kwame Akoto' },
-    { id: '#CH-1021', representative: 'Abena Kusi', guests: 1, type: 'Beverage / Water Only', calendarDate: '2024-01-24', dayNumber: 1, time: '13:42 PM', date: 'Jan 24', issuedBy: 'Sister Abena' },
-    { id: '#CH-1020', representative: 'Kofi Boateng', guests: 5, type: 'Food & Soft Drink', calendarDate: '2024-01-25', dayNumber: 2, time: '13:28 PM', date: 'Jan 25', issuedBy: 'Nana Yaw' },
-    { id: '#CH-1019', representative: 'Efua Danso', guests: 2, type: 'VIP Package', calendarDate: '2024-01-24', dayNumber: 1, time: '13:15 PM', date: 'Jan 24', issuedBy: 'Kwame Akoto' },
-    { id: '#CH-1018', representative: 'Kwame Duah', guests: 4, type: 'Food & Soft Drink', calendarDate: '2024-01-25', dayNumber: 2, time: '13:05 PM', date: 'Jan 25', issuedBy: 'Sister Abena' },
-    { id: '#CH-1017', representative: 'Yaa Manu', guests: 3, type: 'Food Only', calendarDate: '2024-01-24', dayNumber: 1, time: '12:50 PM', date: 'Jan 24', issuedBy: 'Nana Yaw' },
-    { id: '#CH-1016', representative: 'Nana Osei', guests: 6, type: 'VIP Package', calendarDate: '2024-01-25', dayNumber: 2, time: '12:40 PM', date: 'Jan 25', issuedBy: 'Kwame Akoto' },
-    { id: '#CH-1015', representative: 'Akosua Ofori', guests: 2, type: 'Beverage / Water Only', calendarDate: '2024-01-24', dayNumber: 1, time: '12:25 PM', date: 'Jan 24', issuedBy: 'Sister Abena' },
-    { id: '#CH-1014', representative: 'Kofi Osei', guests: 4, type: 'Food & Soft Drink', calendarDate: '2024-01-25', dayNumber: 2, time: '12:15 PM', date: 'Jan 25', issuedBy: 'Nana Yaw' },
-    { id: '#CH-1013', representative: 'Yaa Amoako', guests: 3, type: 'Food Only', calendarDate: '2024-01-24', dayNumber: 1, time: '12:00 PM', date: 'Jan 24', issuedBy: 'Kwame Akoto' },
-    { id: '#CH-1012', representative: 'Nana Mensah', guests: 5, type: 'VIP Package', calendarDate: '2024-01-25', dayNumber: 2, time: '11:45 AM', date: 'Jan 25', issuedBy: 'Sister Abena' },
-    { id: '#CH-1011', representative: 'Kwame Ofori', guests: 2, type: 'Beverage / Water Only', calendarDate: '2024-01-24', dayNumber: 1, time: '11:30 AM', date: 'Jan 24', issuedBy: 'Nana Yaw' },
-    { id: '#CH-1010', representative: 'Akosua Amoako', guests: 4, type: 'Food & Soft Drink', calendarDate: '2024-01-25', dayNumber: 2, time: '11:15 AM', date: 'Jan 25', issuedBy: 'Kwame Akoto' },
-    { id: '#CH-1009', representative: 'Nana Ofori', guests: 3, type: 'Food Only', calendarDate: '2024-01-24', dayNumber: 1, time: '11:00 AM', date: 'Jan 24', issuedBy: 'Sister Abena' },
-    { id: '#CH-1008', representative: 'Kofi Amoako', guests: 6, type: 'VIP Package', calendarDate: '2024-01-25', dayNumber: 2, time: '10:45 AM', date: 'Jan 25', issuedBy: 'Nana Yaw' },
-  ], []);
+  useEffect(() => {
+    fetchChitData();
+  }, []);
+
+  const fetchChitData = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(API_CONFIG.ENDPOINTS.CHITS, {
+        headers: getAuthHeaders(),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setChitData(data.results || data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch chit data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="animate-spin text-indigo-950" size={32} />
+          <p className="text-sm text-gray-500">Loading chit data...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Calculate analytics - group by calendar date dynamically
   const analytics = useMemo(() => {

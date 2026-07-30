@@ -13,7 +13,9 @@ export default function SessionTimerTab({
   timeRemaining,
   setTimeRemaining,
   isLocked,
-  setIsLocked
+  setIsLocked,
+  onExpire,
+  onReset
 }) {
 
   useEffect(() => {
@@ -26,6 +28,10 @@ export default function SessionTimerTab({
 
       if (isLocked || diff <= 0) {
         setTimeRemaining('00:00:00:00');
+        if (diff <= 0 && !isLocked && onExpire) {
+          setIsLocked(true);
+          onExpire();
+        }
         return;
       }
 
@@ -40,7 +46,7 @@ export default function SessionTimerTab({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [startTimestamp, durationDays, durationHours, isLocked]);
+  }, [startTimestamp, durationDays, durationHours, isLocked, onExpire]);
 
   const handleExtend24Hours = () => {
     setDurationHours((prev) => prev + 24);
@@ -48,6 +54,7 @@ export default function SessionTimerTab({
 
   const handleLockSession = () => {
     setIsLocked(true);
+    if (onExpire) onExpire();
   };
 
   const handleResetCredentials = () => {
@@ -56,6 +63,7 @@ export default function SessionTimerTab({
     setDurationDays(3);
     setDurationHours(0);
     setIsLocked(false);
+    if (onReset) onReset();
   };
 
   const handleExportCSV = () => {

@@ -23,15 +23,15 @@ import OwnerSettingsModal from '../components/OwnerSettingsModal.jsx';
 import DeploymentTab from '../components/owner/DeploymentTab.jsx';
 import SessionTimerTab from '../components/owner/SessionTimerTab.jsx';
 import AnalyticsTab from '../components/owner/AnalyticsTab.jsx';
-import TenantManagement from '../components/owner/TenantManagement.jsx';
 import { useOwnerSettings } from '../hooks/useOwnerSettings.js';
 import { useToast } from '../hooks/useToast.js';
 import { API_CONFIG, getAuthHeaders } from '../config/api.js';
 
 function OwnerDashboard() {
   const navigate = useNavigate();
-  const { settings } = useOwnerSettings();
+  const { settings, updateSettings } = useOwnerSettings();
   const { addToast } = useToast();
+  const { activeDeployment } = useDeployment();
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeLink, setActiveLink] = useState('Dashboard');
@@ -42,60 +42,18 @@ function OwnerDashboard() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
+  // Data state
+  const [events, setEvents] = useState([]);
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [analyticsLabels, setAnalyticsLabels] = useState(null);
   
   // Deployment state shared with DeploymentTab
-  const [deployments, setDeployments] = useState([
-    {
-      id: 1,
-      title: 'Mansa Family Funeral',
-      venue: 'Main Hall Desk 1',
-      client: 'Kwame Mensah',
-      phone: '+233 245660786',
-      hardware: ['TAB-02', 'PRN-58A'],
-      roleMapping: 'Donation Desk',
-      status: 'Pending'
-    },
-    {
-      id: 2,
-      title: 'Agyeman Memorial Service',
-      venue: 'Community Center Hall B',
-      client: 'Ama Serwaa',
-      phone: '+233 205556789',
-      hardware: [],
-      roleMapping: 'Chit Desk',
-      status: 'Pending'
-    },
-    {
-      id: 3,
-      title: 'Owusu Family Tribute',
-      venue: 'Residential Compound',
-      client: 'Nana Yaw',
-      phone: '+233 244445555',
-      hardware: [],
-      roleMapping: 'Full Setup',
-      status: 'Active'
-    },
-    {
-      id: 4,
-      title: 'Adwoa Memorial',
-      venue: 'City Center Hall',
-      client: 'Kofi Ofori',
-      phone: '+233 244446666',
-      hardware: [],
-      roleMapping: 'Donation Desk',
-      status: 'Rejected'
-    },
-  ]);
+  const [deployments, setDeployments] = useState([]);
   
   // Hardware inventory state
-  const [hardwareInventory, setHardwareInventory] = useState([
-    { id: 'TAB-01', name: 'Samsung Galaxy Tab A8 - Desk 1', type: 'Tablet', status: 'Available', assigned_event_id: null },
-    { id: 'TAB-02', name: 'Samsung Galaxy Tab A8 - Desk 2', type: 'Tablet', status: 'In Use', assigned_event_id: 1 },
-    { id: 'TAB-03', name: 'Samsung Galaxy Tab A8 - Registry', type: 'Tablet', status: 'Available', assigned_event_id: null },
-    { id: 'PRN-58A', name: '58mm Thermal Printer A', type: 'Thermal Printer', status: 'In Use', assigned_event_id: 1 },
-    { id: 'PRN-58B', name: '58mm Thermal Printer B', type: 'Thermal Printer', status: 'Available', assigned_event_id: null },
-    { id: 'PRN-80A', name: '80mm Thermal Printer A', type: 'Thermal Printer', status: 'Maintenance', assigned_event_id: null },
-  ]);
+  const [hardwareInventory, setHardwareInventory] = useState([]);
 
   // Session state
   const [eventName, setEventName] = useState('Agyeman Memorial Service');
@@ -110,7 +68,6 @@ function OwnerDashboard() {
 
   const sidebarLinks = [
     { name: 'Dashboard', icon: LayoutDashboard },
-    { name: 'Tenants', icon: Users },
     { name: 'Deployments', icon: Calendar },
     { name: 'Session Timer', icon: Clock },
     { name: 'Analytics', icon: BarChart3 },
@@ -132,7 +89,7 @@ function OwnerDashboard() {
     } finally {
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
-      localStorage.removeItem('familyHeadPassword');
+      localStorage.removeItem('clientPassword');
       localStorage.removeItem('deskOperatorPassword');
       localStorage.removeItem('isTempLogin');
       addToast('Signed out successfully.', 'info', 2000);
@@ -179,26 +136,10 @@ function OwnerDashboard() {
     }
   };
 
-  const events = [
-    { title: 'Agyeman Memorial Service', date: '2026-07-20', transactions: 124, status: 'Expired' },
-    { title: 'Owusu Family Tribute', date: '2026-07-15', transactions: 89, status: 'Expired' },
-    { title: 'Boateng Funeral Wake', date: '2026-07-10', transactions: 210, status: 'Expired' },
-    { title: 'Serwaa Memorial', date: '2026-07-05', transactions: 76, status: 'Expired' }
-  ];
-
-  const analyticsData = {
-    Weekly: [12, 18, 15, 22, 19, 25, 14],
-    Monthly: [45, 52, 48, 61, 55, 70, 58, 66, 72, 80, 74, 88],
-    Yearly: [520, 640, 710, 820, 790, 860, 910, 880, 950, 1020, 1100, 1150]
-  };
-
-  const analyticsLabels = {
-    Weekly: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    Monthly: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-    Yearly: ['2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026']
-  };
-
-  const maxValue = useMemo(() => Math.max(...analyticsData[analyticsPeriod], 0), [analyticsPeriod]);
+  const maxValue = useMemo(() => {
+    if (!analyticsData || !analyticsData[analyticsPeriod]) return 0;
+    return Math.max(...analyticsData[analyticsPeriod], 0);
+  }, [analyticsPeriod, analyticsData]);
 
   const handleExtend24Hours = () => {
     setDurationHours((prev) => prev + 24);
@@ -210,47 +151,39 @@ function OwnerDashboard() {
     setDurationDays(3);
     setDurationHours(0);
     setIsLocked(false);
+    updateSettings({ sessionExpired: false });
+  };
+
+  const handleReset = () => {
+    updateSettings({ sessionExpired: false });
   };
 
   const handleExpirationLock = () => {
     setIsLocked(true);
-    
+    updateSettings({ sessionExpired: true });
+
     // 1. Invalidate all active user sessions and tokens
     // TODO: Replace localStorage with secure backend authentication when ready
-// Storing passwords in localStorage is not secure for production
-    localStorage.removeItem('familyHeadPassword');
+    localStorage.removeItem('clientPassword');
     localStorage.removeItem('deskOperatorPassword');
     localStorage.removeItem('isTempLogin');
-    
-    // 2. Overwrite both family_admin_password and desk_operator_password with Master Fallback Password
+
+    // 2. Overwrite both client_password and desk_operator_password with Master Fallback Password
     const masterFallbackPassword = settings.masterFallbackPassword || 'default-master-fallback';
-    localStorage.setItem('familyHeadPassword', masterFallbackPassword);
+    localStorage.setItem('clientPassword', masterFallbackPassword);
     localStorage.setItem('deskOperatorPassword', masterFallbackPassword);
-    
+
     // 3. Lock all live portals and compile final Master CSV Archive
     addToast('Event session expired. All user sessions invalidated, passwords reset to Master Fallback Key.', 'warning', 5000);
     addToast('Live portals locked. Master CSV Archive compilation initiated.', 'info', 5000);
-    
+
     // Trigger CSV export
     handleExportCSV();
   };
 
   const handleExportCSV = () => {
-    const rows = [
-      ['Receipt No.', 'Donor Name', 'Amount (GHC)', 'Time', 'Logged By'],
-      ['#RC-8821', 'Daniel Boateng', '2500.00', '14:22 PM', 'Kwame Akoto'],
-      ['#RC-8820', 'Ama Serwaa', '1200.00', '14:15 PM', 'Sister Abena'],
-      ['#CH-1024', 'Elder Owusu', 'VIP Package', '14:18 PM', 'Kwame Akoto']
-    ];
-    const csvContent = rows.map((row) => row.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'solacehub_master_backup.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // TODO: Implement actual CSV export from backend data
+    addToast('CSV export feature coming soon', 'info');
   };
 
   const metrics = useMemo(() => {
@@ -290,10 +223,6 @@ function OwnerDashboard() {
       );
     }
 
-    if (activeLink === 'Tenants') {
-      return <TenantManagement />;
-    }
-
     if (activeLink === 'Session Timer') {
       return (
         <SessionTimerTab
@@ -309,6 +238,8 @@ function OwnerDashboard() {
           setTimeRemaining={setTimeRemaining}
           isLocked={isLocked}
           setIsLocked={setIsLocked}
+          onExpire={handleExpirationLock}
+          onReset={handleReset}
         />
       );
     }

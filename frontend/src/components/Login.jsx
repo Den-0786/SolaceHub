@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { User, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
 import logo from '/SolaceHubLogo.jpeg';
 import { useToast } from '../hooks/useToast.js';
+import { useOwnerSettings } from '../hooks/useOwnerSettings.js';
 import { API_CONFIG, getAuthHeaders } from '../config/api.js';
 
 function Login() {
@@ -13,12 +14,14 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { addToast } = useToast();
+  const { settings } = useOwnerSettings();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
+    // Try backend API login first for owner
     try {
       const response = await fetch(API_CONFIG.ENDPOINTS.AUTH.LOGIN, {
         method: 'POST',
@@ -31,33 +34,64 @@ function Login() {
       if (response.ok) {
         localStorage.setItem('authToken', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        
+
         const routeMap = {
           'owner': '/owner-dashboard',
           'admin': '/admin-dashboard',
-          'family_head': '/admin-dashboard',
+          'client': '/admin-dashboard',
           'desk_operator': '/chit-console',
         };
-        
+
         const route = routeMap[data.user.role] || '/';
         addToast(`Welcome back, ${data.user.role} (${username})`, 'success', 2500);
         setTimeout(() => {
           window.location.href = route;
         }, 800);
-      } else if (response.status === 403 && data.fallback !== undefined) {
-        // Handle subscription expiration
-        setError(data.message || 'Subscription expired');
-        addToast(data.message || 'Subscription expired. Please contact system administration.', 'error', 5000);
-      } else {
-        setError(data.error || 'Invalid username or password.');
-        addToast(data.error || 'Invalid username or password.', 'error');
+        setLoading(false);
+        return;
       }
     } catch (err) {
-      setError('Connection error. Please try again.');
-      addToast('Connection error. Please try again.', 'error');
-    } finally {
-      setLoading(false);
+      console.error('Backend login error:', err);
     }
+
+    // Fallback to local credential validation for client and fallback
+    const isSessionExpired = settings.sessionExpired;
+
+    // Check fallback credentials (master fallback)
+    if (username === settings.masterFallbackUsername && password === settings.masterFallbackPassword) {
+      localStorage.setItem('authToken', 'local-fallback-token');
+      localStorage.setItem('user', JSON.stringify({ username, role: 'owner' }));
+      addToast('Logged in with Master Fallback credentials', 'success', 2500);
+      setTimeout(() => {
+        window.location.href = '/owner-dashboard';
+      }, 800);
+      setLoading(false);
+      return;
+    }
+
+    // Check client credentials (only if session not expired)
+    if (!isSessionExpired && username === settings.clientUsername && password === settings.clientPassword) {
+      localStorage.setItem('authToken', 'local-client-token');
+      localStorage.setItem('user', JSON.stringify({ username, role: 'client' }));
+      addToast('Logged in as Client', 'success', 2500);
+      setTimeout(() => {
+        window.location.href = '/admin-dashboard';
+      }, 800);
+      setLoading(false);
+      return;
+    }
+
+    // If session expired and not using fallback, show error
+    if (isSessionExpired) {
+      setError('Session expired. Please use Master Fallback credentials.');
+      addToast('Session expired. Please use Master Fallback credentials.', 'error', 5000);
+      setLoading(false);
+      return;
+    }
+
+    setError('Invalid username or password.');
+    addToast('Invalid username or password.', 'error');
+    setLoading(false);
   };
 
   return (

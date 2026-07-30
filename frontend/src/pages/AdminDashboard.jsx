@@ -7,7 +7,7 @@ import DeceasedEntryForm from '../components/admin/DeceasedEntryForm.jsx';
 import RegistriesTab from '../components/admin/RegistriesTab.jsx';
 import ChitManagementTab from '../components/admin/ChitManagementTab.jsx';
 import ReportsTab from '../components/admin/ReportsTab.jsx';
-import FamilySettings from './FamilySettings.jsx';
+import ClientSettings from './ClientSettings.jsx';
 import NotificationBell from '../components/NotificationBell.jsx';
 import { API_CONFIG, getAuthHeaders } from '../config/api.js';
 
