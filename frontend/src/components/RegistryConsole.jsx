@@ -123,7 +123,9 @@ function RegistryConsole() {
   };
 
   const handleAmountChange = (e) => {
-    let value = e.target.value.replace(/[^0-9.]/g, '');
+    let value = e.target.value;
+    // Remove any non-numeric characters except decimal point
+    value = value.replace(/[^0-9.]/g, '');
     // Allow only one decimal point
     const parts = value.split('.');
     if (parts.length > 2) {
@@ -350,16 +352,15 @@ function RegistryConsole() {
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Amount (GHC)</label>
-                        <div className="relative">
-                          <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 text-2xl font-bold">GH₵</span>
-                          <input
-                            type="text"
-                            value={amount}
-                            onChange={(e) => handleAmountChange(e.target.value)}
-                            placeholder="0.00"
-                            className="w-full pl-16 pr-4 py-3 border border-gray-300 rounded-lg text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-indigo-950"
-                          />
-                        </div>
+                        <input
+                          type="number"
+                          value={amount}
+                          onChange={(e) => setAmount(e.target.value)}
+                          placeholder="0.00"
+                          step="0.01"
+                          min="0"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-indigo-950"
+                        />
                         <p className="text-sm text-gray-500 mt-1">Formatted: {formatAmountForDisplay(amount)}</p>
                       </div>
                       
