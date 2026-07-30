@@ -1,32 +1,11 @@
 from rest_framework import serializers
-from .models import User, Tenant, TenantCredential
+from .models import User, Credential
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'role', 'tenant', 'is_using_fallback', 'created_at']
+        fields = ['id', 'username', 'role', 'created_at']
         read_only_fields = ['id', 'created_at']
-
-class TenantSerializer(serializers.ModelSerializer):
-    owner_username = serializers.CharField(source='owner.username', read_only=True)
-    is_active = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Tenant
-        fields = ['id', 'name', 'owner', 'owner_username', 'hired_start_date', 'hired_duration_days', 'expiration_date', 'status', 'is_active', 'created_at']
-        read_only_fields = ['id', 'created_at']
-    
-    def get_is_active(self, obj):
-        return obj.is_active()
-
-class TenantCredentialSerializer(serializers.ModelSerializer):
-    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
-    tenant_name = serializers.CharField(source='tenant.name', read_only=True)
-    
-    class Meta:
-        model = TenantCredential
-        fields = ['id', 'tenant', 'tenant_name', 'credential_type', 'username', 'fallback_username', 'created_by', 'created_by_username', 'is_active', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
 
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
@@ -36,3 +15,16 @@ class LoginSerializer(serializers.Serializer):
 class PasswordChangeSerializer(serializers.Serializer):
     old_password = serializers.CharField()
     new_password = serializers.CharField(min_length=8)
+
+class CredentialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Credential
+        fields = ['id', 'credential_type', 'username', 'password_hash', 'desk_operator_name', 'temp_login', 'session_expired', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+class CredentialUpdateSerializer(serializers.Serializer):
+    username = serializers.CharField(required=False)
+    password = serializers.CharField(required=False)
+    desk_operator_name = serializers.CharField(required=False, allow_blank=True)
+    temp_login = serializers.BooleanField(required=False)
+    session_expired = serializers.BooleanField(required=False)
