@@ -58,7 +58,7 @@ export default function ChitManagementTab() {
     }
   };
 
-  if (loading && !showEmptyState) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex flex-col items-center gap-3">
@@ -69,7 +69,7 @@ export default function ChitManagementTab() {
     );
   }
 
-  if (showEmptyState || chitData.length === 0) {
+  if (chitData.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center bg-white rounded-2xl p-8 border border-gray-200 shadow-sm">

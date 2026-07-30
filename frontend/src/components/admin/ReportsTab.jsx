@@ -31,13 +31,6 @@ export default function ReportsTab() {
 
   const fetchReportData = async () => {
     setLoading(true);
-    setShowEmptyState(false);
-    
-    // Set a timeout to show empty state after 5 seconds
-    const timeoutId = setTimeout(() => {
-      setShowEmptyState(true);
-    }, 5000);
-    
     try {
       const response = await fetch(API_CONFIG.ENDPOINTS.REPORTS, {
         headers: getAuthHeaders(),
@@ -50,15 +43,10 @@ export default function ReportsTab() {
         setRefreshmentAuditData(data.refreshmentAudit);
       } else {
         console.error('Failed to fetch report data:', response.status);
-        // Show empty state even if API fails
-        setShowEmptyState(true);
       }
     } catch (err) {
       console.error('Failed to fetch report data:', err);
-      // Show empty state even if API fails
-      setShowEmptyState(true);
     } finally {
-      clearTimeout(timeoutId);
       setLoading(false);
     }
   };
@@ -79,7 +67,7 @@ export default function ReportsTab() {
     console.log('Exporting raw data to Excel/CSV...');
   };
 
-  if (loading && !showEmptyState) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex flex-col items-center gap-3">
@@ -90,7 +78,7 @@ export default function ReportsTab() {
     );
   }
 
-  if (showEmptyState || (!summaryData && !financialAuditData && !topDonors && !refreshmentAuditData)) {
+  if (!summaryData && !financialAuditData && !topDonors && !refreshmentAuditData) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center bg-white rounded-2xl p-8 border border-gray-200 shadow-sm">
