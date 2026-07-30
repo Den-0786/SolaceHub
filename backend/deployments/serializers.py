@@ -17,8 +17,14 @@ class DeploymentSerializer(serializers.ModelSerializer):
     hardware_set = HardwareSerializer(many=True, read_only=True)
     created_by_name = serializers.CharField(source='created_by.username', read_only=True)
     session_timer = SessionTimerSerializer(read_only=True)
+    dates = serializers.SerializerMethodField()
 
     class Meta:
         model = Deployment
-        fields = ['id', 'title', 'venue', 'client', 'phone', 'start_date', 'end_date', 'status', 'created_by', 'created_by_name', 'hardware_set', 'session_timer', 'created_at', 'updated_at']
+        fields = ['id', 'title', 'venue', 'client', 'phone', 'start_date', 'end_date', 'status', 'created_by', 'created_by_name', 'hardware_set', 'session_timer', 'dates', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_dates(self, obj):
+        if obj.start_date and obj.end_date:
+            return f"{obj.start_date.year} – {obj.end_date.year}"
+        return ''
