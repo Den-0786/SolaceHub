@@ -18,10 +18,11 @@ class DeploymentSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source='created_by.username', read_only=True)
     session_timer = SessionTimerSerializer(read_only=True)
     dates = serializers.SerializerMethodField()
+    deceased_image = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = Deployment
-        fields = ['id', 'title', 'venue', 'client', 'phone', 'start_date', 'end_date', 'status', 'created_by', 'created_by_name', 'hardware_set', 'session_timer', 'dates', 'created_at', 'updated_at']
+        fields = ['id', 'title', 'venue', 'client', 'phone', 'start_date', 'end_date', 'status', 'created_by', 'created_by_name', 'hardware_set', 'session_timer', 'dates', 'deceased_image', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
     def get_dates(self, obj):

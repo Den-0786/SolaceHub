@@ -13,6 +13,7 @@ class Deployment(models.Model):
     phone = models.CharField(max_length=20)
     start_date = models.DateField()
     end_date = models.DateField()
+    deceased_image = models.ImageField(upload_to='deceased_images/', null=True, blank=True)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')
     created_by = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
