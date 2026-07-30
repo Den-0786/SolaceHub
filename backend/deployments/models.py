@@ -18,6 +18,22 @@ class Deployment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+class SessionTimer(models.Model):
+    deployment = models.OneToOneField(Deployment, on_delete=models.CASCADE, related_name='session_timer')
+    start_timestamp = models.DateTimeField(help_text="Session start time")
+    duration_days = models.IntegerField(default=0, help_text="Duration in days")
+    duration_hours = models.IntegerField(default=0, help_text="Duration in hours")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Session Timer'
+        verbose_name_plural = 'Session Timers'
+
+    def __str__(self):
+        return f"Session for {self.deployment.title}"
+
 class Hardware(models.Model):
     STATUS_CHOICES = [
         ('online', 'Online'),
