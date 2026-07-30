@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Search, Filter, Download, Utensils, Calendar, Users, FileText, TrendingUp, Loader2 } from 'lucide-react';
+import { Search, Filter, Download, Utensils, Calendar, Users, FileText, TrendingUp, Loader2, Ticket } from 'lucide-react';
 import { useOwnerSettings } from '../../hooks/useOwnerSettings.js';
 import { API_CONFIG, getAuthHeaders } from '../../config/api.js';
 
