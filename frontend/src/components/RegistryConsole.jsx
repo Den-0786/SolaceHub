@@ -115,6 +115,27 @@ function RegistryConsole() {
     return `GH₵ ${num.toFixed(2)}`;
   };
 
+  const formatAmountForDisplay = (value) => {
+    if (!value) return 'GH₵ 0.00';
+    const num = parseFloat(value.replace(/[^0-9.]/g, ''));
+    if (isNaN(num)) return 'GH₵ 0.00';
+    return `GH₵ ${num.toFixed(2)}`;
+  };
+
+  const handleAmountChange = (e) => {
+    let value = e.target.value.replace(/[^0-9.]/g, '');
+    // Allow only one decimal point
+    const parts = value.split('.');
+    if (parts.length > 2) {
+      value = parts[0] + '.' + parts.slice(1).join('');
+    }
+    // Limit decimal places to 2
+    if (parts.length === 2 && parts[1].length > 2) {
+      value = parts[0] + '.' + parts[1].slice(0, 2);
+    }
+    setAmount(value);
+  };
+
   const handleVisitorRegistration = (e) => {
     e.preventDefault();
     // Check if session expired - only allow fallback credentials
@@ -329,13 +350,17 @@ function RegistryConsole() {
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Amount (GHC)</label>
-                        <input
-                          type="text"
-                          value={amount}
-                          onChange={(e) => setAmount(formatAmount(e.target.value))}
-                          placeholder="GH₵ 0.00"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-indigo-950"
-                        />
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 text-2xl font-bold">GH₵</span>
+                          <input
+                            type="text"
+                            value={amount}
+                            onChange={(e) => handleAmountChange(e.target.value)}
+                            placeholder="0.00"
+                            className="w-full pl-16 pr-4 py-3 border border-gray-300 rounded-lg text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-indigo-950"
+                          />
+                        </div>
+                        <p className="text-sm text-gray-500 mt-1">Formatted: {formatAmountForDisplay(amount)}</p>
                       </div>
                       
                       <div>
@@ -379,7 +404,7 @@ function RegistryConsole() {
                       <p className="text-xs font-medium text-gray-700">DONOR NAME</p>
                       <p className="text-sm font-bold text-gray-900">{donorName || 'Guest'}</p>
                       <p className="text-xs font-medium text-gray-700 mt-2">AMOUNT RECEIVED</p>
-                      <p className="text-lg font-bold text-gray-900">{formatAmount(amount)}</p>
+                      <p className="text-lg font-bold text-gray-900">{formatAmountForDisplay(amount)}</p>
                       <div className="border-t border-dashed border-gray-300 my-2"></div>
                       <p className="text-xs text-gray-600 italic">Thank you for your kind donation & support during this time of mourning. Your generosity is deeply appreciated by the bereaved family.</p>
                       <p className="text-xs text-gray-400 mt-2">Issued by: {settings.deskOperatorName || 'Operator'}</p>
