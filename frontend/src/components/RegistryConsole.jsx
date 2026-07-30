@@ -284,7 +284,7 @@ function RegistryConsole() {
                   <h2 className="text-2xl font-bold text-gray-900 text-center">In Loving Memory of {activeDeployment?.title || 'Event'}</h2>
                   
                   {/* Date of birth */}
-                  <p className="text-gray-600 text-center">{activeDeployment?.dates || '1938 – 2026'}</p>
+                  <p className="text-gray-600 text-center">{activeDeployment?.dates || 'Dates not set'}</p>
                   
                   {/* Time and Active Reader */}
                   <div className="flex items-center gap-6">
@@ -302,10 +302,10 @@ function RegistryConsole() {
               <div className="bg-gradient-to-r from-indigo-950 to-indigo-900 rounded-xl p-6 text-white">
                 <h4 className="text-sm font-medium opacity-80 mb-2">Today's Total</h4>
                 <p className="text-3xl font-bold">GH₵ {totalAmount.toLocaleString()}.00</p>
-                <p className="text-sm opacity-80 mt-1">{entryCount} Entries processed since 08:00 AM</p>
+                <p className="text-sm opacity-80 mt-1">{entryCount} Entries processed</p>
                 <div className="flex items-center gap-1 mt-2 text-green-400">
                   <ArrowUp size={16} />
-                  <span className="text-sm">+12% from yesterday</span>
+                  <span className="text-sm">Live tracking active</span>
                 </div>
               </div>
               </div>
@@ -322,7 +322,7 @@ function RegistryConsole() {
                           type="text"
                           value={donorName}
                           onChange={(e) => setDonorName(e.target.value)}
-                          placeholder="Enter full name, e.g., Kofi Mensah"
+                          placeholder="Enter full name"
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-950"
                         />
                       </div>

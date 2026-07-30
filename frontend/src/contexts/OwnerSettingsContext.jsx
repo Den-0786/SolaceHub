@@ -20,7 +20,7 @@ const defaultSettings = {
   clientTempLogin: true,
   deskOperatorUsername: '',
   deskOperatorPassword: '',
-  deskOperatorName: 'Samuel Adjetey',
+  deskOperatorName: '',
   masterFallbackUsername: '',
   masterFallbackPassword: '',
   sessionExpired: false

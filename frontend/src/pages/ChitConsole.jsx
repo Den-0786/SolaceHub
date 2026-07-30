@@ -233,7 +233,7 @@ function ChitConsole() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-white">
-                    {settings.deskOperatorName || 'Samuel Adjetey'}
+                    {settings.deskOperatorName || 'Operator'}
                   </p>
                   <p className="text-xs text-emerald-400">Online</p>
                 </div>
@@ -383,7 +383,7 @@ function ChitConsole() {
                         type="text"
                         value={representativeName}
                         onChange={(e) => setRepresentativeName(e.target.value)}
-                        placeholder="e.g. Samuel Dogbe"
+                        placeholder="e.g. Representative Name"
                         className="w-full px-4 py-3 border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-900"
                       />
                     </div>
