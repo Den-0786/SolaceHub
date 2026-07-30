@@ -88,7 +88,7 @@ export default function ReportsTab() {
     );
   }
 
-  if (showEmptyState || (!summaryData && !financialAuditData && !topDonors && !refreshmentAuditData)) {
+  if (!summaryData) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center bg-white rounded-2xl p-8 border border-gray-200 shadow-sm">
