@@ -66,7 +66,12 @@ function RegistryConsole() {
   };
 
   const handlePrint = async () => {
-    const newAmount = parseFloat(amount.replace(/[^0-9.]/g, '')) || 0;
+    const newAmount = parseFloat(amount) || 0;
+    
+    if (newAmount <= 0) {
+      addToast('Please enter a valid amount', 'error');
+      return;
+    }
     
     try {
       const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.DONORS, {
@@ -93,7 +98,8 @@ function RegistryConsole() {
         setPhoneNumber('+233');
         addToast('Donor registered successfully', 'success');
       } else {
-        addToast('Failed to register donor', 'error');
+        const errorData = await response.json().catch(() => ({}));
+        addToast(errorData.error || 'Failed to register donor', 'error');
       }
     } catch (err) {
       addToast('Connection error', 'error');
@@ -361,7 +367,6 @@ function RegistryConsole() {
                           min="0"
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-indigo-950"
                         />
-                        <p className="text-sm text-gray-500 mt-1">Formatted: {formatAmountForDisplay(amount)}</p>
                       </div>
                       
                       <div>

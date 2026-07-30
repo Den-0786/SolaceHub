@@ -22,7 +22,7 @@ import logo from "/SolaceHubLogo.jpeg";
 import { useToast } from "../hooks/useToast.js";
 import { useDeployment } from "../contexts/DeploymentContext";
 import { useOwnerSettings } from "../hooks/useOwnerSettings.js";
-import { API_CONFIG, getAuthHeaders } from "../config/api.js";
+import { API_CONFIG, fetchWithAuth } from "../config/api.js";
 
 function ChitConsole() {
   const navigate = useNavigate();
@@ -80,16 +80,14 @@ function ChitConsole() {
 
   const handlePrintVoucher = useCallback(async () => {
     try {
-      const response = await fetch(API_CONFIG.ENDPOINTS.CHITS, {
+      const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.CHITS, {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify({
           security_code: securityCode,
           representative_name: representativeName || "Guest",
           number_of_people: numberOfPeople,
           voucher_type: voucherType,
           event_day: 1,
-          time: currentTime,
         }),
       });
 
@@ -103,12 +101,13 @@ function ChitConsole() {
         setVoucherType("full_meal");
         addToast("Chit issued successfully", "success");
       } else {
-        addToast("Failed to issue chit", "error");
+        const errorData = await response.json().catch(() => ({}));
+        addToast(errorData.error || "Failed to issue chit", "error");
       }
     } catch (err) {
       addToast("Connection error", "error");
     }
-  }, [representativeName, numberOfPeople, voucherType, securityCode, currentTime, addToast]);
+  }, [securityCode, representativeName, numberOfPeople, voucherType]);
 
   const handleDecreasePeople = () => {
     if (numberOfPeople > 1) {
@@ -472,7 +471,7 @@ function ChitConsole() {
                       </div>
                       <p className="text-xs text-indigo-600">FUNERAL OF</p>
                       <h4 className="text-sm font-bold text-indigo-900">
-                        {activeDeployment?.title || "Abena Mansa"}
+                        {activeDeployment?.title || "Event"}
                       </h4>
                       {activeDeployment?.id && (
                         <p className="text-xs text-gray-400">
