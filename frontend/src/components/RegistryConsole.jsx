@@ -108,10 +108,17 @@ function RegistryConsole() {
         addToast('Donor registered successfully', 'success');
       } else {
         const errorData = await response.json().catch(() => ({}));
-        addToast(errorData.error || 'Failed to register donor', 'error');
+        console.error('Donor registration error:', errorData);
+        addToast(errorData.error || errorData.detail || `Failed to register donor (${response.status})`, 'error');
       }
     } catch (err) {
-      addToast('Connection error', 'error');
+      console.error('Donor registration error:', err);
+      if (err.message === 'Session expired') {
+        addToast('Session expired. Please login again.', 'error');
+        navigate('/login');
+      } else {
+        addToast('Connection error. Please check your network.', 'error');
+      }
     }
   };
 
@@ -155,27 +162,15 @@ function RegistryConsole() {
 
   const handleVisitorRegistration = (e) => {
     e.preventDefault();
-    // Check if session expired - only allow fallback credentials
-    if (settings.sessionExpired) {
-      if (visitorName === settings.masterFallbackUsername) {
-        updateSettings({ deskOperatorName: visitorName });
-        setVisitorName('');
-        setShowRegistrationForm(false);
-        addToast('Logged in with Master Fallback credentials', 'success');
-      } else {
-        addToast('Session expired. Contact the system administrator.', 'error');
-      }
-      return;
-    }
-
-    // Normal desk operator validation - only check name
-    if (visitorName === settings.deskOperatorUsername) {
-      updateSettings({ deskOperatorName: visitorName });
+    
+    // Allow any name as operator name (no validation against credentials)
+    if (visitorName.trim()) {
+      updateSettings({ deskOperatorName: visitorName.trim() });
       setVisitorName('');
       setShowRegistrationForm(false);
-      addToast('Desk operator logged in successfully', 'success');
+      addToast('Operator logged in successfully', 'success');
     } else {
-      addToast('Invalid operator name', 'error');
+      addToast('Please enter an operator name', 'error');
     }
   };
 
@@ -315,7 +310,11 @@ function RegistryConsole() {
                 <div className="flex flex-col items-center gap-4">
                   {/* Picture - centered, rounded, moved up */}
                   <div className="w-20 h-20 bg-gray-200 rounded-full overflow-hidden">
-                    <img src={logo} alt="Deceased" className="w-full h-full object-cover" />
+                    {activeDeployment?.deceased_image ? (
+                      <img src={activeDeployment.deceased_image} alt="Deceased" className="w-full h-full object-cover" />
+                    ) : (
+                      <img src={logo} alt="Deceased" className="w-full h-full object-cover" />
+                    )}
                   </div>
                   
                   {/* Name - full row */}
@@ -405,7 +404,11 @@ function RegistryConsole() {
                   <div className="bg-gray-50 rounded-lg p-6 mb-4" style={{ maxWidth: '320px' }}>
                     <div className="bg-white p-4 text-center">
                       <div className="flex justify-center mb-2">
-                        <img src={logo} alt="SolaceHub" className="h-8 w-8 rounded-full" />
+                        {activeDeployment?.deceased_image ? (
+                          <img src={activeDeployment.deceased_image} alt="Deceased" className="h-16 w-16 rounded-full object-cover" />
+                        ) : (
+                          <img src={logo} alt="SolaceHub" className="h-8 w-8 rounded-full" />
+                        )}
                       </div>
                       <h4 className="text-sm font-bold text-gray-900">FUNERAL DONATION RECEIPT</h4>
                       <p className="text-xs text-gray-600">In Memory of {activeDeployment?.title || 'Event'}</p>

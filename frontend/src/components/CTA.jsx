@@ -71,14 +71,15 @@ function CTA({ id, isContactExpanded, setIsContactExpanded }) {
                 </div>
 
                 <div className="flex items-center gap-3 text-left">
-                  <div className="bg-accent-gold/20 rounded-lg p-2">
+                  <div className="bg-accent-gold/20 rounded-lg p-2 flex-shrink-0">
                     <Mail size={18} className="text-accent-gold" />
                   </div>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="text-gray-400 text-xs">Email</p>
                     <a 
                       href={`mailto:${profile.email}`}
-                      className="text-white text-sm font-medium hover:text-accent-gold transition"
+                      className="text-white text-sm font-medium hover:text-accent-gold transition block truncate"
+                      title={profile.email}
                     >
                       {profile.email}
                     </a>

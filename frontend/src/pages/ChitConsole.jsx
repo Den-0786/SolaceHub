@@ -52,29 +52,15 @@ function ChitConsole() {
   ];
 
   const handleStaffLogin = () => {
-    // Check if session expired - only allow fallback credentials
-    if (settings.sessionExpired) {
-      if (staffName === settings.masterFallbackUsername && staffPassword === settings.masterFallbackPassword) {
-        updateSettings({ deskOperatorName: staffName });
-        setStaffName("");
-        setStaffPassword("");
-        setShowStaffLoginModal(false);
-        addToast('Logged in with Master Fallback credentials', 'success');
-      } else {
-        addToast('Session expired. Please use Master Fallback credentials.', 'error');
-      }
-      return;
-    }
-
-    // Normal desk operator validation
-    if (staffName === settings.deskOperatorUsername && staffPassword === settings.deskOperatorPassword) {
-      updateSettings({ deskOperatorName: staffName });
+    // Allow any name as operator name (no validation against credentials)
+    if (staffName.trim()) {
+      updateSettings({ deskOperatorName: staffName.trim() });
       setStaffName("");
       setStaffPassword("");
       setShowStaffLoginModal(false);
-      addToast('Desk operator logged in successfully', 'success');
+      addToast('Operator logged in successfully', 'success');
     } else {
-      addToast('Invalid credentials', 'error');
+      addToast('Please enter an operator name', 'error');
     }
   };
 
@@ -110,19 +96,21 @@ function ChitConsole() {
         addToast("Chit issued successfully", "success");
       } else {
         const errorData = await response.json().catch(() => ({}));
+        console.error('Chit registration error:', errorData);
         if (response.status === 401) {
           addToast('Authentication failed. Please login again.', 'error');
           navigate('/login');
         } else {
-          addToast(errorData.error || errorData.detail || "Failed to issue chit", "error");
+          addToast(errorData.error || errorData.detail || `Failed to issue chit (${response.status})`, "error");
         }
       }
     } catch (err) {
+      console.error('Chit registration error:', err);
       if (err.message === 'Session expired') {
         addToast('Session expired. Please login again.', 'error');
         navigate('/login');
       } else {
-        addToast("Connection error", "error");
+        addToast("Connection error. Please check your network.", "error");
       }
     }
   }, [securityCode, representativeName, numberOfPeople, voucherType, navigate, addToast]);
@@ -489,11 +477,19 @@ function ChitConsole() {
                       {/* Top Header */}
                       <div className="flex justify-center mb-3">
                         <div className="w-16 h-16 bg-indigo-100 rounded-full overflow-hidden">
-                          <img
-                            src={logo}
-                            alt="Deceased"
-                            className="w-full h-full object-cover"
-                          />
+                          {activeDeployment?.deceased_image ? (
+                            <img
+                              src={activeDeployment.deceased_image}
+                              alt="Deceased"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <img
+                              src={logo}
+                              alt="Deceased"
+                              className="w-full h-full object-cover"
+                            />
+                          )}
                         </div>
                       </div>
                       <p className="text-xs text-indigo-600">FUNERAL OF</p>
