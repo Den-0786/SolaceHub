@@ -67,6 +67,18 @@ function Login() {
       return;
     }
 
+    // Check desk operator credentials for chit console access
+    if (username === settings.deskOperatorUsername && password === settings.deskOperatorPassword) {
+      localStorage.setItem('authToken', 'local-desk-operator-token');
+      localStorage.setItem('user', JSON.stringify({ username, role: 'desk_operator' }));
+      addToast('Logged in as Desk Operator', 'success', 2500);
+      setTimeout(() => {
+        window.location.href = '/chit-console';
+      }, 800);
+      setLoading(false);
+      return;
+    }
+
     // Check client credentials (only if session not expired)
     if (!isSessionExpired && username === settings.clientUsername && password === settings.clientPassword) {
       localStorage.setItem('authToken', 'local-client-token');
