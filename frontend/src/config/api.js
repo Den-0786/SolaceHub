@@ -26,3 +26,35 @@ export const getAuthHeaders = () => {
     'Authorization': `Token ${token}`,
   };
 };
+
+// Helper function to handle API calls with session expiry checking
+export const fetchWithAuth = async (url, options = {}) => {
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...getAuthHeaders(),
+        ...options.headers,
+      },
+    });
+
+    // Handle session expiry
+    if (response.status === 401) {
+      const data = await response.json().catch(() => ({}));
+      if (data.error === 'Session expired' || data.message?.includes('session expired')) {
+        // Clear auth data and redirect to login
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        throw new Error('Session expired');
+      }
+    }
+
+    return response;
+  } catch (error) {
+    if (error.message === 'Session expired') {
+      throw error;
+    }
+    throw error;
+  }
+};

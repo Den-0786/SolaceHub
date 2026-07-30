@@ -93,7 +93,7 @@ function Login() {
 
     // If session expired and not using fallback, show error
     if (isSessionExpired) {
-      addToast('Session expired. Please use Master Fallback credentials.', 'error', 5000);
+      addToast('Session expired. Contact the system administrator.', 'error', 5000);
       setLoading(false);
       return;
     }

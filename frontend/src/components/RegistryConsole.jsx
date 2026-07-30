@@ -5,7 +5,7 @@ import logo from '/SolaceHubLogo.jpeg';
 import { useToast } from '../hooks/useToast.js';
 import { useDeployment } from '../contexts/DeploymentContext';
 import { useOwnerSettings } from '../hooks/useOwnerSettings.js';
-import { API_CONFIG, getAuthHeaders } from '../config/api.js';
+import { API_CONFIG, fetchWithAuth } from '../config/api.js';
 
 function RegistryConsole() {
   const navigate = useNavigate();
@@ -16,8 +16,6 @@ function RegistryConsole() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [visitorName, setVisitorName] = useState('');
-  const [visitorPassword, setVisitorPassword] = useState('');
-  const [visitorPhone, setVisitorPhone] = useState('');
   const [donorName, setDonorName] = useState('');
   const [amount, setAmount] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('+233');
@@ -55,9 +53,7 @@ function RegistryConsole() {
 
   const fetchDonors = async () => {
     try {
-      const response = await fetch(API_CONFIG.ENDPOINTS.DONORS, {
-        headers: getAuthHeaders(),
-      });
+      const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.DONORS);
       if (response.ok) {
         const data = await response.json();
         setTransactions(data);
@@ -73,9 +69,8 @@ function RegistryConsole() {
     const newAmount = parseFloat(amount.replace(/[^0-9.]/g, '')) || 0;
     
     try {
-      const response = await fetch(API_CONFIG.ENDPOINTS.DONORS, {
+      const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.DONORS, {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify({
           donor_name: donorName || 'Anonymous',
           phone_number: phoneNumber,
@@ -124,29 +119,25 @@ function RegistryConsole() {
     e.preventDefault();
     // Check if session expired - only allow fallback credentials
     if (settings.sessionExpired) {
-      if (visitorName === settings.masterFallbackUsername && visitorPassword === settings.masterFallbackPassword) {
+      if (visitorName === settings.masterFallbackUsername) {
         updateSettings({ deskOperatorName: visitorName });
         setVisitorName('');
-        setVisitorPassword('');
-        setVisitorPhone('');
         setShowRegistrationForm(false);
         addToast('Logged in with Master Fallback credentials', 'success');
       } else {
-        addToast('Session expired. Please use Master Fallback credentials.', 'error');
+        addToast('Session expired. Contact the system administrator.', 'error');
       }
       return;
     }
 
-    // Normal desk operator validation
-    if (visitorName === settings.deskOperatorUsername && visitorPassword === settings.deskOperatorPassword) {
+    // Normal desk operator validation - only check name
+    if (visitorName === settings.deskOperatorUsername) {
       updateSettings({ deskOperatorName: visitorName });
       setVisitorName('');
-      setVisitorPassword('');
-      setVisitorPhone('');
       setShowRegistrationForm(false);
       addToast('Desk operator logged in successfully', 'success');
     } else {
-      addToast('Invalid credentials', 'error');
+      addToast('Invalid operator name', 'error');
     }
   };
 
@@ -201,7 +192,7 @@ function RegistryConsole() {
                   <User size={20} className="text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-white">{settings.deskOperatorName || 'Samuel Adjetey'}</p>
+                  <p className="text-sm font-medium text-white">{settings.deskOperatorName || 'Operator'}</p>
                   <p className="text-xs text-emerald-400">Online</p>
                 </div>
               </div>
@@ -290,7 +281,7 @@ function RegistryConsole() {
                   </div>
                   
                   {/* Name - full row */}
-                  <h2 className="text-2xl font-bold text-gray-900 text-center">In Loving Memory of {activeDeployment?.title || 'Abena Mansa'}</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 text-center">In Loving Memory of {activeDeployment?.title || 'Event'}</h2>
                   
                   {/* Date of birth */}
                   <p className="text-gray-600 text-center">{activeDeployment?.dates || '1938 – 2026'}</p>
@@ -377,7 +368,7 @@ function RegistryConsole() {
                         <img src={logo} alt="SolaceHub" className="h-8 w-8 rounded-full" />
                       </div>
                       <h4 className="text-sm font-bold text-gray-900">FUNERAL DONATION RECEIPT</h4>
-                      <p className="text-xs text-gray-600">In Memory of {activeDeployment?.title || 'Abena Mansa'}</p>
+                      <p className="text-xs text-gray-600">In Memory of {activeDeployment?.title || 'Event'}</p>
                       {activeDeployment?.id && (
                         <p className="text-xs text-gray-400">Event ID: #{activeDeployment.id}</p>
                       )}
@@ -386,12 +377,12 @@ function RegistryConsole() {
                       <p className="text-xs text-gray-600">{currentDate} {currentTime}</p>
                       <div className="border-t border-dashed border-gray-300 my-2"></div>
                       <p className="text-xs font-medium text-gray-700">DONOR NAME</p>
-                      <p className="text-sm font-bold text-gray-900">{donorName || 'Kofi Mensah'}</p>
+                      <p className="text-sm font-bold text-gray-900">{donorName || 'Guest'}</p>
                       <p className="text-xs font-medium text-gray-700 mt-2">AMOUNT RECEIVED</p>
                       <p className="text-lg font-bold text-gray-900">{formatAmount(amount)}</p>
                       <div className="border-t border-dashed border-gray-300 my-2"></div>
                       <p className="text-xs text-gray-600 italic">Thank you for your kind donation & support during this time of mourning. Your generosity is deeply appreciated by the bereaved family.</p>
-                      <p className="text-xs text-gray-400 mt-2">Issued by: Samuel Adjetey</p>
+                      <p className="text-xs text-gray-400 mt-2">Issued by: {settings.deskOperatorName || 'Operator'}</p>
                       <div className="border-t border-dashed border-gray-300 my-2"></div>
                       <p className="text-xs text-gray-400">System-Generated Document</p>
                     </div>
@@ -575,17 +566,6 @@ function RegistryConsole() {
                   value={visitorName}
                   onChange={(e) => setVisitorName(e.target.value)}
                   placeholder="Enter operator name"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-950"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <input
-                  type="password"
-                  value={visitorPassword}
-                  onChange={(e) => setVisitorPassword(e.target.value)}
-                  placeholder="Enter password"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-950"
                   required
                 />

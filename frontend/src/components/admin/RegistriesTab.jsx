@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Search, Download, Wallet, Calendar, FileText, TrendingUp, Loader2 } from 'lucide-react';
 import { useOwnerSettings } from '../../hooks/useOwnerSettings.js';
-import { API_CONFIG, getAuthHeaders } from '../../config/api.js';
+import { API_CONFIG, fetchWithAuth } from '../../config/api.js';
 
 export default function RegistriesTab() {
   const { settings } = useOwnerSettings();
@@ -40,9 +40,7 @@ export default function RegistriesTab() {
     }, 5000);
     
     try {
-      const response = await fetch(API_CONFIG.ENDPOINTS.DONORS, {
-        headers: getAuthHeaders(),
-      });
+      const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.DONORS);
       if (response.ok) {
         const data = await response.json();
         setDonorData(data.results || data);

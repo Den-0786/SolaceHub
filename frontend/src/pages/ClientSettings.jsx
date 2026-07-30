@@ -3,6 +3,7 @@ import { X, User, Users, Shield, Save, Eye, EyeOff, Key, Receipt, Clock, MapPin,
 import { useToast } from '../hooks/useToast.js';
 import { useDeployment } from '../contexts/DeploymentContext';
 import { useOwnerSettings } from '../hooks/useOwnerSettings.js';
+import { API_CONFIG, fetchWithAuth } from '../config/api.js';
 import logo from '/SolaceHubLogo.jpeg';
 
 export default function ClientSettings({ onClose }) {

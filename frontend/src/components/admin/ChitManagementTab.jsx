@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Search, Filter, Download, Utensils, Calendar, Users, FileText, TrendingUp, Loader2, Ticket } from 'lucide-react';
 import { useOwnerSettings } from '../../hooks/useOwnerSettings.js';
-import { API_CONFIG, getAuthHeaders } from '../../config/api.js';
+import { API_CONFIG, fetchWithAuth } from '../../config/api.js';
 
 export default function ChitManagementTab() {
   const { settings } = useOwnerSettings();
@@ -39,9 +39,7 @@ export default function ChitManagementTab() {
     }, 5000);
     
     try {
-      const response = await fetch(API_CONFIG.ENDPOINTS.CHITS, {
-        headers: getAuthHeaders(),
-      });
+      const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.CHITS);
       if (response.ok) {
         const data = await response.json();
         setChitData(data.results || data);

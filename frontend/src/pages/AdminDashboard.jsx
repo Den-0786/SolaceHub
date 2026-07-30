@@ -9,7 +9,7 @@ import ChitManagementTab from '../components/admin/ChitManagementTab.jsx';
 import ReportsTab from '../components/admin/ReportsTab.jsx';
 import ClientSettings from './ClientSettings.jsx';
 import NotificationBell from '../components/NotificationBell.jsx';
-import { API_CONFIG, getAuthHeaders } from '../config/api.js';
+import { API_CONFIG, fetchWithAuth } from '../config/api.js';
 
 function AdminDashboard() {
   const navigate = useNavigate();
@@ -36,18 +36,14 @@ function AdminDashboard() {
     setLoading(true);
     try {
       // Fetch donors for donation ledger
-      const donorsResponse = await fetch(API_CONFIG.ENDPOINTS.DONORS, {
-        headers: getAuthHeaders(),
-      });
+      const donorsResponse = await fetchWithAuth(API_CONFIG.ENDPOINTS.DONORS);
       if (donorsResponse.ok) {
         const donorsData = await donorsResponse.json();
         setDonationLedger(donorsData.results || donorsData || []);
       }
 
       // Fetch chits for chit ledger
-      const chitsResponse = await fetch(API_CONFIG.ENDPOINTS.CHITS, {
-        headers: getAuthHeaders(),
-      });
+      const chitsResponse = await fetchWithAuth(API_CONFIG.ENDPOINTS.CHITS);
       if (chitsResponse.ok) {
         const chitsData = await chitsResponse.json();
         setChitLedger(chitsData.results || chitsData || []);
@@ -82,9 +78,8 @@ function AdminDashboard() {
 
   const handleLogout = async () => {
     try {
-      await fetch(API_CONFIG.ENDPOINTS.AUTH.LOGOUT, {
+      await fetchWithAuth(API_CONFIG.ENDPOINTS.AUTH.LOGOUT, {
         method: 'POST',
-        headers: getAuthHeaders(),
       });
     } catch (err) {
       console.error('Logout error:', err);

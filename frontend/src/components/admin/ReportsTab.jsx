@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Download, FileText, TrendingUp, Users, Utensils, BarChart, Award, Calendar, DollarSign, Info, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
-import { API_CONFIG, getAuthHeaders } from '../../config/api.js';
+import { API_CONFIG, fetchWithAuth } from '../../config/api.js';
 
 export default function ReportsTab() {
   const [activeModule, setActiveModule] = useState('financial');
@@ -41,9 +41,7 @@ export default function ReportsTab() {
     }, 5000);
     
     try {
-      const response = await fetch(API_CONFIG.ENDPOINTS.REPORTS, {
-        headers: getAuthHeaders(),
-      });
+      const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.REPORTS);
       if (response.ok) {
         const data = await response.json();
         setSummaryData(data.summary);

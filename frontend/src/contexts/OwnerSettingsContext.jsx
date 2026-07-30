@@ -1,5 +1,5 @@
 import { createContext, useState, useEffect } from 'react';
-import { API_CONFIG, getAuthHeaders } from '../config/api.js';
+import { API_CONFIG, fetchWithAuth } from '../config/api.js';
 
 const defaultSettings = {
   brandName: 'SolaceHub Event Systems',
@@ -48,9 +48,7 @@ export function OwnerSettingsProvider({ children }) {
     }
 
     try {
-      const response = await fetch(API_CONFIG.ENDPOINTS.CREDENTIALS, {
-        headers: getAuthHeaders(),
-      });
+      const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.CREDENTIALS);
       if (response.ok) {
         const credentials = await response.json();
         const credentialMap = {};
@@ -65,7 +63,7 @@ export function OwnerSettingsProvider({ children }) {
           clientTempLogin: credentialMap.client?.temp_login ?? true,
           deskOperatorUsername: credentialMap.desk_operator?.username || '',
           deskOperatorPassword: credentialMap.desk_operator?.password_hash || '',
-          deskOperatorName: credentialMap.desk_operator?.desk_operator_name || 'Samuel Adjetey',
+          deskOperatorName: credentialMap.desk_operator?.desk_operator_name || '',
           masterFallbackUsername: credentialMap.master_fallback?.username || '',
           masterFallbackPassword: credentialMap.master_fallback?.password_hash || '',
           sessionExpired: credentialMap.client?.session_expired ?? false
@@ -81,9 +79,8 @@ export function OwnerSettingsProvider({ children }) {
   // Save credentials to backend API
   const saveCredentialsToBackend = async (credentialType, data) => {
     try {
-      const response = await fetch(API_CONFIG.ENDPOINTS.CREDENTIALS_UPDATE, {
+      const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.CREDENTIALS_UPDATE, {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify({ credential_type: credentialType, ...data }),
       });
       if (response.ok) {
