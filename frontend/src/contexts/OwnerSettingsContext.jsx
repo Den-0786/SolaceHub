@@ -41,6 +41,12 @@ export function OwnerSettingsProvider({ children }) {
 
   // Fetch credentials from backend API
   const fetchCredentialsFromBackend = async () => {
+    // Only fetch if user is authenticated
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) {
+      return;
+    }
+
     try {
       const response = await fetch(API_CONFIG.ENDPOINTS.CREDENTIALS, {
         headers: getAuthHeaders(),
