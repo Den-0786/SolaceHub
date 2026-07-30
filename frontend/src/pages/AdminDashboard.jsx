@@ -22,6 +22,42 @@ function AdminDashboard() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [deceasedEntries, setDeceasedEntries] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [donationLedger, setDonationLedger] = useState([]);
+  const [chitLedger, setChitLedger] = useState([]);
+  const [activeOperators, setActiveOperators] = useState([]);
+  const [recentPulse, setRecentPulse] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      // Fetch donors for donation ledger
+      const donorsResponse = await fetch(API_CONFIG.ENDPOINTS.DONORS, {
+        headers: getAuthHeaders(),
+      });
+      if (donorsResponse.ok) {
+        const donorsData = await donorsResponse.json();
+        setDonationLedger(donorsData.results || donorsData || []);
+      }
+
+      // Fetch chits for chit ledger
+      const chitsResponse = await fetch(API_CONFIG.ENDPOINTS.CHITS, {
+        headers: getAuthHeaders(),
+      });
+      if (chitsResponse.ok) {
+        const chitsData = await chitsResponse.json();
+        setChitLedger(chitsData.results || chitsData || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch dashboard data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const sidebarLinks = [
     { name: 'Dashboard', icon: LayoutDashboard },
@@ -59,38 +95,6 @@ function AdminDashboard() {
       navigate('/login');
     }
   };
-
-  const donationLedger = [
-    { receiptNo: '#RC-8821', donorName: 'Daniel Boateng', amount: '2,500.00', time: '14:22 PM', loggedBy: 'Kwame Akoto' },
-    { receiptNo: '#RC-8820', donorName: 'Ama Serwaa', amount: '1,200.00', time: '14:15 PM', loggedBy: 'Sister Abena' },
-    { receiptNo: '#RC-8819', donorName: 'Kwame Asante', amount: '500.00', time: '14:05 PM', loggedBy: 'Kwame Akoto' },
-    { receiptNo: '#RC-8818', donorName: 'Efua Dufie', amount: '3,000.00', time: '13:58 PM', loggedBy: 'Nana Yaw' },
-    { receiptNo: '#RC-8817', donorName: 'Kofi Mensah', amount: '750.00', time: '13:45 PM', loggedBy: 'Kwame Akoto' },
-    { receiptNo: '#RC-8816', donorName: 'Yaa Asantewaa', amount: '1,800.00', time: '13:30 PM', loggedBy: 'Sister Abena' }
-  ];
-
-  const chitLedger = [
-    { receiptNo: '#CH-1024', donorName: 'Elder Owusu', amount: 'VIP Package', time: '14:18 PM', loggedBy: 'Kwame Akoto' },
-    { receiptNo: '#CH-1023', donorName: 'Akosua Mensah', amount: 'Food & Soft Drink', time: '14:10 PM', loggedBy: 'Sister Abena' },
-    { receiptNo: '#CH-1022', donorName: 'Nana Kwame', amount: 'Food Only', time: '13:55 PM', loggedBy: 'Kwame Akoto' },
-    { receiptNo: '#CH-1021', donorName: 'Abena Kusi', amount: 'Beverage / Water Only', time: '13:42 PM', loggedBy: 'Sister Abena' },
-    { receiptNo: '#CH-1020', donorName: 'Kofi Boateng', amount: 'Food & Soft Drink', time: '13:28 PM', loggedBy: 'Nana Yaw' },
-    { receiptNo: '#CH-1019', donorName: 'Efua Danso', amount: 'VIP Package', time: '13:15 PM', loggedBy: 'Kwame Akoto' }
-  ];
-
-  const activeOperators = [
-    { name: 'Kwame Akoto', role: 'Donation Table', status: 'Active' },
-    { name: 'Sister Abena', role: 'Chit Table', status: 'Active' },
-    { name: 'Nana Yaw', role: 'Registry Desk', status: 'Active' }
-  ];
-
-  const recentPulse = [
-    { message: 'New Donation Logged - Daniel Boateng', time: '2 mins ago', type: 'donation' },
-    { message: 'Chit Issued (VIP) - Elder Owusu', time: '15 mins ago', type: 'chit' },
-    { message: 'Daily Report Generated', time: '1 hour ago', type: 'report' },
-    { message: 'New Donation Logged - Ama Serwaa', time: '7 mins ago', type: 'donation' },
-    { message: 'Chit Issued (Food) - Akosua Mensah', time: '22 mins ago', type: 'chit' }
-  ];
 
   const handleSaveDeceasedEntry = (entry) => {
     setDeceasedEntries([...deceasedEntries, entry]);

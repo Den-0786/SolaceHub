@@ -57,12 +57,9 @@ function OwnerDashboard() {
   const [hardwareInventory, setHardwareInventory] = useState([]);
 
   // Session state
-  const [eventName, setEventName] = useState('Agyeman Memorial Service');
-  const [startTimestamp, setStartTimestamp] = useState(() => {
-    const now = new Date();
-    return now.toISOString().slice(0, 16);
-  });
-  const [durationDays, setDurationDays] = useState(3);
+  const [eventName, setEventName] = useState('');
+  const [startTimestamp, setStartTimestamp] = useState('');
+  const [durationDays, setDurationDays] = useState(0);
   const [durationHours, setDurationHours] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState('');
   const [isLocked, setIsLocked] = useState(false);

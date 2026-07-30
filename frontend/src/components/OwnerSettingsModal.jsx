@@ -37,9 +37,6 @@ function OwnerSettingsModal({ onClose }) {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [showCurrentPin, setShowCurrentPin] = useState(false);
-  const [showNewPin, setShowNewPin] = useState(false);
-  const [showConfirmPin, setShowConfirmPin] = useState(false);
   const [showMasterFallbackPassword, setShowMasterFallbackPassword] = useState(false);
   const [showTempFamilyPassword, setShowTempFamilyPassword] = useState(false);
   const [passwordChangeLoading, setPasswordChangeLoading] = useState(false);
@@ -49,9 +46,6 @@ function OwnerSettingsModal({ onClose }) {
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
-    currentPin: '',
-    newPin: '',
-    confirmPin: '',
     masterFallbackUsername: '',
     masterFallbackPassword: '',
     clientUsername: '',
@@ -69,7 +63,6 @@ function OwnerSettingsModal({ onClose }) {
     storageStatus: settings.storageStatus,
     masterUsername: settings.masterUsername,
     masterPassword: '',
-    securityPin: '',
     phone: settings.phone,
     whatsapp: settings.whatsapp,
     masterEmail: settings.masterEmail,
@@ -144,7 +137,6 @@ function OwnerSettingsModal({ onClose }) {
       storageStatus: 'Local Storage Active',
       masterUsername: 'Dennis_Opoku_Amponsah',
       masterPassword: '',
-      securityPin: '',
       phone: '+233 245660786',
       whatsapp: '+233 245660786',
       masterEmail: 'dennisopokuamponsah86@gmail.com',
@@ -350,7 +342,7 @@ function OwnerSettingsModal({ onClose }) {
                 onClick={() => setShowFamilyCredentials(true)}
                 className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
               >
-                <Users size={14} /> Family Credentials
+                <Users size={14} /> Client Credentials
               </button>
             </div>
 
@@ -457,7 +449,7 @@ function OwnerSettingsModal({ onClose }) {
                 </div>
                 <div>
                   <h4 className="text-base font-bold text-gray-900">Client Credentials</h4>
-                  <p className="text-xs text-gray-500">Client & Desk Operator Credentials</p>
+                  <p className="text-xs text-gray-500">Client access credentials only</p>
                 </div>
               </div>
 
@@ -492,50 +484,6 @@ function OwnerSettingsModal({ onClose }) {
                   </div>
                 </div>
 
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                  <p className="text-xs font-medium text-gray-500 mb-3">Desk Operator (Shared for Chit & Donation)</p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Desk Operator Username</label>
-                  <input
-                    type="text"
-                    value={credentialFields.deskOperatorUsername}
-                    onChange={(e) => setCredentialFields({ ...credentialFields, deskOperatorUsername: e.target.value })}
-                    placeholder="Enter desk operator username"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-950"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Desk Operator Password</label>
-                  <div className="relative">
-                    <input
-                      type={showTempFamilyPassword ? 'text' : 'password'}
-                      value={credentialFields.deskOperatorPassword}
-                      onChange={(e) => setCredentialFields({ ...credentialFields, deskOperatorPassword: e.target.value })}
-                      placeholder="Enter desk operator password"
-                      className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-950"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowTempFamilyPassword(!showTempFamilyPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      {showTempFamilyPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Desk Operator Name</label>
-                  <input
-                    type="text"
-                    value={credentialFields.deskOperatorName}
-                    onChange={(e) => setCredentialFields({ ...credentialFields, deskOperatorName: e.target.value })}
-                    placeholder="e.g. Samuel Adjetey"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-950"
-                  />
-                </div>
-
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
@@ -544,9 +492,6 @@ function OwnerSettingsModal({ onClose }) {
                           clientUsername: credentialFields.clientUsername,
                           clientPassword: credentialFields.clientPassword,
                           clientTempLogin: false,
-                          deskOperatorUsername: credentialFields.deskOperatorUsername || '',
-                          deskOperatorPassword: credentialFields.deskOperatorPassword || '',
-                          deskOperatorName: credentialFields.deskOperatorName || 'Samuel Adjetey',
                           sessionExpired: false
                         });
                         setShowFamilyCredentials(false);
@@ -590,16 +535,6 @@ function OwnerSettingsModal({ onClose }) {
                 }`}
               >
                 Password
-              </button>
-              <button
-                onClick={() => setCredentialTab('pin')}
-                className={`flex-1 py-2 px-4 rounded-lg text-xs font-medium transition-colors ${
-                  credentialTab === 'pin'
-                    ? 'bg-indigo-950 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                PIN
               </button>
             </div>
 
@@ -715,92 +650,6 @@ function OwnerSettingsModal({ onClose }) {
                     className="flex-1 py-2 bg-indigo-950 hover:bg-indigo-900 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
                   >
                     {passwordChangeLoading ? 'Updating...' : 'Update'}
-                  </button>
-                  <button
-                    onClick={() => setShowCredentialForm(false)}
-                    className="flex-1 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {credentialTab === 'pin' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Current PIN <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <input
-                      type={showCurrentPin ? 'text' : 'password'}
-                      value={credentialFields.currentPin}
-                      onChange={(e) => setCredentialFields({ ...credentialFields, currentPin: e.target.value })}
-                      maxLength={6}
-                      className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-950 bg-gray-50"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowCurrentPin(!showCurrentPin)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      {showCurrentPin ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">New PIN <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <input
-                      type={showNewPin ? 'text' : 'password'}
-                      value={credentialFields.newPin}
-                      onChange={(e) => setCredentialFields({ ...credentialFields, newPin: e.target.value })}
-                      maxLength={6}
-                      className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-950 bg-gray-50"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPin(!showNewPin)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      {showNewPin ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Confirm PIN <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <input
-                      type={showConfirmPin ? 'text' : 'password'}
-                      value={credentialFields.confirmPin}
-                      onChange={(e) => setCredentialFields({ ...credentialFields, confirmPin: e.target.value })}
-                      maxLength={6}
-                      className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-950 bg-gray-50"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPin(!showConfirmPin)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      {showConfirmPin ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      if (credentialFields.newPin && credentialFields.newPin === credentialFields.confirmPin && credentialFields.newPin.length === 6) {
-                        handleInputChange('securityPin', credentialFields.newPin);
-                        setShowCredentialForm(false);
-                        setSaveMessage('PIN updated successfully.');
-                        setTimeout(() => setSaveMessage(''), 3000);
-                      }
-                    }}
-                    className="flex-1 py-2 bg-indigo-950 hover:bg-indigo-900 text-white rounded-lg text-xs font-medium transition-colors"
-                  >
-                    Update
                   </button>
                   <button
                     onClick={() => setShowCredentialForm(false)}

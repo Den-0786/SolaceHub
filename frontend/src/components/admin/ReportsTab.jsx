@@ -8,6 +8,7 @@ export default function ReportsTab() {
   const [modalSection, setModalSection] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showEmptyState, setShowEmptyState] = useState(false);
   
   // Data state
   const [summaryData, setSummaryData] = useState(null);
@@ -30,6 +31,15 @@ export default function ReportsTab() {
 
   const fetchReportData = async () => {
     setLoading(true);
+    setShowEmptyState(false);
+    
+    // Set a timeout to show empty state after 5 seconds
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        setShowEmptyState(true);
+      }
+    }, 5000);
+    
     try {
       const response = await fetch(API_CONFIG.ENDPOINTS.REPORTS, {
         headers: getAuthHeaders(),
@@ -40,10 +50,13 @@ export default function ReportsTab() {
         setFinancialAuditData(data.financialAudit);
         setTopDonors(data.topDonors);
         setRefreshmentAuditData(data.refreshmentAudit);
+      } else {
+        console.error('Failed to fetch report data:', response.status);
       }
     } catch (err) {
       console.error('Failed to fetch report data:', err);
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   };
@@ -64,12 +77,24 @@ export default function ReportsTab() {
     console.log('Exporting raw data to Excel/CSV...');
   };
 
-  if (loading || !summaryData) {
+  if (loading && !showEmptyState) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="animate-spin text-indigo-950" size={32} />
           <p className="text-sm text-gray-500">Loading report data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (showEmptyState || (!summaryData && !financialAuditData && !topDonors && !refreshmentAuditData)) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center bg-white rounded-2xl p-8 border border-gray-200 shadow-sm">
+          <BarChart size={48} className="text-gray-300 mx-auto mb-4" />
+          <p className="text-base font-medium text-gray-900 mb-2">No report data yet</p>
+          <p className="text-sm text-gray-500">Report data will appear here once activity is recorded</p>
         </div>
       </div>
     );

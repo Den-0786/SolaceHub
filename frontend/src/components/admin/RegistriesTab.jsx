@@ -11,6 +11,7 @@ export default function RegistriesTab() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showEmptyState, setShowEmptyState] = useState(false);
   const [donorData, setDonorData] = useState([]);
   const entriesPerPage = 15;
 
@@ -29,6 +30,15 @@ export default function RegistriesTab() {
 
   const fetchDonorData = async () => {
     setLoading(true);
+    setShowEmptyState(false);
+    
+    // Set a timeout to show empty state after 5 seconds
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        setShowEmptyState(true);
+      }
+    }, 5000);
+    
     try {
       const response = await fetch(API_CONFIG.ENDPOINTS.DONORS, {
         headers: getAuthHeaders(),
@@ -36,20 +46,35 @@ export default function RegistriesTab() {
       if (response.ok) {
         const data = await response.json();
         setDonorData(data.results || data);
+      } else {
+        console.error('Failed to fetch donor data:', response.status);
       }
     } catch (err) {
       console.error('Failed to fetch donor data:', err);
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   };
 
-  if (loading) {
+  if (loading && !showEmptyState) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="animate-spin text-indigo-950" size={32} />
           <p className="text-sm text-gray-500">Loading registry data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (showEmptyState || donorData.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center bg-white rounded-2xl p-8 border border-gray-200 shadow-sm">
+          <FileText size={48} className="text-gray-300 mx-auto mb-4" />
+          <p className="text-base font-medium text-gray-900 mb-2">No registry data yet</p>
+          <p className="text-sm text-gray-500">Donation entries will appear here once they are logged</p>
         </div>
       </div>
     );

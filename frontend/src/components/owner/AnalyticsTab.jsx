@@ -1,56 +1,39 @@
-import { useState, useMemo } from 'react';
-import { CalendarDays, CalendarRange, Calendar, TrendingUp, BarChart3 } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { CalendarDays, CalendarRange, Calendar, TrendingUp, BarChart3, Loader2 } from 'lucide-react';
+import { API_CONFIG, getAuthHeaders } from '../../config/api.js';
 
 export default function AnalyticsTab() {
   const [analyticsPeriod, setAnalyticsPeriod] = useState('Weekly');
   const [hoveredData, setHoveredData] = useState(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [loading, setLoading] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState({ Weekly: [], Monthly: [], Yearly: [] });
 
-  const analyticsData = useMemo(() => {
-    const now = new Date();
+  useEffect(() => {
+    fetchAnalyticsData();
+  }, []);
 
-    const weekly = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-      weekly.push({
-        label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        value1: Math.floor(Math.random() * 20) + 10,
-        value2: Math.floor(Math.random() * 20) + 10,
-        revenue1: Math.floor(Math.random() * 8000) + 4000,
-        revenue2: Math.floor(Math.random() * 8000) + 4000,
+  const fetchAnalyticsData = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(API_CONFIG.ENDPOINTS.REPORTS, {
+        headers: getAuthHeaders(),
       });
+      if (response.ok) {
+        const data = await response.json();
+        // Process the data into the expected format
+        setAnalyticsData({
+          Weekly: data.weekly || [],
+          Monthly: data.monthly || [],
+          Yearly: data.yearly || []
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch analytics data:', err);
+    } finally {
+      setLoading(false);
     }
-
-    const monthly = [];
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
-
-    for (let i = 0; i <= currentMonth; i++) {
-      const date = new Date(currentYear, i, 1);
-      monthly.push({
-        label: date.toLocaleDateString('en-US', { month: 'short' }),
-        value1: Math.floor(Math.random() * 50) + 40,
-        value2: Math.floor(Math.random() * 50) + 40,
-        revenue1: Math.floor(Math.random() * 20000) + 15000,
-        revenue2: Math.floor(Math.random() * 20000) + 15000,
-      });
-    }
-
-    const yearly = [];
-    const startYear = 2015;
-    for (let year = startYear; year <= currentYear; year++) {
-      yearly.push({
-        label: year.toString(),
-        value1: Math.floor(Math.random() * 400) + 400,
-        value2: Math.floor(Math.random() * 400) + 400,
-        revenue1: Math.floor(Math.random() * 200000) + 150000,
-        revenue2: Math.floor(Math.random() * 200000) + 150000,
-      });
-    }
-
-    return { Weekly: weekly, Monthly: monthly, Yearly: yearly };
-  }, [analyticsPeriod]);
+  };
 
   const currentData = analyticsData[analyticsPeriod] || [];
   const maxValue = useMemo(() => Math.max(...currentData.map(d => Math.max(d.value1, d.value2)), 0), [currentData]);
@@ -145,6 +128,17 @@ export default function AnalyticsTab() {
   const handleMouseLeave = () => {
     setHoveredData(null);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="animate-spin text-indigo-950" size={32} />
+          <p className="text-sm text-gray-500">Loading analytics data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
