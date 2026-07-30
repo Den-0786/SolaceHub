@@ -422,7 +422,7 @@ function AdminDashboard() {
 
       {/* Family Settings Modal */}
       {showSettings && (
-        <FamilySettings onClose={() => setShowSettings(false)} />
+        <ClientSettings onClose={() => setShowSettings(false)} />
       )}
     </div>
   );
