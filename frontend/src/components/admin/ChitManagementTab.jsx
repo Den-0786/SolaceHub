@@ -33,9 +33,7 @@ export default function ChitManagementTab() {
     
     // Set a timeout to show empty state after 5 seconds
     const timeoutId = setTimeout(() => {
-      if (loading) {
-        setShowEmptyState(true);
-      }
+      setShowEmptyState(true);
     }, 5000);
     
     try {
@@ -47,9 +45,13 @@ export default function ChitManagementTab() {
         setChitData(data.results || data);
       } else {
         console.error('Failed to fetch chit data:', response.status);
+        // Show empty state even if API fails
+        setShowEmptyState(true);
       }
     } catch (err) {
       console.error('Failed to fetch chit data:', err);
+      // Show empty state even if API fails
+      setShowEmptyState(true);
     } finally {
       clearTimeout(timeoutId);
       setLoading(false);

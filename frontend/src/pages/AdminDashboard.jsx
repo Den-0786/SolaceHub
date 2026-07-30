@@ -252,30 +252,30 @@ function AdminDashboard() {
             <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
               <p className="text-sm text-gray-500 mb-2">Total Donations</p>
               <div className="flex items-center gap-2 flex-nowrap">
-                <p className="text-xl font-bold text-gray-900">GH₵ 45,230.00</p>
-                <div className="flex items-center gap-1 text-green-600 bg-green-50 px-2 py-1 rounded-lg text-xs font-medium">
-                  <TrendingUp size={12} />
-                  <span>+12%</span>
-                </div>
+                <p className="text-xl font-bold text-gray-900">
+                  GH₵ {donationLedger.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
               </div>
-              <p className="text-xs text-gray-400 mt-2">from last hour</p>
+              <p className="text-xs text-gray-400 mt-2">{donationLedger.length} transactions</p>
             </div>
 
             <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
               <p className="text-sm text-gray-500 mb-2">Total Donors</p>
-              <p className="text-3xl font-bold text-gray-900">142</p>
+              <p className="text-3xl font-bold text-gray-900">{donationLedger.length}</p>
               <p className="text-xs text-gray-400 mt-2">Confirmed contributions</p>
             </div>
 
             <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
               <p className="text-sm text-gray-500 mb-2">Food Chits Issued</p>
-              <p className="text-3xl font-bold text-gray-900">88</p>
+              <p className="text-3xl font-bold text-gray-900">{chitLedger.length}</p>
               <p className="text-xs text-gray-400 mt-2">Active vouchers</p>
             </div>
 
             <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
               <p className="text-sm text-gray-500 mb-2">Guests Catered For</p>
-              <p className="text-3xl font-bold text-gray-900">340</p>
+              <p className="text-3xl font-bold text-gray-900">
+                {chitLedger.reduce((sum, chit) => sum + (chit.guests || 0), 0)}
+              </p>
               <p className="text-xs text-gray-400 mt-2">Cumulative guest count</p>
             </div>
           </div>

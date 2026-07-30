@@ -20,7 +20,18 @@ export default function SessionTimerTab({
 
   useEffect(() => {
     const interval = setInterval(() => {
+      // Check if we have valid timer data
+      if (!startTimestamp || (durationDays === 0 && durationHours === 0)) {
+        setTimeRemaining('00:00:00:00');
+        return;
+      }
+
       const start = new Date(startTimestamp).getTime();
+      if (isNaN(start)) {
+        setTimeRemaining('00:00:00:00');
+        return;
+      }
+
       const durationMs = ((durationDays * 24) + durationHours) * 60 * 60 * 1000;
       const end = start + durationMs;
       const now = Date.now();
