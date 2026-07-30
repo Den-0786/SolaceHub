@@ -106,4 +106,5 @@ REST_FRAMEWORK = {
 }
 
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',')
+CORS_ALLOW_ALL_ORIGINS = True  # Allow all origins for production testing
 CORS_ALLOW_CREDENTIALS = True
