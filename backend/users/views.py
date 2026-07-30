@@ -5,31 +5,47 @@ from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate, update_session_auth_hash
 from django.contrib.auth.hashers import make_password
+import logging
 from .models import User, Credential
 from .serializers import UserSerializer, LoginSerializer, PasswordChangeSerializer, CredentialSerializer, CredentialUpdateSerializer
+
+logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
+    logger.info(f"Login request received. Method: {request.method}")
+    logger.info(f"Request headers: {dict(request.headers)}")
+    logger.info(f"Request data: {request.data}")
+    
     serializer = LoginSerializer(data=request.data)
     if serializer.is_valid():
         username = serializer.validated_data['username']
         password = serializer.validated_data['password']
         role = serializer.validated_data.get('role')
 
+        logger.info(f"Attempting authentication for username: {username}")
+        
         user = authenticate(username=username, password=password)
         if user:
+            logger.info(f"Authentication successful for user: {username}, role: {user.role}")
+            
             if role and user.role != role:
+                logger.warning(f"Role mismatch. Expected: {role}, Actual: {user.role}")
                 return Response({'error': 'Invalid role for this user'}, status=status.HTTP_403_FORBIDDEN)
 
             token, created = Token.objects.get_or_create(user=user)
+            logger.info(f"Token {'created' if created else 'retrieved'} for user: {username}")
+            
             return Response({
                 'token': token.key,
                 'user': UserSerializer(user).data
             })
-
+        
+        logger.warning(f"Authentication failed for username: {username}")
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-
+    
+    logger.error(f"Serializer validation errors: {serializer.errors}")
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
