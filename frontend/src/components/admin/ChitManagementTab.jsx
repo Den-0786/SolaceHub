@@ -33,7 +33,9 @@ export default function ChitManagementTab() {
     
     // Set a timeout to show empty state after 5 seconds
     const timeoutId = setTimeout(() => {
-      setShowEmptyState(true);
+      if (loading) {
+        setShowEmptyState(true);
+      }
     }, 5000);
     
     try {
@@ -45,20 +47,16 @@ export default function ChitManagementTab() {
         setChitData(data.results || data);
       } else {
         console.error('Failed to fetch chit data:', response.status);
-        // Show empty state even if API fails
-        setShowEmptyState(true);
       }
     } catch (err) {
       console.error('Failed to fetch chit data:', err);
-      // Show empty state even if API fails
-      setShowEmptyState(true);
     } finally {
       clearTimeout(timeoutId);
       setLoading(false);
     }
   };
 
-  if (loading) {
+  if (loading && !showEmptyState) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex flex-col items-center gap-3">
@@ -69,7 +67,7 @@ export default function ChitManagementTab() {
     );
   }
 
-  if (chitData.length === 0) {
+  if (showEmptyState || chitData.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center bg-white rounded-2xl p-8 border border-gray-200 shadow-sm">
