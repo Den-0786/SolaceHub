@@ -6,7 +6,7 @@ class Deployment(models.Model):
         ('attended', 'Attended'),
         ('rejected', 'Rejected'),
     ]
-    
+
     title = models.CharField(max_length=200)
     venue = models.CharField(max_length=200)
     client = models.CharField(max_length=200)
@@ -15,12 +15,22 @@ class Deployment(models.Model):
     start_date = models.DateField()
     end_date = models.DateField()
     deceased_name = models.CharField(max_length=200, blank=True)
-    deceased_age = models.PositiveIntegerField(null=True, blank=True)
+    year_of_birth = models.PositiveIntegerField(null=True, blank=True, help_text="Year of birth (e.g., 1980)")
     deceased_image = models.ImageField(upload_to='deceased_images/', null=True, blank=True)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')
     created_by = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def deceased_age(self):
+        """Calculate age from year_of_birth"""
+        if not self.year_of_birth:
+            return None
+        from datetime import datetime
+        current_year = datetime.now().year
+        age = current_year - self.year_of_birth
+        return age
 
 class SessionTimer(models.Model):
     event = models.ForeignKey('events.Event', on_delete=models.CASCADE, null=True, blank=True, related_name='session_timers')

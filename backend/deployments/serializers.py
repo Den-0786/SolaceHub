@@ -22,11 +22,12 @@ class DeploymentSerializer(serializers.ModelSerializer):
     session_timer = SessionTimerSerializer(read_only=True)
     dates = serializers.SerializerMethodField()
     deceased_image = serializers.ImageField(required=False, allow_null=True)
+    deceased_age = serializers.ReadOnlyField()
 
     class Meta:
         model = Deployment
-        fields = ['id', 'event', 'title', 'venue', 'client', 'phone', 'start_date', 'end_date', 'status', 'created_by', 'created_by_name', 'hardware_set', 'session_timer', 'dates', 'deceased_name', 'deceased_age', 'deceased_image', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'event', 'created_at', 'updated_at']
+        fields = ['id', 'event', 'title', 'venue', 'client', 'phone', 'start_date', 'end_date', 'status', 'created_by', 'created_by_name', 'hardware_set', 'session_timer', 'dates', 'deceased_name', 'deceased_age', 'year_of_birth', 'deceased_image', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'event', 'deceased_age', 'created_at', 'updated_at']
 
     def get_dates(self, obj):
         if obj.start_date and obj.end_date:
