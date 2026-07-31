@@ -3,9 +3,9 @@ from .models import Deployment, Hardware
 
 @admin.register(Deployment)
 class DeploymentAdmin(admin.ModelAdmin):
-    list_display = ['title', 'venue', 'client', 'start_date', 'end_date', 'status']
+    list_display = ['title', 'venue', 'client', 'deceased_name', 'deceased_age', 'start_date', 'end_date', 'status']
     list_filter = ['status', 'start_date', 'end_date']
-    search_fields = ['title', 'venue', 'client']
+    search_fields = ['title', 'venue', 'client', 'deceased_name']
 
 @admin.register(Hardware)
 class HardwareAdmin(admin.ModelAdmin):

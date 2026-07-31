@@ -15,6 +15,8 @@ class Chit(models.Model):
     time = models.TimeField()
     date = models.DateField(auto_now_add=True)
     issued_by = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True)
+    deployment = models.ForeignKey('deployments.Deployment', on_delete=models.CASCADE, null=True, blank=True, related_name='chits')
+    event = models.ForeignKey('events.Event', on_delete=models.CASCADE, null=True, blank=True, related_name='chits')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

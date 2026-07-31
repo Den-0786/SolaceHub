@@ -4,13 +4,15 @@ from .models import User, Credential
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'role', 'created_at']
+        fields = ['id', 'username', 'display_name', 'role', 'event', 'created_at']
         read_only_fields = ['id', 'created_at']
 
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField()
     role = serializers.CharField(required=False)
+    event_id = serializers.UUIDField(required=False)
+    access_code = serializers.CharField(required=False)
 
 class PasswordChangeSerializer(serializers.Serializer):
     old_password = serializers.CharField()

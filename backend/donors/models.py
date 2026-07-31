@@ -11,6 +11,8 @@ class Donor(models.Model):
     status = models.CharField(max_length=50, default='PRINTED')
     event_day = models.IntegerField()
     logged_by = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True)
+    deployment = models.ForeignKey('deployments.Deployment', on_delete=models.CASCADE, null=True, blank=True, related_name='donations')
+    event = models.ForeignKey('events.Event', on_delete=models.CASCADE, null=True, blank=True, related_name='donors')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

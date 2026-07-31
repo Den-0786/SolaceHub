@@ -11,6 +11,8 @@ class User(AbstractUser):
     ]
 
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='donation_staff')
+    display_name = models.CharField(max_length=150, blank=True)
+    event = models.ForeignKey('events.Event', on_delete=models.CASCADE, null=True, blank=True, related_name='users')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -30,10 +32,11 @@ class Credential(models.Model):
         ('master_fallback', 'Master Fallback'),
     ]
 
-    credential_type = models.CharField(max_length=20, choices=CREDENTIAL_TYPE_CHOICES, unique=True)
+    credential_type = models.CharField(max_length=20, choices=CREDENTIAL_TYPE_CHOICES)
     username = models.CharField(max_length=150)
     password_hash = models.CharField(max_length=255)
     desk_operator_name = models.CharField(max_length=150, blank=True, null=True)
+    event = models.ForeignKey('events.Event', on_delete=models.CASCADE, null=True, blank=True, related_name='credentials')
     temp_login = models.BooleanField(default=True)
     session_expired = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -42,6 +45,7 @@ class Credential(models.Model):
     class Meta:
         verbose_name = 'Credential'
         verbose_name_plural = 'Credentials'
+        unique_together = ('credential_type', 'event')
 
     def __str__(self):
         return f"{self.get_credential_type_display()} - {self.username}"
