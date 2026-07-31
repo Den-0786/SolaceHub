@@ -21,6 +21,8 @@ const defaultSettings = {
   deskOperatorUsername: '',
   deskOperatorPassword: '',
   deskOperatorName: '',
+  donationOperatorName: '',
+  chitOperatorName: '',
   masterFallbackUsername: '',
   masterFallbackPassword: '',
   sessionExpired: false
@@ -59,13 +61,13 @@ export function OwnerSettingsProvider({ children }) {
         const newSettings = {
           ...settings,
           clientUsername: credentialMap.client?.username || '',
-          clientPassword: credentialMap.client?.password_hash || '',
+          clientPassword: '', // Don't store hashed password
           clientTempLogin: credentialMap.client?.temp_login ?? true,
           deskOperatorUsername: credentialMap.desk_operator?.username || '',
-          deskOperatorPassword: credentialMap.desk_operator?.password_hash || '',
+          deskOperatorPassword: '', // Don't store hashed password
           deskOperatorName: credentialMap.desk_operator?.desk_operator_name || '',
           masterFallbackUsername: credentialMap.master_fallback?.username || '',
-          masterFallbackPassword: credentialMap.master_fallback?.password_hash || '',
+          masterFallbackPassword: '', // Don't store hashed password
           sessionExpired: credentialMap.client?.session_expired ?? false
         };
         setSettings(newSettings);
@@ -122,26 +124,39 @@ export function OwnerSettingsProvider({ children }) {
     setSettings((prev) => ({ ...prev, ...newSettings }));
 
     // Sync specific credential changes to backend
+    // Only send password if it's explicitly being changed (not the stored hashed password)
     if (newSettings.clientUsername !== undefined || newSettings.clientPassword !== undefined) {
-      await saveCredentialsToBackend('client', {
+      const payload = {
         username: newSettings.clientUsername || settings.clientUsername,
-        password: newSettings.clientPassword || settings.clientPassword,
         temp_login: newSettings.clientTempLogin !== undefined ? newSettings.clientTempLogin : settings.clientTempLogin,
         session_expired: newSettings.sessionExpired !== undefined ? newSettings.sessionExpired : settings.sessionExpired
-      });
+      };
+      // Only include password if it's explicitly being set (not the stored hash)
+      if (newSettings.clientPassword !== undefined && newSettings.clientPassword !== settings.clientPassword) {
+        payload.password = newSettings.clientPassword;
+      }
+      await saveCredentialsToBackend('client', payload);
     }
     if (newSettings.deskOperatorUsername !== undefined || newSettings.deskOperatorPassword !== undefined || newSettings.deskOperatorName !== undefined) {
-      await saveCredentialsToBackend('desk_operator', {
+      const payload = {
         username: newSettings.deskOperatorUsername || settings.deskOperatorUsername,
-        password: newSettings.deskOperatorPassword || settings.deskOperatorPassword,
         desk_operator_name: newSettings.deskOperatorName || settings.deskOperatorName
-      });
+      };
+      // Only include password if it's explicitly being set (not the stored hash)
+      if (newSettings.deskOperatorPassword !== undefined && newSettings.deskOperatorPassword !== settings.deskOperatorPassword) {
+        payload.password = newSettings.deskOperatorPassword;
+      }
+      await saveCredentialsToBackend('desk_operator', payload);
     }
     if (newSettings.masterFallbackUsername !== undefined || newSettings.masterFallbackPassword !== undefined) {
-      await saveCredentialsToBackend('master_fallback', {
-        username: newSettings.masterFallbackUsername || settings.masterFallbackUsername,
-        password: newSettings.masterFallbackPassword || settings.masterFallbackPassword
-      });
+      const payload = {
+        username: newSettings.masterFallbackUsername || settings.masterFallbackUsername
+      };
+      // Only include password if it's explicitly being set (not the stored hash)
+      if (newSettings.masterFallbackPassword !== undefined && newSettings.masterFallbackPassword !== settings.masterFallbackPassword) {
+        payload.password = newSettings.masterFallbackPassword;
+      }
+      await saveCredentialsToBackend('master_fallback', payload);
     }
     if (newSettings.sessionExpired !== undefined) {
       await saveCredentialsToBackend('client', { session_expired: newSettings.sessionExpired });

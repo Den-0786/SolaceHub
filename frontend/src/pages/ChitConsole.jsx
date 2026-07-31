@@ -22,12 +22,14 @@ import logo from "/SolaceHubLogo.jpeg";
 import { useToast } from "../hooks/useToast.js";
 import { useDeployment } from "../contexts/DeploymentContext";
 import { useOwnerSettings } from "../hooks/useOwnerSettings.js";
+import { useEvent } from "../contexts/EventContext.jsx";
 import { API_CONFIG, fetchWithAuth } from "../config/api.js";
 
 function ChitConsole() {
   const navigate = useNavigate();
   const { addToast } = useToast();
-  const { activeDeployment } = useDeployment();
+  const { activeDeployment, setActiveDeployment } = useDeployment();
+  const { activeEventId } = useEvent();
   const { settings, updateSettings } = useOwnerSettings();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -53,7 +55,7 @@ function ChitConsole() {
   const handleStaffLogin = () => {
     // Allow any name as operator name (no validation against credentials)
     if (staffName.trim()) {
-      updateSettings({ deskOperatorName: staffName.trim() });
+      updateSettings({ chitOperatorName: staffName.trim() });
       setStaffName("");
       setShowStaffLoginModal(false);
       addToast('Operator added successfully', 'success');
@@ -87,11 +89,21 @@ function ChitConsole() {
         const newChit = await response.json();
         setChitHistory((prev) => [newChit, ...prev]);
         setIssuedToday((prev) => prev + 1);
-        window.print();
-        setRepresentativeName("");
-        setNumberOfPeople(1);
-        setVoucherType("full_meal");
-        addToast("Chit issued successfully", "success");
+
+        // Add onafterprint handler to restore page
+        const handleAfterPrint = () => {
+          setRepresentativeName("");
+          setNumberOfPeople(1);
+          setVoucherType("full_meal");
+          addToast("Chit issued successfully", "success");
+          window.removeEventListener('afterprint', handleAfterPrint);
+        };
+        window.addEventListener('afterprint', handleAfterPrint);
+
+        // Small delay before print to ensure DOM is updated
+        setTimeout(() => {
+          window.print();
+        }, 100);
       } else {
         const errorData = await response.json().catch(() => ({}));
         console.error('Chit registration error:', errorData);
@@ -171,6 +183,25 @@ function ChitConsole() {
   }, [settings.sessionExpired, navigate, addToast]);
 
   useEffect(() => {
+    fetchDeploymentForEvent();
+  }, [activeEventId]);
+
+  const fetchDeploymentForEvent = async () => {
+    if (!activeEventId) return;
+    try {
+      const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.DEPLOYMENTS);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.length > 0) {
+          setActiveDeployment(data[0]);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch deployment:', err);
+    }
+  };
+
+  useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
         e.preventDefault();
@@ -245,7 +276,7 @@ function ChitConsole() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-white">
-                    {settings.deskOperatorName || 'Operator'}
+                    {settings.chitOperatorName || 'Operator'}
                   </p>
                   <p className="text-xs text-emerald-400">Online</p>
                 </div>
@@ -492,8 +523,11 @@ function ChitConsole() {
                       </div>
                       <p className="text-xs text-indigo-600">FUNERAL OF</p>
                       <h4 className="text-sm font-bold text-indigo-900">
-                        {activeDeployment?.title || "Event"}
+                        {activeDeployment?.deceased_name || activeDeployment?.title || "Event"}
                       </h4>
+                      {activeDeployment?.deceased_age && (
+                        <p className="text-xs text-gray-500">Age: {activeDeployment.deceased_age}</p>
+                      )}
                       {activeDeployment?.id && (
                         <p className="text-xs text-gray-400">
                           Event ID: #{activeDeployment.id}
@@ -531,7 +565,7 @@ function ChitConsole() {
                         <div className="flex justify-between text-xs">
                           <span className="text-indigo-600">ISSUED BY</span>
                           <span className="font-medium text-indigo-900">
-                            {settings.deskOperatorName || '-'}
+                            {settings.chitOperatorName || '-'}
                           </span>
                         </div>
                       </div>

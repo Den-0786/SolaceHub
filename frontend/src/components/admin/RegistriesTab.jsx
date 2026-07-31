@@ -80,21 +80,21 @@ export default function RegistriesTab() {
 
   // Calculate analytics - group by calendar date dynamically
   const analytics = useMemo(() => {
-    const totalDonations = donorData.reduce((sum, donor) => sum + donor.amount, 0);
+    const totalDonations = donorData.reduce((sum, donor) => sum + parseFloat(donor.amount || 0), 0);
     const totalDonors = donorData.length;
 
     // Group by calendar date
     const groupedByDate = donorData.reduce((acc, donor) => {
-      const date = donor.calendarDate;
+      const date = donor.date;
       if (!acc[date]) {
         acc[date] = {
           total: 0,
           donors: 0,
-          dayNumber: donor.dayNumber,
-          dateLabel: donor.date
+          dayNumber: donor.event_day,
+          dateLabel: new Date(donor.date).toLocaleDateString()
         };
       }
-      acc[date].total += donor.amount;
+      acc[date].total += parseFloat(donor.amount || 0);
       acc[date].donors += 1;
       return acc;
     }, {});
@@ -115,15 +115,15 @@ export default function RegistriesTab() {
   const filteredData = useMemo(() => {
     return donorData.filter(donor => {
       const matchesSearch =
-        donor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        donor.phone.includes(searchQuery) ||
-        donor.id.toLowerCase().includes(searchQuery.toLowerCase());
+        donor.donor_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        donor.phone_number?.includes(searchQuery) ||
+        donor.receipt_id?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesDay =
         dayFilter === 'all' ||
-        (dayFilter === 'day1' && donor.dayNumber === 1) ||
-        (dayFilter === 'day2' && donor.dayNumber === 2) ||
-        (dayFilter === `day${donor.dayNumber}` && donor.dayNumber === parseInt(dayFilter.replace('day', '')));
+        (dayFilter === 'day1' && donor.event_day === 1) ||
+        (dayFilter === 'day2' && donor.event_day === 2) ||
+        (dayFilter === `day${donor.event_day}` && donor.event_day === parseInt(dayFilter.replace('day', '')));
 
       return matchesSearch && matchesDay;
     });
@@ -298,27 +298,27 @@ export default function RegistriesTab() {
                 paginatedData.map((donor) => (
                   <tr key={donor.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#020617' }}>{donor.id}</span>
+                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#020617' }}>{donor.receipt_id}</span>
                     </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>{donor.name}</span>
+                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>{donor.donor_name}</span>
                     </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontSize: '14px', color: '#4b5563' }}>{donor.phone}</span>
+                      <span style={{ fontSize: '14px', color: '#4b5563' }}>{donor.phone_number}</span>
                     </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#111827' }}>GH₵ {donor.amount.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</span>
+                      <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#111827' }}>GH₵ {parseFloat(donor.amount || 0).toFixed(2)}</span>
                     </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 10px', borderRadius: '9999px', fontSize: '12px', fontWeight: '500', backgroundColor: donor.dayNumber === 1 ? '#fef3c7' : donor.dayNumber === 2 ? '#d1fae5' : '#dbeafe', color: donor.dayNumber === 1 ? '#92400e' : donor.dayNumber === 2 ? '#065f46' : '#1e40af' }}>
-                        Day {donor.dayNumber}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 10px', borderRadius: '9999px', fontSize: '12px', fontWeight: '500', backgroundColor: donor.event_day === 1 ? '#fef3c7' : donor.event_day === 2 ? '#d1fae5' : '#dbeafe', color: donor.event_day === 1 ? '#92400e' : donor.event_day === 2 ? '#065f46' : '#1e40af' }}>
+                        Day {donor.event_day}
                       </span>
                     </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontSize: '14px', color: '#4b5563' }}>{donor.time} | {donor.date}</span>
+                      <span style={{ fontSize: '14px', color: '#4b5563' }}>{donor.time} | {new Date(donor.date).toLocaleDateString()}</span>
                     </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontSize: '14px', color: '#4b5563' }}>{donor.loggedBy}</span>
+                      <span style={{ fontSize: '14px', color: '#4b5563' }}>{donor.logged_by_name || 'System'}</span>
                     </td>
                   </tr>
                 ))

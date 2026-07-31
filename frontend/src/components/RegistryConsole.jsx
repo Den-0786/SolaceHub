@@ -5,13 +5,15 @@ import logo from '/SolaceHubLogo.jpeg';
 import { useToast } from '../hooks/useToast.js';
 import { useDeployment } from '../contexts/DeploymentContext';
 import { useOwnerSettings } from '../hooks/useOwnerSettings.js';
+import { useEvent } from '../contexts/EventContext.jsx';
 import { API_CONFIG, fetchWithAuth } from '../config/api.js';
 
 function RegistryConsole() {
   const navigate = useNavigate();
   const { addToast } = useToast();
-  const { activeDeployment } = useDeployment();
+  const { activeDeployment, setActiveDeployment } = useDeployment();
   const { settings, updateSettings } = useOwnerSettings();
+  const { activeEventId } = useEvent();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
@@ -60,6 +62,25 @@ function RegistryConsole() {
     fetchDonors();
   }, []);
 
+  useEffect(() => {
+    fetchDeploymentForEvent();
+  }, [activeEventId]);
+
+  const fetchDeploymentForEvent = async () => {
+    if (!activeEventId) return;
+    try {
+      const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.DEPLOYMENTS);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.length > 0) {
+          setActiveDeployment(data[0]);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch deployment:', err);
+    }
+  };
+
   const fetchDonors = async () => {
     try {
       const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.DONORS);
@@ -101,11 +122,21 @@ function RegistryConsole() {
         setTransactions([newDonor, ...transactions].slice(0, 5));
         setTotalAmount(prev => prev + newAmount);
         setEntryCount(prev => prev + 1);
-        window.print();
-        setDonorName('');
-        setAmount('');
-        setPhoneNumber('+233');
-        addToast('Donor registered successfully', 'success');
+
+        // Add onafterprint handler to restore page
+        const handleAfterPrint = () => {
+          setDonorName('');
+          setAmount('');
+          setPhoneNumber('+233');
+          addToast('Donor registered successfully', 'success');
+          window.removeEventListener('afterprint', handleAfterPrint);
+        };
+        window.addEventListener('afterprint', handleAfterPrint);
+
+        // Small delay before print to ensure DOM is updated
+        setTimeout(() => {
+          window.print();
+        }, 100);
       } else {
         const errorData = await response.json().catch(() => ({}));
         console.error('Donor registration error:', errorData);
@@ -133,15 +164,20 @@ function RegistryConsole() {
 
   const formatAmount = (value) => {
     if (!value) return 'GH₵ 0.00';
-    const num = parseFloat(value.replace(/[^0-9.]/g, ''));
-    return `GH₵ ${num.toFixed(2)}`;
+    const num = typeof value === 'string' ? parseFloat(value.replace(/[^0-9.]/g, '')) : value;
+    if (isNaN(num)) return 'GH₵ 0.00';
+    // Round to avoid floating-point precision issues
+    const rounded = Math.round(num * 100) / 100;
+    return `GH₵ ${rounded.toFixed(2)}`;
   };
 
   const formatAmountForDisplay = (value) => {
     if (!value) return 'GH₵ 0.00';
-    const num = parseFloat(value.replace(/[^0-9.]/g, ''));
+    const num = typeof value === 'string' ? parseFloat(value.replace(/[^0-9.]/g, '')) : value;
     if (isNaN(num)) return 'GH₵ 0.00';
-    return `GH₵ ${num.toFixed(2)}`;
+    // Round to avoid floating-point precision issues
+    const rounded = Math.round(num * 100) / 100;
+    return `GH₵ ${rounded.toFixed(2)}`;
   };
 
   const handleAmountChange = (e) => {
@@ -162,10 +198,10 @@ function RegistryConsole() {
 
   const handleVisitorRegistration = (e) => {
     e.preventDefault();
-    
+
     // Allow any name as operator name (no validation against credentials)
     if (visitorName.trim()) {
-      updateSettings({ deskOperatorName: visitorName.trim() });
+      updateSettings({ donationOperatorName: visitorName.trim() });
       setVisitorName('');
       setShowRegistrationForm(false);
       addToast('Operator added successfully', 'success');
@@ -225,7 +261,7 @@ function RegistryConsole() {
                   <User size={20} className="text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-white">{settings.deskOperatorName || 'Operator'}</p>
+                  <p className="text-sm font-medium text-white">{settings.donationOperatorName || 'Operator'}</p>
                   <p className="text-xs text-emerald-400">Online</p>
                 </div>
               </div>
@@ -411,7 +447,11 @@ function RegistryConsole() {
                         )}
                       </div>
                       <h4 className="text-sm font-bold text-gray-900">FUNERAL DONATION RECEIPT</h4>
-                      <p className="text-xs text-gray-600">In Memory of {activeDeployment?.title || 'Event'}</p>
+                      <p className="text-xs text-gray-600">In Memory of</p>
+                      <p className="text-sm font-bold text-gray-900">{activeDeployment?.deceased_name || activeDeployment?.title || 'Event'}</p>
+                      {activeDeployment?.deceased_age && (
+                        <p className="text-xs text-gray-500">Age: {activeDeployment.deceased_age}</p>
+                      )}
                       {activeDeployment?.id && (
                         <p className="text-xs text-gray-400">Event ID: #{activeDeployment.id}</p>
                       )}
@@ -425,7 +465,7 @@ function RegistryConsole() {
                       <p className="text-lg font-bold text-gray-900">{formatAmountForDisplay(amount)}</p>
                       <div className="border-t border-dashed border-gray-300 my-2"></div>
                       <p className="text-xs text-gray-600 italic">Thank you for your kind donation & support during this time of mourning. Your generosity is deeply appreciated by the bereaved family.</p>
-                      <p className="text-xs text-gray-400 mt-2">Issued by: {settings.deskOperatorName || 'Operator'}</p>
+                      <p className="text-xs text-gray-400 mt-2">Issued by: {settings.donationOperatorName || 'Operator'}</p>
                       <div className="border-t border-dashed border-gray-300 my-2"></div>
                       <p className="text-xs text-gray-400">System-Generated Document</p>
                     </div>
@@ -460,6 +500,7 @@ function RegistryConsole() {
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Donor</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Time & Method</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Amount</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Issued By</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Status</th>
                     </tr>
                   </thead>
@@ -476,7 +517,8 @@ function RegistryConsole() {
                           </div>
                         </td>
                         <td className="py-3 px-4 text-sm text-gray-600">{transaction.time} • {transaction.method}</td>
-                        <td className="py-3 px-4 text-sm font-medium text-gray-900">GH₵ {transaction.amount.toFixed(2)}</td>
+                        <td className="py-3 px-4 text-sm font-medium text-gray-900">GH₵ {(Math.round(transaction.amount * 100) / 100).toFixed(2)}</td>
+                        <td className="py-3 px-4 text-sm text-gray-600">{transaction.logged_by_name || settings.donationOperatorName || 'Operator'}</td>
                         <td className="py-3 px-4">
                           <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">{transaction.status}</span>
                         </td>
@@ -502,6 +544,7 @@ function RegistryConsole() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Issued By</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                     </tr>
                   </thead>
@@ -512,7 +555,8 @@ function RegistryConsole() {
                         <td className="px-4 py-3 text-sm text-gray-900">{transaction.donor_name}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{transaction.time}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{transaction.method}</td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">GH₵ {transaction.amount.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">GH₵ {(Math.round(transaction.amount * 100) / 100).toFixed(2)}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{transaction.logged_by_name || settings.donationOperatorName || 'Operator'}</td>
                         <td className="px-4 py-3 text-sm"><span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">{transaction.status}</span></td>
                       </tr>
                     ))}

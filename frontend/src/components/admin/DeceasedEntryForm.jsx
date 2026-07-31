@@ -5,8 +5,7 @@ export default function DeceasedEntryForm({ onClose, onSave }) {
   const [formData, setFormData] = useState({
     name: '',
     nickname: '',
-    dateOfBirth: '',
-    dateOfDeath: '',
+    yearOfBirth: '',
     photo: null,
     photoPreview: null
   });
@@ -14,22 +13,17 @@ export default function DeceasedEntryForm({ onClose, onSave }) {
   const [age, setAge] = useState('');
 
   useEffect(() => {
-    if (formData.dateOfBirth && formData.dateOfDeath) {
-      calculateAge(formData.dateOfBirth, formData.dateOfDeath);
+    if (formData.yearOfBirth) {
+      calculateAge(formData.yearOfBirth);
+    } else {
+      setAge('');
     }
-  }, [formData.dateOfBirth, formData.dateOfDeath]);
+  }, [formData.yearOfBirth]);
 
-  const calculateAge = (dob, dod) => {
-    const birth = new Date(dob);
-    const death = new Date(dod);
-    let age = death.getFullYear() - birth.getFullYear();
-    const monthDiff = death.getMonth() - birth.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && death.getDate() < birth.getDate())) {
-      age--;
-    }
-    
-    setAge(age.toString());
+  const calculateAge = (year) => {
+    const currentYear = new Date().getFullYear();
+    const calculatedAge = currentYear - parseInt(year);
+    setAge(calculatedAge.toString());
   };
 
   const handlePhotoChange = (e) => {
@@ -51,7 +45,7 @@ export default function DeceasedEntryForm({ onClose, onSave }) {
     e.preventDefault();
     onSave({
       ...formData,
-      age
+      yearOfBirth: formData.yearOfBirth
     });
   };
 
@@ -104,28 +98,25 @@ export default function DeceasedEntryForm({ onClose, onSave }) {
               />
             </div>
 
-            {/* Date of Birth */}
+            {/* Year of Birth */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Sunrise (Date of Birth) <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Year of Birth <span className="text-red-500">*</span></label>
               <input
-                type="date"
-                value={formData.dateOfBirth}
-                onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                type="number"
+                min="1900"
+                max={new Date().getFullYear()}
+                value={formData.yearOfBirth}
+                onChange={(e) => {
+                  const year = e.target.value;
+                  if (year.length <= 4) {
+                    setFormData({ ...formData, yearOfBirth: year });
+                  }
+                }}
+                placeholder="e.g., 1980"
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-950 bg-gray-50"
                 required
               />
-            </div>
-
-            {/* Date of Death */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Sunset (Date of Death) <span className="text-red-500">*</span></label>
-              <input
-                type="date"
-                value={formData.dateOfDeath}
-                onChange={(e) => setFormData({ ...formData, dateOfDeath: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-950 bg-gray-50"
-                required
-              />
+              <p className="text-xs text-gray-500 mt-1">Enter the year the deceased was born (e.g., 1980)</p>
             </div>
 
             {/* Auto-generated Age */}
