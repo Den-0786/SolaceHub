@@ -31,31 +31,25 @@ export default function RegistriesTab() {
   const fetchDonorData = async () => {
     setLoading(true);
     setShowEmptyState(false);
-    
-    // Set a timeout to show empty state after 5 seconds
-    const timeoutId = setTimeout(() => {
-      if (loading) {
-        setShowEmptyState(true);
-      }
-    }, 5000);
-    
+
     try {
       const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.DONORS);
       if (response.ok) {
         const data = await response.json();
-        setDonorData(data.results || data);
+        setDonorData(data.results || data || []);
       } else {
         console.error('Failed to fetch donor data:', response.status);
+        setDonorData([]);
       }
     } catch (err) {
       console.error('Failed to fetch donor data:', err);
+      setDonorData([]);
     } finally {
-      clearTimeout(timeoutId);
       setLoading(false);
     }
   };
 
-  if (loading && !showEmptyState) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex flex-col items-center gap-3">
@@ -66,7 +60,7 @@ export default function RegistriesTab() {
     );
   }
 
-  if (showEmptyState || donorData.length === 0) {
+  if (!loading && donorData.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center bg-white rounded-2xl p-8 border border-gray-200 shadow-sm">

@@ -3,6 +3,7 @@ import { Search, Bell, HelpCircle, User, LayoutDashboard, ClipboardList, Ticket,
 import logo from '/SolaceHubLogo.jpeg';
 import { useToast } from '../hooks/useToast.js';
 import { useNavigate } from 'react-router-dom';
+import { useEvent } from '../contexts/EventContext.jsx';
 import DeceasedEntryForm from '../components/admin/DeceasedEntryForm.jsx';
 import RegistriesTab from '../components/admin/RegistriesTab.jsx';
 import ChitManagementTab from '../components/admin/ChitManagementTab.jsx';
@@ -14,6 +15,7 @@ import { API_CONFIG, fetchWithAuth } from '../config/api.js';
 function AdminDashboard() {
   const navigate = useNavigate();
   const { addToast } = useToast();
+  const { activeEventId } = useEvent();
   const [activeLedgerTab, setActiveLedgerTab] = useState('donation');
   const [activeSidebarLink, setActiveSidebarLink] = useState('Dashboard');
   const [showDeceasedForm, setShowDeceasedForm] = useState(false);
@@ -29,8 +31,13 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (!activeEventId) {
+      addToast('No active event selected. Please create an event first.', 'warning');
+      navigate('/owner-dashboard');
+      return;
+    }
     fetchDashboardData();
-  }, []);
+  }, [activeEventId, navigate, addToast]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
