@@ -13,6 +13,7 @@ export const API_CONFIG = {
     CREDENTIALS_UPDATE: `${API_BASE_URL}/auth/credentials/update/`,
     DONORS: `${API_BASE_URL}/donors/`,
     CHITS: `${API_BASE_URL}/chits/`,
+    EVENTS: `${API_BASE_URL}/events/`,
     DEPLOYMENTS: `${API_BASE_URL}/deployments/`,
     HARDWARE: `${API_BASE_URL}/deployments/hardware/`,
     REPORTS: `${API_BASE_URL}/reports/`,
@@ -21,10 +22,15 @@ export const API_CONFIG = {
 
 export const getAuthHeaders = () => {
   const token = localStorage.getItem('authToken');
-  return {
+  const eventId = localStorage.getItem('activeEventId');
+  const headers = {
     'Content-Type': 'application/json',
     'Authorization': `Token ${token}`,
   };
+  if (eventId) {
+    headers['X-Event-ID'] = eventId;
+  }
+  return headers;
 };
 
 // Helper function to handle API calls with session expiry checking

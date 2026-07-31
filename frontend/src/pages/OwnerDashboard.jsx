@@ -23,9 +23,11 @@ import OwnerSettingsModal from '../components/OwnerSettingsModal.jsx';
 import DeploymentTab from '../components/owner/DeploymentTab.jsx';
 import SessionTimerTab from '../components/owner/SessionTimerTab.jsx';
 import AnalyticsTab from '../components/owner/AnalyticsTab.jsx';
+import CreateEventForm from '../components/owner/CreateEventForm.jsx';
 import { useOwnerSettings } from '../hooks/useOwnerSettings.js';
 import { useToast } from '../hooks/useToast.js';
 import { useDeployment } from '../contexts/DeploymentContext.jsx';
+import { useEvent } from '../contexts/EventContext.jsx';
 import { API_CONFIG, getAuthHeaders } from '../config/api.js';
 
 function OwnerDashboard() {
@@ -33,6 +35,7 @@ function OwnerDashboard() {
   const { settings, updateSettings } = useOwnerSettings();
   const { addToast } = useToast();
   const { activeDeployment } = useDeployment();
+  const { activeEventId, setActiveEventId, loadEvents, events: eventList } = useEvent();
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeLink, setActiveLink] = useState('Dashboard');
@@ -49,6 +52,17 @@ function OwnerDashboard() {
   const [events, setEvents] = useState([]);
   const [analyticsData, setAnalyticsData] = useState(null);
   const [analyticsLabels, setAnalyticsLabels] = useState(null);
+
+  // Load events for the owner and auto-select one if none active
+  useEffect(() => {
+    const initializeEvents = async () => {
+      const loaded = await loadEvents();
+      if (loaded.length > 0 && !activeEventId) {
+        setActiveEventId(loaded[0].id);
+      }
+    };
+    initializeEvents();
+  }, []);
   
   // Deployment state shared with DeploymentTab
   const [deployments, setDeployments] = useState([]);
@@ -179,9 +193,45 @@ function OwnerDashboard() {
     handleExportCSV();
   };
 
-  const handleExportCSV = () => {
-    // TODO: Implement actual CSV export from backend data
-    addToast('CSV export feature coming soon', 'info');
+  const handleEventCreated = (newEvent) => {
+    loadEvents().then(() => {
+      if (newEvent?.id) {
+        setActiveEventId(newEvent.id);
+        addToast(`Switched to event: ${newEvent.title || newEvent.family_name}`, 'success');
+      }
+    });
+  };
+
+  const handleExportCSV = async () => {
+    if (!activeDeployment?.id) {
+      addToast('No active event selected', 'error');
+      return;
+    }
+
+    try {
+      const response = await fetch(API_CONFIG.ENDPOINTS.DEPLOYMENTS + `${activeDeployment.id}/backups/create/`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        addToast(`Backup created. ${data.record_count} records archived.`, 'success');
+        if (data.csv_file) {
+          const link = document.createElement('a');
+          link.href = data.csv_file;
+          link.setAttribute('download', `solacehub_backup_${activeDeployment.id}.csv`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      } else {
+        addToast(data.error || 'Failed to create backup', 'error');
+      }
+    } catch (err) {
+      console.error('Backup export error:', err);
+      addToast('Backup export failed', 'error');
+    }
   };
 
   const metrics = useMemo(() => {
@@ -238,6 +288,7 @@ function OwnerDashboard() {
           setIsLocked={setIsLocked}
           onExpire={handleExpirationLock}
           onReset={handleReset}
+          onExportCSV={handleExportCSV}
         />
       );
     }
@@ -248,6 +299,8 @@ function OwnerDashboard() {
 
     return (
       <>
+        <CreateEventForm onCreated={handleEventCreated} />
+
         {/* Hero Metrics */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {metrics.map((metric, index) => (

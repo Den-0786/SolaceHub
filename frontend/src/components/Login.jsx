@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom';
 import { User, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
 import logo from '/SolaceHubLogo.jpeg';
 import { useToast } from '../hooks/useToast.js';
-import { useOwnerSettings } from '../hooks/useOwnerSettings.js';
-import { API_CONFIG, getAuthHeaders } from '../config/api.js';
+import { API_CONFIG } from '../config/api.js';
 
 function Login() {
   const [username, setUsername] = useState('');
@@ -13,13 +12,11 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { addToast } = useToast();
-  const { settings } = useOwnerSettings();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    // Try backend API login first for owner
     try {
       const response = await fetch(API_CONFIG.ENDPOINTS.AUTH.LOGIN, {
         method: 'POST',
@@ -32,6 +29,9 @@ function Login() {
       if (response.ok) {
         localStorage.setItem('authToken', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
+        if (data.event_id) {
+          localStorage.setItem('activeEventId', data.event_id);
+        }
 
         const routeMap = {
           'owner': '/owner-dashboard',
@@ -41,64 +41,25 @@ function Login() {
         };
 
         const route = routeMap[data.user.role] || '/';
-        addToast(`Welcome back, ${data.user.role} (${username})`, 'success', 2500);
+        const displayName = data.user.display_name || data.user.username;
+        addToast(`Welcome back, ${data.user.role} (${displayName})`, 'success', 2500);
         setTimeout(() => {
           window.location.href = route;
         }, 800);
         setLoading(false);
         return;
       }
+
+      if (data.error === 'Session expired') {
+        addToast('Session expired. Contact the system administrator.', 'error', 5000);
+      } else {
+        addToast(data.error || 'Invalid username or password.', 'error');
+      }
     } catch (err) {
       console.error('Backend login error:', err);
+      addToast('Login failed. Please try again.', 'error');
     }
 
-    // Fallback to local credential validation for client and fallback
-    const isSessionExpired = settings.sessionExpired;
-
-    // Check fallback credentials (master fallback)
-    if (username === settings.masterFallbackUsername && password === settings.masterFallbackPassword) {
-      localStorage.setItem('authToken', 'local-fallback-token');
-      localStorage.setItem('user', JSON.stringify({ username, role: 'owner' }));
-      addToast('Logged in with Master Fallback credentials', 'success', 2500);
-      setTimeout(() => {
-        window.location.href = '/owner-dashboard';
-      }, 800);
-      setLoading(false);
-      return;
-    }
-
-    // Check desk operator credentials for chit console access
-    if (username === settings.deskOperatorUsername && password === settings.deskOperatorPassword) {
-      localStorage.setItem('authToken', 'local-desk-operator-token');
-      localStorage.setItem('user', JSON.stringify({ username, role: 'desk_operator' }));
-      addToast('Logged in as Desk Operator', 'success', 2500);
-      setTimeout(() => {
-        window.location.href = '/chit-console';
-      }, 800);
-      setLoading(false);
-      return;
-    }
-
-    // Check client credentials (only if session not expired)
-    if (!isSessionExpired && username === settings.clientUsername && password === settings.clientPassword) {
-      localStorage.setItem('authToken', 'local-client-token');
-      localStorage.setItem('user', JSON.stringify({ username, role: 'client' }));
-      addToast('Logged in as Client', 'success', 2500);
-      setTimeout(() => {
-        window.location.href = '/admin-dashboard';
-      }, 800);
-      setLoading(false);
-      return;
-    }
-
-    // If session expired and not using fallback, show error
-    if (isSessionExpired) {
-      addToast('Session expired. Contact the system administrator.', 'error', 5000);
-      setLoading(false);
-      return;
-    }
-
-    addToast('Invalid username or password.', 'error');
     setLoading(false);
   };
 

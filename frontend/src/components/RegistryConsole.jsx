@@ -168,7 +168,7 @@ function RegistryConsole() {
       updateSettings({ deskOperatorName: visitorName.trim() });
       setVisitorName('');
       setShowRegistrationForm(false);
-      addToast('Operator logged in successfully', 'success');
+      addToast('Operator added successfully', 'success');
     } else {
       addToast('Please enter an operator name', 'error');
     }
@@ -596,7 +596,7 @@ function RegistryConsole() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Desk Operator Login</h3>
+              <h3 className="text-lg font-bold text-gray-900">Add New Operator</h3>
               <button onClick={() => setShowRegistrationForm(false)} className="text-gray-500 hover:text-gray-700">
                 <X size={20} />
               </button>
@@ -625,7 +625,7 @@ function RegistryConsole() {
                   type="submit"
                   className="flex-1 bg-indigo-950 text-white py-2 rounded-lg font-medium hover:bg-indigo-900"
                 >
-                  Update
+                  Add
                 </button>
               </div>
             </form>

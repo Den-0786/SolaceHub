@@ -15,7 +15,8 @@ export default function SessionTimerTab({
   isLocked,
   setIsLocked,
   onExpire,
-  onReset
+  onReset,
+  onExportCSV
 }) {
 
   useEffect(() => {
@@ -78,21 +79,9 @@ export default function SessionTimerTab({
   };
 
   const handleExportCSV = () => {
-    const rows = [
-      ['Receipt No.', 'Donor Name', 'Amount (GHC)', 'Time', 'Logged By'],
-      ['#RC-8821', 'Daniel Boateng', '2500.00', '14:22 PM', 'Kwame Akoto'],
-      ['#RC-8820', 'Ama Serwaa', '1200.00', '14:15 PM', 'Sister Abena'],
-      ['#CH-1024', 'Elder Owusu', 'VIP Package', '14:18 PM', 'Kwame Akoto']
-    ];
-    const csvContent = rows.map((row) => row.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'solacehub_master_backup.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (onExportCSV) {
+      onExportCSV();
+    }
   };
 
   const totalDuration = (durationDays * 24) + durationHours;

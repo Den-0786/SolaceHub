@@ -33,7 +33,6 @@ function ChitConsole() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showStaffLoginModal, setShowStaffLoginModal] = useState(false);
   const [staffName, setStaffName] = useState("");
-  const [staffPassword, setStaffPassword] = useState("");
   const [representativeName, setRepresentativeName] = useState("");
   const [numberOfPeople, setNumberOfPeople] = useState(1);
   const [voucherType, setVoucherType] = useState("full_meal");
@@ -56,9 +55,8 @@ function ChitConsole() {
     if (staffName.trim()) {
       updateSettings({ deskOperatorName: staffName.trim() });
       setStaffName("");
-      setStaffPassword("");
       setShowStaffLoginModal(false);
-      addToast('Operator logged in successfully', 'success');
+      addToast('Operator added successfully', 'success');
     } else {
       addToast('Please enter an operator name', 'error');
     }
@@ -530,6 +528,12 @@ function ChitConsole() {
                             {securityCode}
                           </span>
                         </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-indigo-600">ISSUED BY</span>
+                          <span className="font-medium text-indigo-900">
+                            {settings.deskOperatorName || '-'}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Barcode Section */}
@@ -759,7 +763,7 @@ function ChitConsole() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Desk Operator Login</h3>
+              <h3 className="text-lg font-bold text-gray-900">Add New Operator</h3>
               <button
                 onClick={() => setShowStaffLoginModal(false)}
                 className="text-gray-500 hover:text-gray-700"
@@ -781,19 +785,6 @@ function ChitConsole() {
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  value={staffPassword}
-                  onChange={(e) => setStaffPassword(e.target.value)}
-                  placeholder="Enter password"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-950"
-                  required
-                />
-              </div>
               <div className="flex gap-3">
                 <button
                   type="button"
@@ -806,7 +797,7 @@ function ChitConsole() {
                   type="submit"
                   className="flex-1 bg-indigo-950 text-white py-2 rounded-lg font-medium hover:bg-indigo-900"
                 >
-                  Update
+                  Add
                 </button>
               </div>
             </form>

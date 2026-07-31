@@ -10,13 +10,15 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const OwnerDashboard = lazy(() => import('./pages/OwnerDashboard'));
 
 import { DeploymentProvider } from './contexts/DeploymentContext';
+import { EventProvider } from './contexts/EventContext';
 
 function App() {
   return (
-    <DeploymentProvider>
-      <Router>
-        <Suspense fallback={<div className="min-h-screen bg-indigo-50 flex items-center justify-center">Loading...</div>}>
-          <Routes>
+    <EventProvider>
+      <DeploymentProvider>
+        <Router>
+          <Suspense fallback={<div className="min-h-screen bg-indigo-50 flex items-center justify-center">Loading...</div>}>
+            <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -28,6 +30,7 @@ function App() {
         </Suspense>
       </Router>
     </DeploymentProvider>
+    </EventProvider>
   );
 }
 
