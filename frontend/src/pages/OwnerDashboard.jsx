@@ -28,7 +28,7 @@ import { useOwnerSettings } from '../hooks/useOwnerSettings.js';
 import { useToast } from '../hooks/useToast.js';
 import { useDeployment } from '../contexts/DeploymentContext.jsx';
 import { useEvent } from '../contexts/EventContext.jsx';
-import { API_CONFIG, getAuthHeaders } from '../config/api.js';
+import { API_CONFIG, getAuthHeaders, fetchWithAuth } from '../config/api.js';
 
 function OwnerDashboard() {
   const navigate = useNavigate();
