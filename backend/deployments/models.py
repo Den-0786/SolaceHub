@@ -7,7 +7,6 @@ class Deployment(models.Model):
         ('rejected', 'Rejected'),
     ]
 
-    title = models.CharField(max_length=200)
     venue = models.CharField(max_length=200)
     client = models.CharField(max_length=200)
     event = models.ForeignKey('events.Event', on_delete=models.CASCADE, null=True, blank=True, related_name='deployments')
@@ -32,6 +31,14 @@ class Deployment(models.Model):
         age = current_year - self.year_of_birth
         return age
 
+    @property
+    def title(self):
+        """Get title from related event for backward compatibility"""
+        return self.event.title if self.event else "No Event"
+
+    def __str__(self):
+        return f"{self.event.title if self.event else 'No Event'} - {self.venue}"
+
 class SessionTimer(models.Model):
     event = models.ForeignKey('events.Event', on_delete=models.CASCADE, null=True, blank=True, related_name='session_timers')
     deployment = models.OneToOneField(Deployment, on_delete=models.CASCADE, related_name='session_timer')
@@ -47,7 +54,7 @@ class SessionTimer(models.Model):
         verbose_name_plural = 'Session Timers'
 
     def __str__(self):
-        return f"Session for {self.deployment.title}"
+        return f"Session for {self.deployment.event.title if self.deployment.event else 'No Event'}"
 
 class Hardware(models.Model):
     STATUS_CHOICES = [
@@ -83,4 +90,4 @@ class Backup(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"Backup for {self.deployment.title} at {self.created_at}"
+        return f"Backup for {self.deployment.event.title if self.deployment.event else 'No Event'} at {self.created_at}"
