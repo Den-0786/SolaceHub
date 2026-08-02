@@ -8,6 +8,9 @@ class EventSerializer(serializers.ModelSerializer):
         model = Event
         fields = ['id', 'title', 'family_name', 'date', 'access_code', 'is_active', 'created_at']
         read_only_fields = ['id', 'created_at']
+        extra_kwargs = {
+            'access_code': {'required': False, 'allow_null': True, 'allow_blank': True}
+        }
 
     def create(self, validated_data):
         # Auto-generate access_code if not provided
