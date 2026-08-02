@@ -63,12 +63,25 @@ function OwnerDashboard() {
     };
     initializeEvents();
   }, []);
-  
+
+  // Fetch deployments from backend
+  useEffect(() => {
+    const fetchDeployments = async () => {
+      try {
+        const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.DEPLOYMENTS);
+        if (response.ok) {
+          const data = await response.json();
+          setDeployments(data.results || data || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch deployments:', err);
+      }
+    };
+    fetchDeployments();
+  }, []);
+
   // Deployment state shared with DeploymentTab
   const [deployments, setDeployments] = useState([]);
-  
-  // Hardware inventory state
-  const [hardwareInventory, setHardwareInventory] = useState([]);
 
   // Session state
   const [eventName, setEventName] = useState('');
@@ -235,23 +248,20 @@ function OwnerDashboard() {
   };
 
   const metrics = useMemo(() => {
-    const pendingCount = deployments.filter(d => d.status === 'Pending').length;
-    const activeCount = deployments.filter(d => d.status === 'Active').length;
+    const pendingCount = deployments.filter(d => d.status === 'pending' || d.status === 'Pending').length;
+    const activeCount = deployments.filter(d => d.status === 'attended' || d.status === 'Attended').length;
     const hiredCount = pendingCount + activeCount;
 
-    // Calculate active hardware stations for pending events
-    const activeHardware = hardwareInventory.filter(h => h.status === 'In Use');
-    const tablets = activeHardware.filter(h => h.type === 'Tablet').length;
-    const printers = activeHardware.filter(h => h.type === 'Thermal Printer').length;
-    const activeHardwareStations = `${activeHardware.length} Online (${tablets} Tablet${tablets !== 1 ? 's' : ''}, ${printers} Printer${printers !== 1 ? 's' : ''})`;
+    // Use event list for total events count
+    const totalEvents = eventList.length;
 
     return [
+      { label: 'Total Events', value: totalEvents.toString(), subtext: 'All registered events' },
       { label: 'Hired Events', value: hiredCount.toString(), subtext: 'Active live deployments' },
       { label: 'Pending Events', value: pendingCount.toString(), subtext: 'Upcoming hardware bookings' },
-      { label: 'Active / Completed', value: activeCount.toString(), subtext: 'Wrapped funeral sessions' },
-      { label: 'Active Hardware Stations', value: activeHardwareStations, subtext: 'Connected terminals & tablets' }
+      { label: 'Completed Events', value: activeCount.toString(), subtext: 'Wrapped funeral sessions' }
     ];
-  }, [deployments, hardwareInventory]);
+  }, [deployments, eventList]);
 
   const renderMainContent = () => {
     if (activeLink === 'Settings') {
@@ -262,11 +272,9 @@ function OwnerDashboard() {
 
     if (activeLink === 'Deployments') {
       return (
-        <DeploymentTab 
+        <DeploymentTab
           deployments={deployments}
           setDeployments={setDeployments}
-          hardwareInventory={hardwareInventory}
-          setHardwareInventory={setHardwareInventory}
         />
       );
     }

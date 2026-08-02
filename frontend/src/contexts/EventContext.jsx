@@ -25,11 +25,17 @@ export function EventProvider({ children }) {
 
   const loadEvents = async () => {
     try {
+      console.log('Loading events from backend...');
       const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.EVENTS);
+      console.log('Events response status:', response.status);
       if (response.ok) {
         const data = await response.json();
+        console.log('Events data:', data);
         setEvents(data.results || data || []);
         return data.results || data || [];
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to load events:', errorData);
       }
     } catch (err) {
       console.error('Failed to load events:', err);

@@ -13,26 +13,33 @@ export default function CreateEventForm({ onCreated }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!title.trim() || !familyName.trim() || !date || !accessCode.trim()) {
-      addToast('Please fill in all fields', 'error');
+    if (!title.trim() || !familyName.trim() || !date) {
+      addToast('Please fill in all required fields', 'error');
       return;
     }
 
     setLoading(true);
     try {
+      console.log('Creating event...');
+      const eventData = {
+        title: title.trim(),
+        family_name: familyName.trim(),
+        date,
+        access_code: accessCode.trim() || null,
+        is_active: true,
+      };
+      console.log('Event data:', eventData);
+
       const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.EVENTS, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title.trim(),
-          family_name: familyName.trim(),
-          date,
-          access_code: accessCode.trim(),
-          is_active: true,
-        }),
+        body: JSON.stringify(eventData),
       });
 
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('Response data:', data);
+
       if (response.ok) {
         addToast('Event created successfully', 'success');
         setTitle('');
@@ -41,11 +48,12 @@ export default function CreateEventForm({ onCreated }) {
         setAccessCode('');
         if (onCreated) onCreated(data);
       } else {
-        addToast(data.error || data.access_code?.[0] || 'Failed to create event', 'error');
+        console.error('Create event failed:', data);
+        addToast(data.error || data.access_code?.[0] || data.detail || `Failed to create event (${response.status})`, 'error');
       }
     } catch (err) {
       console.error('Create event error:', err);
-      addToast('Failed to create event', 'error');
+      addToast('Network error: ' + err.message, 'error');
     }
     setLoading(false);
   };
@@ -100,14 +108,14 @@ export default function CreateEventForm({ onCreated }) {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Access Code</label>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Access Code <span className="text-gray-400">(Optional - Auto-generated if empty)</span></label>
           <div className="relative">
             <Hash size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               value={accessCode}
               onChange={(e) => setAccessCode(e.target.value)}
-              placeholder="e.g. BOATENG001"
+              placeholder="e.g. BOATENG001 (leave empty for auto-generation)"
               className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-950"
             />
           </div>

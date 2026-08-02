@@ -354,7 +354,7 @@ function RegistryConsole() {
                   </div>
                   
                   {/* Name - full row */}
-                  <h2 className="text-2xl font-bold text-gray-900 text-center">In Loving Memory of {activeDeployment?.title || 'Event'}</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 text-center">In Loving Memory of {activeDeployment?.title || activeDeployment?.event_title || 'Event'}</h2>
                   
                   {/* Date of birth */}
                   <p className="text-gray-600 text-center">{activeDeployment?.dates || 'Dates not set'}</p>
@@ -448,7 +448,7 @@ function RegistryConsole() {
                       </div>
                       <h4 className="text-sm font-bold text-gray-900">FUNERAL DONATION RECEIPT</h4>
                       <p className="text-xs text-gray-600">In Memory of</p>
-                      <p className="text-sm font-bold text-gray-900">{activeDeployment?.deceased_name || activeDeployment?.title || 'Event'}</p>
+                      <p className="text-sm font-bold text-gray-900">{activeDeployment?.deceased_name || activeDeployment?.title || activeDeployment?.event_title || 'Event'}</p>
                       {activeDeployment?.deceased_age && (
                         <p className="text-xs text-gray-500">Age: {activeDeployment.deceased_age}</p>
                       )}

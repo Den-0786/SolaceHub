@@ -1,16 +1,32 @@
 import { useState, useEffect } from 'react';
-import { X, Upload, Calendar, User, Image as ImageIcon } from 'lucide-react';
+import { X, Upload, Calendar, User, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { useToast } from '../../hooks/useToast.js';
+import { API_CONFIG, fetchWithAuth } from '../../config/api.js';
 
-export default function DeceasedEntryForm({ onClose, onSave }) {
+export default function DeceasedEntryForm({ onClose, deployment, onSave }) {
+  const { addToast } = useToast();
   const [formData, setFormData] = useState({
-    name: '',
+    name: deployment?.deceased_name || '',
     nickname: '',
-    yearOfBirth: '',
+    yearOfBirth: deployment?.year_of_birth ? deployment.year_of_birth.toString() : '',
     photo: null,
-    photoPreview: null
+    photoPreview: deployment?.deceased_image || null
   });
+  const [loading, setLoading] = useState(false);
 
   const [age, setAge] = useState('');
+
+  useEffect(() => {
+    if (deployment) {
+      setFormData({
+        name: deployment.deceased_name || '',
+        nickname: '',
+        yearOfBirth: deployment.year_of_birth ? deployment.year_of_birth.toString() : '',
+        photo: null,
+        photoPreview: deployment.deceased_image || null
+      });
+    }
+  }, [deployment]);
 
   useEffect(() => {
     if (formData.yearOfBirth) {
@@ -41,12 +57,45 @@ export default function DeceasedEntryForm({ onClose, onSave }) {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSave({
-      ...formData,
-      yearOfBirth: formData.yearOfBirth
-    });
+    if (!deployment) {
+      alert('No deployment found. Please create a deployment first.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('deceased_name', formData.name);
+      if (formData.yearOfBirth) {
+        formDataToSend.append('year_of_birth', formData.yearOfBirth);
+      }
+      if (formData.photo) {
+        formDataToSend.append('deceased_image', formData.photo);
+      }
+
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.DEPLOYMENTS}${deployment.id}/`, {
+        method: 'PATCH',
+        headers: {}, // Don't set Content-Type for FormData
+        body: formDataToSend,
+      });
+
+      if (response.ok) {
+        const updatedDeployment = await response.json();
+        addToast('Deceased information updated successfully', 'success');
+        if (onSave) onSave(updatedDeployment);
+        onClose();
+      } else {
+        const errorData = await response.json();
+        alert('Failed to update deployment: ' + (errorData.error || JSON.stringify(errorData)));
+      }
+    } catch (err) {
+      console.error('Failed to update deployment:', err);
+      alert('Failed to update deployment');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -174,8 +223,10 @@ export default function DeceasedEntryForm({ onClose, onSave }) {
           <button
             type="submit"
             onClick={handleSubmit}
-            className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 shadow-md transition-all"
+            disabled={loading}
+            className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 shadow-md transition-all disabled:opacity-50"
           >
+            {loading ? <Loader2 size={14} className="animate-spin" /> : null}
             Save Entry
           </button>
         </div>

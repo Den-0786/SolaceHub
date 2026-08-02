@@ -74,6 +74,12 @@ function ChitConsole() {
     }
     
     try {
+      const currentTime = new Date().toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+
       const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.CHITS, {
         method: 'POST',
         body: JSON.stringify({
@@ -82,6 +88,7 @@ function ChitConsole() {
           number_of_people: numberOfPeople,
           voucher_type: voucherType,
           event_day: 1,
+          time: currentTime,
         }),
       });
 
@@ -523,7 +530,7 @@ function ChitConsole() {
                       </div>
                       <p className="text-xs text-indigo-600">FUNERAL OF</p>
                       <h4 className="text-sm font-bold text-indigo-900">
-                        {activeDeployment?.deceased_name || activeDeployment?.title || "Event"}
+                        {activeDeployment?.deceased_name || activeDeployment?.title || activeDeployment?.event_title || "Event"}
                       </h4>
                       {activeDeployment?.deceased_age && (
                         <p className="text-xs text-gray-500">Age: {activeDeployment.deceased_age}</p>

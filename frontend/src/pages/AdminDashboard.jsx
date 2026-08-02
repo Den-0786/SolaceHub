@@ -22,6 +22,7 @@ function AdminDashboard() {
   const [showSettings, setShowSettings] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [activeDeployment, setActiveDeployment] = useState(null);
   const [deceasedEntries, setDeceasedEntries] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [donationLedger, setDonationLedger] = useState([]);
@@ -42,6 +43,16 @@ function AdminDashboard() {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
+      // Fetch deployment for deceased info
+      const deploymentResponse = await fetchWithAuth(API_CONFIG.ENDPOINTS.DEPLOYMENTS);
+      if (deploymentResponse.ok) {
+        const deploymentData = await deploymentResponse.json();
+        const deployments = deploymentData.results || deploymentData || [];
+        if (deployments.length > 0) {
+          setActiveDeployment(deployments[0]);
+        }
+      }
+
       // Fetch donors for donation ledger
       const donorsResponse = await fetchWithAuth(API_CONFIG.ENDPOINTS.DONORS);
       if (donorsResponse.ok) {
@@ -98,8 +109,8 @@ function AdminDashboard() {
     }
   };
 
-  const handleSaveDeceasedEntry = (entry) => {
-    setDeceasedEntries([...deceasedEntries, entry]);
+  const handleSaveDeceasedEntry = (updatedDeployment) => {
+    setActiveDeployment(updatedDeployment);
     setShowDeceasedForm(false);
     addToast('Deceased entry saved successfully.', 'success', 3000);
   };
@@ -416,8 +427,9 @@ function AdminDashboard() {
 
       {/* Deceased Entry Form Modal */}
       {showDeceasedForm && (
-        <DeceasedEntryForm 
-          onClose={() => setShowDeceasedForm(false)} 
+        <DeceasedEntryForm
+          deployment={activeDeployment}
+          onClose={() => setShowDeceasedForm(false)}
           onSave={handleSaveDeceasedEntry}
         />
       )}
