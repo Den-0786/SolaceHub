@@ -102,7 +102,7 @@ AWS_STORAGE_BUCKET_NAME = os.getenv('S3_BUCKET')
 AWS_S3_REGION_NAME = os.getenv('AWS_REGION', 'us-east-1')
 
 default_storage_backend = (
-    'storages.backends.s3boto3.S3Boto3Storage' if AWS_STORAGE_BUCKET_NAME
+    'solacehub.storage.FallbackS3Storage' if AWS_STORAGE_BUCKET_NAME
     else 'django.core.files.storage.FileSystemStorage'
 )
 
@@ -111,16 +111,14 @@ STORAGES = {
     'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
 }
 
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 if AWS_STORAGE_BUCKET_NAME:
     AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
     AWS_S3_FILE_OVERWRITE = False
     AWS_DEFAULT_ACL = None
     AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
-    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
-    MEDIA_ROOT = ''
-else:
-    MEDIA_URL = 'media/'
-    MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -134,6 +132,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'EXCEPTION_HANDLER': 'solacehub.exceptions.custom_exception_handler',
 }
 
 cors_origins_raw = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173')
