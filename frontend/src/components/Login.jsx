@@ -134,7 +134,7 @@ function Login() {
 
             {/* Access Code */}
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">ACCESS CODE <span className="text-gray-400 font-normal">(optional)</span></label>
+              <label className="block text-xs font-bold text-gray-500 mb-1">OR USE ACCESS CODE</label>
               <div className="relative">
                 <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
                   <KeyRound size={16} />
@@ -178,16 +178,8 @@ function Login() {
         </div>
 
         {/* Footer */}
-        <div className="mt-4 text-center space-y-1">
-          <p className="text-xs text-gray-400">Unauthorized access is strictly prohibited.</p>
-          <p className="text-xs text-gray-400">Managed by SolaceHub Security Systems.</p>
-          <div className="flex justify-center gap-4 mt-2">
-            <a href="#" className="text-xs text-gray-500 hover:text-gray-700">Support</a>
-            <a href="#" className="text-xs text-gray-500 hover:text-gray-700">Privacy</a>
-          </div>
-          <div className="mt-3">
-            <Link to="/" className="text-xs text-gray-400 hover:text-gray-600">← Back to Homepage</Link>
-          </div>
+        <div className="mt-4 text-center">
+          <Link to="/" className="text-xs text-gray-400 hover:text-gray-600">← Back to Homepage</Link>
         </div>
       </div>
     </div>
