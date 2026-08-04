@@ -54,9 +54,30 @@ def login_view(request):
 
         logger.info(f"Attempting authentication for username: {username} (event: {event_id})")
 
-        # 1. Credential-based logins first (client, desk_operator, master_fallback).
-        #    Checking these before authenticate() ensures a master-fallback key that
-        #    shares a username/password with a client never overshadows the client.
+        # 1. Real Django account login (owner/admin) first. The owner's own
+        #    account must always be able to log in, even when a master fallback
+        #    key happens to share its username. Synced users created for
+        #    master_fallback are no longer created, so authenticate() here only
+        #    matches genuine accounts.
+        user = authenticate(username=username, password=password)
+        if user:
+            logger.info(f"Authentication successful for user: {username}, role: {user.role}")
+
+            if role and user.role != role:
+                logger.warning(f"Role mismatch. Expected: {role}, Actual: {user.role}")
+                return Response({'error': 'Invalid role for this user'}, status=status.HTTP_403_FORBIDDEN)
+
+            token, created = Token.objects.get_or_create(user=user)
+            logger.info(f"Token {'created' if created else 'retrieved'} for user: {username}")
+
+            user_data = UserSerializer(user).data
+            return Response({
+                'token': token.key,
+                'user': user_data,
+                'event_id': str(user.event_id) if user.event_id else None
+            })
+
+        # 2. Credential-based logins (client, desk_operator, master_fallback).
         credentials = Credential.objects.filter(username=username)
         if event_id:
             credentials = credentials.filter(Q(event_id=event_id) | Q(event__isnull=True))
@@ -140,8 +161,13 @@ def login_view(request):
             user_role = role_map.get(credential.credential_type, credential.credential_type)
             assigned_event_id = str(credential.event_id) if credential.event_id else event_id
 
-            # Build a unique username per event so different events can share the same credential name
-            user_identifier = f"{assigned_event_id}_{credential.username}" if assigned_event_id else credential.username
+            # Build a unique username per event so different events can share the
+            # same credential name. Fallback logins get a distinct prefix so they
+            # can never collide with (or overwrite) the owner's real account.
+            if credential.credential_type == 'master_fallback':
+                user_identifier = f"fallback_{assigned_event_id}_{credential.username}" if assigned_event_id else f"fallback_{credential.username}"
+            else:
+                user_identifier = f"{assigned_event_id}_{credential.username}" if assigned_event_id else credential.username
 
             user, created = User.objects.get_or_create(
                 username=user_identifier,
@@ -168,25 +194,6 @@ def login_view(request):
                 'token': token.key,
                 'user': user_data,
                 'event_id': assigned_event_id
-            })
-
-        # 2. Fall back to standard Django users (owner/admin accounts).
-        user = authenticate(username=username, password=password)
-        if user:
-            logger.info(f"Authentication successful for user: {username}, role: {user.role}")
-
-            if role and user.role != role:
-                logger.warning(f"Role mismatch. Expected: {role}, Actual: {user.role}")
-                return Response({'error': 'Invalid role for this user'}, status=status.HTTP_403_FORBIDDEN)
-
-            token, created = Token.objects.get_or_create(user=user)
-            logger.info(f"Token {'created' if created else 'retrieved'} for user: {username}")
-
-            user_data = UserSerializer(user).data
-            return Response({
-                'token': token.key,
-                'user': user_data,
-                'event_id': str(user.event_id) if user.event_id else None
             })
 
         logger.warning(f"Authentication failed for username: {username}")
@@ -275,24 +282,29 @@ def update_credential_view(request):
                 raw_password = serializer.validated_data['password']
                 credential.password_hash = make_password(raw_password)
 
-                # Sync the linked User so token login keeps working
-                role_map = {
-                    'client': 'client',
-                    'desk_operator': 'desk_operator',
-                    'master_fallback': 'owner',
-                }
-                user_role = role_map.get(credential_type, 'client')
-                user_identifier = f"{event_id}_{credential.username}" if event_id else credential.username
-                user, _ = User.objects.get_or_create(
-                    username=user_identifier,
-                    defaults={'role': user_role, 'display_name': credential.username, 'event_id': event_id}
-                )
-                user.role = user_role
-                user.display_name = credential.username
-                if event_id:
-                    user.event_id = event_id
-                user.set_password(raw_password)
-                user.save()
+                # Sync the linked User so token login keeps working. The master
+                # fallback key never gets a synced user (it would collide with the
+                # owner's real account), and an existing owner/admin account is
+                # never overwritten.
+                if credential_type != 'master_fallback':
+                    role_map = {
+                        'client': 'client',
+                        'desk_operator': 'desk_operator',
+                        'master_fallback': 'owner',
+                    }
+                    user_role = role_map.get(credential_type, 'client')
+                    user_identifier = f"{event_id}_{credential.username}" if event_id else credential.username
+                    user, created = User.objects.get_or_create(
+                        username=user_identifier,
+                        defaults={'role': user_role, 'display_name': credential.username, 'event_id': event_id}
+                    )
+                    if created or user.role not in ('owner', 'admin'):
+                        user.role = user_role
+                        user.display_name = credential.username
+                        if event_id:
+                            user.event_id = event_id
+                        user.set_password(raw_password)
+                        user.save()
 
             if 'temp_login' in serializer.validated_data:
                 credential.temp_login = serializer.validated_data['temp_login']
