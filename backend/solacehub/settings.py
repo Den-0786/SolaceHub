@@ -141,3 +141,15 @@ CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_raw.split(',')
 
 CORS_ALLOW_ALL_ORIGINS = True  # Allow all origins for production testing
 CORS_ALLOW_CREDENTIALS = True
+
+# The frontend sends X-Event-ID on every authenticated API call; it must be
+# allowed in CORS preflight or browsers block all requests with "Failed to fetch".
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'authorization',
+    'content-type',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'x-event-id',
+]
