@@ -37,10 +37,18 @@ export const getAuthHeaders = () => {
 // Helper function to handle API calls with session expiry checking
 export const fetchWithAuth = async (url, options = {}) => {
   try {
+    // For FormData bodies (file uploads) the browser must set the multipart
+    // Content-Type with its own boundary, so do not force application/json.
+    const isFormData = options.body instanceof FormData;
+    const headers = getAuthHeaders();
+    if (isFormData) {
+      delete headers['Content-Type'];
+    }
+
     const response = await fetch(url, {
       ...options,
       headers: {
-        ...getAuthHeaders(),
+        ...headers,
         ...options.headers,
       },
     });

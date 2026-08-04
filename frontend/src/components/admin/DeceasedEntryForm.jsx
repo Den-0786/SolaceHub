@@ -60,7 +60,7 @@ export default function DeceasedEntryForm({ onClose, deployment, onSave }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!deployment) {
-      alert('No deployment found. Please create a deployment first.');
+      addToast('No deployment found. Please create a deployment first.', 'error');
       return;
     }
 
@@ -87,12 +87,12 @@ export default function DeceasedEntryForm({ onClose, deployment, onSave }) {
         if (onSave) onSave(updatedDeployment);
         onClose();
       } else {
-        const errorData = await response.json();
-        alert('Failed to update deployment: ' + (errorData.error || JSON.stringify(errorData)));
+        const errorData = await response.json().catch(() => ({}));
+        addToast('Failed to update deployment: ' + (errorData.error || errorData.detail || JSON.stringify(errorData)), 'error', 6000);
       }
     } catch (err) {
       console.error('Failed to update deployment:', err);
-      alert('Failed to update deployment');
+      addToast('Failed to update deployment', 'error');
     } finally {
       setLoading(false);
     }

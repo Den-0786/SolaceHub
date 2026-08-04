@@ -155,7 +155,7 @@ function RegistryConsole() {
 
   const handleDigitalSend = () => {
     // Handle WhatsApp/SMS sending logic
-    alert('Digital receipt sent to ' + phoneNumber);
+    addToast('Digital receipt sent to ' + phoneNumber, 'success');
   };
 
   const handleManualReprint = () => {

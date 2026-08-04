@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { Plus, Settings, MapPin, Phone, User, Loader2 } from 'lucide-react';
 import { useDeployment } from '../../contexts/DeploymentContext';
 import { useEvent } from '../../contexts/EventContext';
+import { useToast } from '../../hooks/useToast.js';
 import { API_CONFIG, fetchWithAuth } from '../../config/api.js';
 
 export default function DeploymentTab({ deployments, setDeployments }) {
   const { setActiveDeployment } = useDeployment();
   const { events } = useEvent();
+  const { addToast } = useToast();
   const [showModal, setShowModal] = useState(false);
   const [selectedDeployment, setSelectedDeployment] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -63,7 +65,7 @@ export default function DeploymentTab({ deployments, setDeployments }) {
 
   const handleRegisterDeployment = async () => {
     if (!newDeployment.event || !newDeployment.venue || !newDeployment.client || !newDeployment.phone || !newDeployment.start_date || !newDeployment.end_date) {
-      alert('Please fill in all required fields');
+      addToast('Please fill in all required fields', 'error');
       return;
     }
 
@@ -99,13 +101,13 @@ export default function DeploymentTab({ deployments, setDeployments }) {
           end_date: '',
         });
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         console.error('Failed to create deployment:', errorData);
-        alert('Failed to create deployment: ' + (errorData.error || JSON.stringify(errorData)));
+        addToast('Failed to create deployment: ' + (errorData.error || errorData.detail || JSON.stringify(errorData)), 'error', 6000);
       }
     } catch (err) {
       console.error('Failed to register deployment:', err);
-      alert('Failed to register deployment');
+      addToast('Failed to register deployment', 'error');
     } finally {
       setLoading(false);
     }
