@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { User, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
+import { User, Lock, KeyRound, LogIn, Eye, EyeOff } from 'lucide-react';
 import logo from '/SolaceHubLogo.jpeg';
 import { useToast } from '../hooks/useToast.js';
 import { API_CONFIG } from '../config/api.js';
@@ -8,6 +8,7 @@ import { API_CONFIG } from '../config/api.js';
 function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [accessCode, setAccessCode] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -21,7 +22,11 @@ function Login() {
       const response = await fetch(API_CONFIG.ENDPOINTS.AUTH.LOGIN, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({
+          username,
+          password,
+          ...(accessCode.trim() && { access_code: accessCode.trim() }),
+        }),
       });
 
       const data = await response.json();
@@ -52,6 +57,8 @@ function Login() {
 
       if (data.error === 'Session expired') {
         addToast('Session expired. Contact the system administrator.', 'error', 5000);
+      } else if (data.error === 'Multiple events matched') {
+        addToast(data.message || 'This username exists for more than one event. Enter the access code.', 'error', 5000);
       } else {
         addToast(data.error || 'Invalid username or password.', 'error');
       }
@@ -120,6 +127,23 @@ function Login() {
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
+              </div>
+            </div>
+
+            {/* Access Code */}
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1">ACCESS CODE <span className="text-gray-400 font-normal">(optional)</span></label>
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                  <KeyRound size={16} />
+                </div>
+                <input
+                  type="text"
+                  value={accessCode}
+                  onChange={(e) => setAccessCode(e.target.value)}
+                  placeholder="Event access code"
+                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-950 focus:border-transparent text-sm"
+                />
               </div>
             </div>
 

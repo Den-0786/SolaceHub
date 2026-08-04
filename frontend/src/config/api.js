@@ -7,6 +7,7 @@ export const API_CONFIG = {
       LOGIN: `${API_BASE_URL}/auth/login/`,
       LOGOUT: `${API_BASE_URL}/auth/logout/`,
       CHANGE_PASSWORD: `${API_BASE_URL}/auth/change-password/`,
+      CREDENTIAL_CHANGE_PASSWORD: `${API_BASE_URL}/auth/credentials/change-password/`,
     },
     USERS: `${API_BASE_URL}/auth/users/`,
     CREDENTIALS: `${API_BASE_URL}/auth/credentials/`,

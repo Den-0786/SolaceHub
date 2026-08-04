@@ -11,6 +11,7 @@ const OwnerDashboard = lazy(() => import('./pages/OwnerDashboard'));
 
 import { DeploymentProvider } from './contexts/DeploymentContext';
 import { EventProvider } from './contexts/EventContext';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
 
 function App() {
   return (
@@ -22,10 +23,10 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/registry-console" element={<RegistryConsole />} />
-            <Route path="/chit-console" element={<ChitConsole />} />
-            <Route path="/admin-dashboard" element={<AdminDashboard />} />
-            <Route path="/owner-dashboard" element={<OwnerDashboard />} />
+            <Route path="/registry-console" element={<ProtectedRoute allowedRoles={['desk_operator', 'chit_staff', 'donation_staff']}><RegistryConsole /></ProtectedRoute>} />
+            <Route path="/chit-console" element={<ProtectedRoute allowedRoles={['desk_operator', 'chit_staff', 'donation_staff']}><ChitConsole /></ProtectedRoute>} />
+            <Route path="/admin-dashboard" element={<ProtectedRoute allowedRoles={['client', 'admin']}><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/owner-dashboard" element={<ProtectedRoute allowedRoles={['owner']}><OwnerDashboard /></ProtectedRoute>} />
           </Routes>
         </Suspense>
       </Router>

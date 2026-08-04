@@ -84,6 +84,17 @@ def login_view(request):
         ]
 
         if matching:
+            # Same username exists for more than one event and no event context
+            # was provided, so we cannot determine which event to log into.
+            if len(matching) > 1 and not event_id:
+                return Response(
+                    {
+                        'error': 'Multiple events matched',
+                        'message': 'This username exists for more than one event. Please enter the event access code to continue.'
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             credential = matching[0]
             logger.info(f"Credential match for username: {username}, type: {credential.credential_type}")
 
@@ -250,3 +261,52 @@ def update_credential_view(request):
             logger.error(f"Credential update error: {str(e)}")
             return Response({'error': 'Failed to update credential'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_credential_password_view(request):
+    """Verify and change a credential's own password (used by the client on first login / password change)."""
+    credential_type = request.data.get('credential_type')
+    old_password = request.data.get('old_password', '')
+    new_password = request.data.get('new_password')
+
+    if credential_type != 'client':
+        return Response({'error': 'Only client credentials can be changed here'}, status=status.HTTP_400_BAD_REQUEST)
+    if not new_password or len(new_password) < 6:
+        return Response({'error': 'Password must be at least 6 characters'}, status=status.HTTP_400_BAD_REQUEST)
+
+    event_id = (
+        request.META.get('HTTP_X_EVENT_ID')
+        or request.data.get('event_id')
+        or request.query_params.get('event_id')
+    )
+
+    try:
+        credential = Credential.objects.get(credential_type='client', event_id=event_id)
+    except Credential.DoesNotExist:
+        return Response({'error': 'Client credential not found for this event'}, status=status.HTTP_404_NOT_FOUND)
+
+    # On first-time (temporary) login the current password is not known to the client,
+    # so it may be changed without the old password. Every subsequent change requires it.
+    if not check_password(old_password, credential.password_hash) and not credential.temp_login:
+        return Response({'error': 'Incorrect current password'}, status=status.HTTP_400_BAD_REQUEST)
+
+    credential.password_hash = make_password(new_password)
+    credential.temp_login = False
+    credential.save()
+
+    # Keep the linked Django user in sync so token auth keeps working
+    user_identifier = f"{event_id}_{credential.username}" if event_id else credential.username
+    user, _ = User.objects.get_or_create(
+        username=user_identifier,
+        defaults={'role': 'client', 'display_name': credential.username, 'event_id': event_id}
+    )
+    user.role = 'client'
+    user.display_name = credential.username
+    if event_id:
+        user.event_id = event_id
+    user.set_password(new_password)
+    user.save()
+
+    return Response({'message': 'Password changed successfully'})

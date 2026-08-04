@@ -33,8 +33,8 @@ function AdminDashboard() {
 
   useEffect(() => {
     if (!activeEventId) {
-      addToast('No active event selected. Please create an event first.', 'warning');
-      navigate('/owner-dashboard');
+      addToast('No active event selected. Please contact the system administrator.', 'warning');
+      navigate('/login');
       return;
     }
     fetchDashboardData();

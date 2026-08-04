@@ -17,6 +17,7 @@ export default function ClientSettings({ onClose }) {
   const [showDeskConfirmPassword, setShowDeskConfirmPassword] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [isFirstLogin, setIsFirstLogin] = useState(false);
+  const [passwordChangeLoading, setPasswordChangeLoading] = useState(false);
 
   const [credentialFields, setCredentialFields] = useState({
     currentPassword: '',
@@ -43,29 +44,52 @@ export default function ClientSettings({ onClose }) {
     return () => window.removeEventListener('keydown', handleEsc);
   }, [onClose, settings.clientTempLogin]);
 
-  const handlePasswordChange = () => {
-    if (!isFirstLogin && credentialFields.currentPassword !== settings.clientPassword) {
-      addToast('Current password is incorrect. Please try again.', 'error');
+  const handlePasswordChange = async () => {
+    if (credentialFields.newPassword !== credentialFields.confirmPassword) {
+      addToast('Passwords do not match. Please try again.', 'error');
+      return;
+    }
+    if (credentialFields.newPassword.length < 6) {
+      addToast('Password must be at least 6 characters.', 'error');
       return;
     }
 
-    if (credentialFields.newPassword && credentialFields.newPassword === credentialFields.confirmPassword) {
-      updateSettings({
-        clientPassword: credentialFields.newPassword,
-        clientTempLogin: false
+    setPasswordChangeLoading(true);
+    try {
+      const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.AUTH.CREDENTIAL_CHANGE_PASSWORD, {
+        method: 'POST',
+        body: JSON.stringify({
+          credential_type: 'client',
+          old_password: credentialFields.currentPassword,
+          new_password: credentialFields.newPassword,
+        }),
       });
-      setIsFirstLogin(false);
-      setSaveMessage('Password changed successfully.');
-      addToast('Password changed successfully. You can now access your dashboard.', 'success', 3000);
-      setTimeout(() => setSaveMessage(''), 3000);
-      setCredentialFields({
-        ...credentialFields,
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      });
-    } else {
-      addToast('Passwords do not match. Please try again.', 'error');
+      const data = await response.json();
+
+      if (response.ok) {
+        updateSettings({ clientTempLogin: false });
+        setIsFirstLogin(false);
+        setSaveMessage('Password changed successfully.');
+        addToast('Password changed successfully. You can now access your dashboard.', 'success', 3000);
+        setTimeout(() => setSaveMessage(''), 3000);
+        setCredentialFields({
+          ...credentialFields,
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+      } else {
+        addToast(data.error || 'Failed to change password.', 'error');
+      }
+    } catch (err) {
+      console.error('Password change error:', err);
+      if (err.message === 'Session expired') {
+        addToast('Session expired. Please login again.', 'error');
+      } else {
+        addToast('Connection error. Please try again.', 'error');
+      }
+    } finally {
+      setPasswordChangeLoading(false);
     }
   };
 
@@ -261,9 +285,10 @@ export default function ClientSettings({ onClose }) {
                   </div>
                   <button
                     onClick={handlePasswordChange}
-                    className="w-full py-2.5 bg-gradient-to-r from-indigo-900 to-indigo-800 hover:from-indigo-800 hover:to-indigo-700 text-white rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 shadow-lg"
+                    disabled={passwordChangeLoading}
+                    className="w-full py-2.5 bg-gradient-to-r from-indigo-900 to-indigo-800 hover:from-indigo-800 hover:to-indigo-700 text-white rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
                   >
-                    <Save size={16} /> Update Password
+                    <Save size={16} /> {passwordChangeLoading ? 'Updating...' : 'Update Password'}
                   </button>
                 </div>
               </div>
