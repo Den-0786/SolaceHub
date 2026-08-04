@@ -111,7 +111,7 @@ def login_view(request):
                     return Response(
                         {
                             'error': 'Access code required',
-                            'message': 'Enter the event access code to use the master fallback key.'
+                            'message': 'Enter the event access code to use the master fallback key. Your own owner account can be used at any time.'
                         },
                         status=status.HTTP_400_BAD_REQUEST
                     )
