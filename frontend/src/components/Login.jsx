@@ -59,6 +59,8 @@ function Login() {
         addToast('Session expired. Contact the system administrator.', 'error', 5000);
       } else if (data.error === 'Multiple events matched') {
         addToast(data.message || 'This username exists for more than one event. Enter the access code.', 'error', 5000);
+      } else if (data.error === 'Session still active' || data.error === 'Access code required') {
+        addToast(data.message || data.error, 'error', 5000);
       } else {
         addToast(data.error || 'Invalid username or password.', 'error');
       }

@@ -226,11 +226,24 @@ function OwnerDashboard() {
         method: 'POST',
         headers: getAuthHeaders(),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
       if (response.ok) {
-        addToast(`Backup created. ${data.record_count} records archived.`, 'success');
-        if (data.csv_file) {
+        addToast(`Backup created. ${data.record_count ?? 0} records archived.`, 'success');
+        if (data.warning) {
+          addToast(data.warning, 'warning', 6000);
+        }
+        if (data.csv_data) {
+          const blob = new Blob([data.csv_data], { type: 'text/csv;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.setAttribute('download', `solacehub_backup_${activeDeployment.id}.csv`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        } else if (data.csv_file) {
           const link = document.createElement('a');
           link.href = data.csv_file;
           link.setAttribute('download', `solacehub_backup_${activeDeployment.id}.csv`);
@@ -239,7 +252,7 @@ function OwnerDashboard() {
           document.body.removeChild(link);
         }
       } else {
-        addToast(data.error || 'Failed to create backup', 'error');
+        addToast(data.error || data.message || `Failed to create backup (${response.status})`, 'error');
       }
     } catch (err) {
       console.error('Backup export error:', err);

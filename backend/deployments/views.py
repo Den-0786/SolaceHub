@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
+import logging
 from .models import Deployment, Hardware, SessionTimer, Backup
 from .serializers import (
     DeploymentSerializer,
@@ -11,6 +12,8 @@ from .serializers import (
     BackupSerializer,
 )
 from .utils import expire_deployment_session
+
+logger = logging.getLogger(__name__)
 
 
 def get_event_id(request):
@@ -145,5 +148,23 @@ class DeploymentBackupCreateView(generics.GenericAPIView):
         if not deployment.event:
             return Response({'error': 'Deployment is not linked to an event'}, status=status.HTTP_400_BAD_REQUEST)
 
-        backup = expire_deployment_session(deployment.event)
-        return Response(BackupSerializer(backup).data, status=status.HTTP_201_CREATED)
+        try:
+            result = expire_deployment_session(deployment.event)
+        except Exception as e:
+            logger.exception("Backup creation failed for deployment %s", deployment_id)
+            return Response(
+                {'error': f'Backup creation failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        response_data = {
+            'record_count': result['record_count'],
+            'csv_data': result['csv'],
+            'csv_file': BackupSerializer(result['backup']).data['csv_file'] if result['backup'] else None,
+        }
+        if result.get('storage_error'):
+            response_data['warning'] = (
+                "Live data archived and delivered, but server-side file storage failed: "
+                f"{result['storage_error']}"
+            )
+        return Response(response_data, status=status.HTTP_201_CREATED)

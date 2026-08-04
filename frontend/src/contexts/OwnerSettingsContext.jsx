@@ -85,14 +85,15 @@ export function OwnerSettingsProvider({ children }) {
         method: 'POST',
         body: JSON.stringify({ credential_type: credentialType, ...data }),
       });
+      const body = await response.json().catch(() => ({}));
       if (response.ok) {
-        const updated = await response.json();
-        return updated;
+        return { ok: true, data: body };
       }
+      return { ok: false, error: body.error || body.message || `Failed to save ${credentialType} credentials (${response.status})` };
     } catch (err) {
       console.error('Failed to save credentials to backend:', err);
+      return { ok: false, error: 'Connection error. Could not reach the server.' };
     }
-    return null;
   };
 
   useEffect(() => {
@@ -125,6 +126,7 @@ export function OwnerSettingsProvider({ children }) {
 
     // Sync specific credential changes to backend
     // Only send password if it's explicitly being changed (not the stored hashed password)
+    const errors = [];
     if (newSettings.clientUsername !== undefined || newSettings.clientPassword !== undefined) {
       const payload = {
         username: newSettings.clientUsername || settings.clientUsername,
@@ -135,7 +137,8 @@ export function OwnerSettingsProvider({ children }) {
       if (newSettings.clientPassword !== undefined && newSettings.clientPassword !== settings.clientPassword) {
         payload.password = newSettings.clientPassword;
       }
-      await saveCredentialsToBackend('client', payload);
+      const result = await saveCredentialsToBackend('client', payload);
+      if (!result.ok) errors.push(`Client credentials: ${result.error}`);
     }
     if (newSettings.deskOperatorUsername !== undefined || newSettings.deskOperatorPassword !== undefined || newSettings.deskOperatorName !== undefined) {
       const payload = {
@@ -146,7 +149,8 @@ export function OwnerSettingsProvider({ children }) {
       if (newSettings.deskOperatorPassword !== undefined && newSettings.deskOperatorPassword !== settings.deskOperatorPassword) {
         payload.password = newSettings.deskOperatorPassword;
       }
-      await saveCredentialsToBackend('desk_operator', payload);
+      const result = await saveCredentialsToBackend('desk_operator', payload);
+      if (!result.ok) errors.push(`Desk operator credentials: ${result.error}`);
     }
     if (newSettings.masterFallbackUsername !== undefined || newSettings.masterFallbackPassword !== undefined) {
       const payload = {
@@ -156,11 +160,14 @@ export function OwnerSettingsProvider({ children }) {
       if (newSettings.masterFallbackPassword !== undefined && newSettings.masterFallbackPassword !== settings.masterFallbackPassword) {
         payload.password = newSettings.masterFallbackPassword;
       }
-      await saveCredentialsToBackend('master_fallback', payload);
+      const result = await saveCredentialsToBackend('master_fallback', payload);
+      if (!result.ok) errors.push(`Master fallback key: ${result.error}`);
     }
-    if (newSettings.sessionExpired !== undefined) {
-      await saveCredentialsToBackend('client', { session_expired: newSettings.sessionExpired });
+    if (newSettings.sessionExpired !== undefined && newSettings.clientUsername === undefined) {
+      const result = await saveCredentialsToBackend('client', { session_expired: newSettings.sessionExpired });
+      if (!result.ok) errors.push(`Session state: ${result.error}`);
     }
+    return errors;
   };
 
   const updateContact = (contact) => {

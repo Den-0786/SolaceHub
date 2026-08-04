@@ -415,12 +415,16 @@ function OwnerSettingsModal({ onClose }) {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (credentialFields.masterFallbackUsername && credentialFields.masterFallbackPassword) {
-                        updateSettings({
+                        const errors = await updateSettings({
                           masterFallbackUsername: credentialFields.masterFallbackUsername,
                           masterFallbackPassword: credentialFields.masterFallbackPassword
                         });
+                        if (errors && errors.length > 0) {
+                          addToast(`Master Fallback Key not saved: ${errors.join(' ')}`, 'error', 6000);
+                          return;
+                        }
                         setShowMasterFallback(false);
                         setSaveMessage('Master Fallback Key updated successfully.');
                         setTimeout(() => setSaveMessage(''), 3000);
@@ -486,14 +490,18 @@ function OwnerSettingsModal({ onClose }) {
 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (credentialFields.clientUsername && credentialFields.clientPassword) {
-                        updateSettings({
+                        const errors = await updateSettings({
                           clientUsername: credentialFields.clientUsername,
                           clientPassword: credentialFields.clientPassword,
                           clientTempLogin: false,
                           sessionExpired: false
                         });
+                        if (errors && errors.length > 0) {
+                          addToast(`Client credentials not saved: ${errors.join(' ')}`, 'error', 6000);
+                          return;
+                        }
                         setShowFamilyCredentials(false);
                         setSaveMessage('Client credentials provisioned successfully.');
                         setTimeout(() => setSaveMessage(''), 3000);

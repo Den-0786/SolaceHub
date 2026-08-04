@@ -1,11 +1,18 @@
 import csv
 import io
+import logging
 from django.utils import timezone
 from django.core.files.base import ContentFile
 
+logger = logging.getLogger(__name__)
+
 
 def expire_deployment_session(event):
-    """Backup all donor/chit data for an event, then clear it and lock the session."""
+    """Backup all donor/chit data for an event, then clear it and lock the session.
+
+    Returns a dict with the generated CSV string so callers can deliver the
+    archive to the client even if server-side file storage fails.
+    """
     from donors.models import Donor
     from chits.models import Chit
     from users.models import Credential
@@ -59,15 +66,25 @@ def expire_deployment_session(event):
             '',
         ])
 
-    csv_bytes = output.getvalue().encode('utf-8-sig')
+    csv_string = output.getvalue()
+    csv_bytes = csv_string.encode('utf-8-sig')
     output.close()
 
     record_count = len(donors) + len(chits)
-    backup = Backup.objects.create(
-        event=event,
-        csv_file=ContentFile(csv_bytes, name=filename),
-        record_count=record_count,
-    )
+
+    # Persist the archive server-side, but never let a storage failure block the
+    # session lock/expiry or the delivery of the CSV to the owner.
+    backup = None
+    storage_error = None
+    try:
+        backup = Backup.objects.create(
+            event=event,
+            csv_file=ContentFile(csv_bytes, name=filename),
+            record_count=record_count,
+        )
+    except Exception as e:
+        storage_error = str(e)
+        logger.exception("Failed to store backup file for event %s", event.id)
 
     # Clear live data
     Donor.objects.filter(event=event).delete()
@@ -81,4 +98,9 @@ def expire_deployment_session(event):
         client_cred.save()
     Credential.objects.filter(credential_type='desk_operator', event=event).delete()
 
-    return backup
+    return {
+        'csv': csv_string,
+        'record_count': record_count,
+        'backup': backup,
+        'storage_error': storage_error,
+    }

@@ -54,26 +54,9 @@ def login_view(request):
 
         logger.info(f"Attempting authentication for username: {username} (event: {event_id})")
 
-        # 1. Try standard Django user first (owner/admin)
-        user = authenticate(username=username, password=password)
-        if user:
-            logger.info(f"Authentication successful for user: {username}, role: {user.role}")
-
-            if role and user.role != role:
-                logger.warning(f"Role mismatch. Expected: {role}, Actual: {user.role}")
-                return Response({'error': 'Invalid role for this user'}, status=status.HTTP_403_FORBIDDEN)
-
-            token, created = Token.objects.get_or_create(user=user)
-            logger.info(f"Token {'created' if created else 'retrieved'} for user: {username}")
-
-            user_data = UserSerializer(user).data
-            return Response({
-                'token': token.key,
-                'user': user_data,
-                'event_id': str(user.event_id) if user.event_id else None
-            })
-
-        # 2. Fallback to Credential-based logins (client, desk_operator, master_fallback)
+        # 1. Credential-based logins first (client, desk_operator, master_fallback).
+        #    Checking these before authenticate() ensures a master-fallback key that
+        #    shares a username/password with a client never overshadows the client.
         credentials = Credential.objects.filter(username=username)
         if event_id:
             credentials = credentials.filter(Q(event_id=event_id) | Q(event__isnull=True))
@@ -84,29 +67,70 @@ def login_view(request):
         ]
 
         if matching:
-            # Same username exists for more than one event and no event context
-            # was provided, so we cannot determine which event to log into.
-            if len(matching) > 1 and not event_id:
-                return Response(
-                    {
-                        'error': 'Multiple events matched',
-                        'message': 'This username exists for more than one event. Please enter the event access code to continue.'
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            preferred = [c for c in matching if c.credential_type in ('client', 'desk_operator')]
+            fallback = [c for c in matching if c.credential_type == 'master_fallback']
 
-            credential = matching[0]
+            if preferred:
+                # Prefer the credential scoped to the requested event, then any
+                # event-scoped one, then a global one.
+                preferred.sort(key=lambda c: (0 if c.event_id == event_id else 1 if c.event_id else 2))
+
+                # Same username exists for more than one event and no event context
+                # was provided, so we cannot determine which event to log into.
+                distinct_events = {c.event_id for c in preferred if c.event_id}
+                if len(preferred) > 1 and not event_id and len(distinct_events) > 1:
+                    return Response(
+                        {
+                            'error': 'Multiple events matched',
+                            'message': 'This username exists for more than one event. Please enter the event access code to continue.'
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                credential = preferred[0]
+
+                # Client / desk operator cannot log in when their session has expired
+                if credential.session_expired:
+                    return Response(
+                        {
+                            'error': 'Session expired',
+                            'message': 'Your session has expired. Please contact the system administrator.'
+                        },
+                        status=status.HTTP_401_UNAUTHORIZED
+                    )
+            else:
+                # No client/desk operator matched. Only fall back to the master key,
+                # and only when the client session for that event has already expired.
+                credential = fallback[0] if fallback else None
+                if credential is None:
+                    logger.warning(f"Authentication failed for username: {username}")
+                    return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+                event_context = credential.event_id or event_id
+                if not event_context:
+                    return Response(
+                        {
+                            'error': 'Access code required',
+                            'message': 'Enter the event access code to use the master fallback key.'
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                active_client = Credential.objects.filter(
+                    credential_type='client',
+                    event_id=event_context,
+                    session_expired=False,
+                ).exists()
+                if active_client:
+                    return Response(
+                        {
+                            'error': 'Session still active',
+                            'message': 'Master fallback is only available after the client session has expired.'
+                        },
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+
             logger.info(f"Credential match for username: {username}, type: {credential.credential_type}")
-
-            # Client / desk operator cannot log in when their session has expired
-            if credential.credential_type in ('client', 'desk_operator') and credential.session_expired:
-                return Response(
-                    {
-                        'error': 'Session expired',
-                        'message': 'Your session has expired. Please contact the system administrator.'
-                    },
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
 
             role_map = {
                 'client': 'client',
@@ -144,6 +168,25 @@ def login_view(request):
                 'token': token.key,
                 'user': user_data,
                 'event_id': assigned_event_id
+            })
+
+        # 2. Fall back to standard Django users (owner/admin accounts).
+        user = authenticate(username=username, password=password)
+        if user:
+            logger.info(f"Authentication successful for user: {username}, role: {user.role}")
+
+            if role and user.role != role:
+                logger.warning(f"Role mismatch. Expected: {role}, Actual: {user.role}")
+                return Response({'error': 'Invalid role for this user'}, status=status.HTTP_403_FORBIDDEN)
+
+            token, created = Token.objects.get_or_create(user=user)
+            logger.info(f"Token {'created' if created else 'retrieved'} for user: {username}")
+
+            user_data = UserSerializer(user).data
+            return Response({
+                'token': token.key,
+                'user': user_data,
+                'event_id': str(user.event_id) if user.event_id else None
             })
 
         logger.warning(f"Authentication failed for username: {username}")
