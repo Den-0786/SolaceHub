@@ -8,6 +8,18 @@ import { useOwnerSettings } from '../hooks/useOwnerSettings.js';
 import { useEvent } from '../contexts/EventContext.jsx';
 import { API_CONFIG, fetchWithAuth } from '../config/api.js';
 
+const generateReceiptId = () => {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const timestamp = `${String(now.getFullYear()).slice(2)}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let suffix = '';
+  for (let i = 0; i < 6; i++) {
+    suffix += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return `FP-${timestamp}-${suffix}`;
+};
+
 function RegistryConsole() {
   const navigate = useNavigate();
   const { addToast } = useToast();
@@ -22,6 +34,7 @@ function RegistryConsole() {
   const [amount, setAmount] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('+233');
   const [transactions, setTransactions] = useState([]);
+  const [previewReceiptId, setPreviewReceiptId] = useState(() => generateReceiptId());
   const [totalAmount, setTotalAmount] = useState(0);
   const [entryCount, setEntryCount] = useState(0);
   const [currentView, setCurrentView] = useState('desk');
@@ -110,7 +123,7 @@ function RegistryConsole() {
           donor_name: donorName || 'Anonymous',
           phone_number: phoneNumber,
           amount: newAmount,
-          receipt_id: `FP-${String(transactions.length + 1).padStart(4, '0')}`,
+          receipt_id: previewReceiptId,
           time: currentTime,
           method: 'Cash',
           event_day: 1,
@@ -129,6 +142,7 @@ function RegistryConsole() {
           setDonorName('');
           setAmount('');
           setPhoneNumber('+233');
+          setPreviewReceiptId(generateReceiptId());
           addToast('Donor registered successfully', 'success');
           window.removeEventListener('afterprint', handleAfterPrint);
         };
@@ -439,7 +453,7 @@ function RegistryConsole() {
                   <h3 className="text-lg font-bold text-gray-900 mb-4">Live Thermal Receipt Preview</h3>
                   
                   <div className="bg-gray-50 rounded-lg p-6 mb-4" style={{ maxWidth: '320px' }}>
-                    <div className="bg-white p-4 text-center">
+                    <div className="printable-receipt bg-white p-4 text-center">
                       <div className="flex justify-center mb-2">
                         {activeDeployment?.deceased_image ? (
                           <img src={activeDeployment.deceased_image} alt="Deceased" className="h-16 w-16 rounded-full object-cover" />
@@ -457,7 +471,7 @@ function RegistryConsole() {
                         <p className="text-xs text-gray-400">Event ID: #{activeDeployment.id}</p>
                       )}
                       <div className="border-t border-dashed border-gray-300 my-2"></div>
-                      <p className="text-xs text-gray-600">Receipt #: FP-{String(transactions.length + 1).padStart(4, '0')}</p>
+                      <p className="text-xs text-gray-600">Receipt #: {previewReceiptId}</p>
                       <p className="text-xs text-gray-600">{currentDate} {currentTime}</p>
                       <div className="border-t border-dashed border-gray-300 my-2"></div>
                       <p className="text-xs font-medium text-gray-700">DONOR NAME</p>
@@ -622,16 +636,25 @@ function RegistryConsole() {
       <style>{`
         @media print {
           body * {
-            visibility: hidden;
+            display: none !important;
           }
-          .bg-gray-50, .bg-gray-50 * {
-            visibility: visible;
+          .printable-receipt, .printable-receipt * {
+            display: block !important;
+            visibility: visible !important;
           }
-          .bg-gray-50 {
+          .printable-receipt .flex {
+            display: flex !important;
+          }
+          .printable-receipt {
             position: absolute;
             left: 0;
             top: 0;
-            width: 80mm;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            page-break-inside: avoid;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
         }
       `}</style>

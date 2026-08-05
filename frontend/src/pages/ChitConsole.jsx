@@ -25,6 +25,15 @@ import { useOwnerSettings } from "../hooks/useOwnerSettings.js";
 import { useEvent } from "../contexts/EventContext.jsx";
 import { API_CONFIG, fetchWithAuth } from "../config/api.js";
 
+const generateSecurityCode = () => {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return `CHIT-${code}`;
+};
+
 function ChitConsole() {
   const navigate = useNavigate();
   const { addToast } = useToast();
@@ -38,7 +47,7 @@ function ChitConsole() {
   const [representativeName, setRepresentativeName] = useState("");
   const [numberOfPeople, setNumberOfPeople] = useState(1);
   const [voucherType, setVoucherType] = useState("full_meal");
-  const [securityCode, setSecurityCode] = useState("CHIT-402");
+  const [securityCode, setSecurityCode] = useState(generateSecurityCode);
   const [issuedToday, setIssuedToday] = useState(0);
   const [currentView, setCurrentView] = useState("desk");
   const [chitHistory, setChitHistory] = useState([]);
@@ -103,6 +112,7 @@ function ChitConsole() {
           setRepresentativeName("");
           setNumberOfPeople(1);
           setVoucherType("full_meal");
+          setSecurityCode(generateSecurityCode());
           addToast("Chit issued successfully", "success");
           window.removeEventListener('afterprint', handleAfterPrint);
         };
@@ -144,8 +154,7 @@ function ChitConsole() {
   };
 
   const handleGenerateNewCode = () => {
-    const codeNumber = parseInt(securityCode.split("-")[1]) + 1;
-    setSecurityCode(`CHIT-${codeNumber}`);
+    setSecurityCode(generateSecurityCode());
   };
 
   useEffect(() => {
@@ -510,7 +519,7 @@ function ChitConsole() {
                     className="bg-indigo-50 rounded-lg p-6 mb-4"
                     style={{ maxWidth: "240px", margin: "0 auto" }}
                   >
-                    <div className="bg-white p-4 text-center">
+                    <div className="printable-chit bg-white p-4 text-center">
                       {/* Top Header */}
                       <div className="flex justify-center mb-3">
                         <div className="w-16 h-16 bg-indigo-100 rounded-full overflow-hidden">
@@ -786,16 +795,25 @@ function ChitConsole() {
       <style>{`
         @media print {
           body * {
-            visibility: hidden;
+            display: none !important;
           }
-          .bg-indigo-50, .bg-indigo-50 * {
-            visibility: visible;
+          .printable-chit, .printable-chit * {
+            display: block !important;
+            visibility: visible !important;
           }
-          .bg-indigo-50 {
+          .printable-chit .flex {
+            display: flex !important;
+          }
+          .printable-chit {
             position: absolute;
             left: 0;
             top: 0;
-            width: 58mm;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            page-break-inside: avoid;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
         }
       `}</style>

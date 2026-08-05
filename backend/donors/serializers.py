@@ -4,6 +4,7 @@ from .models import Donor
 
 
 class DonorSerializer(serializers.ModelSerializer):
+    receipt_id = serializers.CharField(required=False, allow_blank=True)
     logged_by_name = serializers.SerializerMethodField()
     deployment = serializers.PrimaryKeyRelatedField(
         queryset=Deployment.objects.all(),
