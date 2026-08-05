@@ -20,6 +20,9 @@ const generateReceiptId = () => {
   return `FP-${timestamp}-${suffix}`;
 };
 
+const formatCedis = (value) =>
+  new Intl.NumberFormat('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value || 0);
+
 function RegistryConsole() {
   const navigate = useNavigate();
   const { addToast } = useToast();
@@ -100,7 +103,7 @@ function RegistryConsole() {
       if (response.ok) {
         const data = await response.json();
         setTransactions(data);
-        setTotalAmount(data.reduce((sum, d) => sum + d.amount, 0));
+        setTotalAmount(data.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0));
         setEntryCount(data.length);
       }
     } catch (err) {
@@ -389,7 +392,7 @@ function RegistryConsole() {
               {/* Today's Total Summary - Full width after hero card */}
               <div className="bg-gradient-to-r from-indigo-950 to-indigo-900 rounded-xl p-6 text-white">
                 <h4 className="text-sm font-medium opacity-80 mb-2">Today's Total</h4>
-                <p className="text-3xl font-bold">GH₵ {totalAmount.toLocaleString()}.00</p>
+                <p className="text-3xl font-bold">GH₵ {formatCedis(totalAmount)}</p>
                 <p className="text-sm opacity-80 mt-1">{entryCount} Entries processed</p>
                 <div className="flex items-center gap-1 mt-2 text-green-400">
                   <ArrowUp size={16} />
@@ -590,7 +593,7 @@ function RegistryConsole() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <p className="text-sm text-gray-600">Total Collected Today</p>
-                  <p className="text-3xl font-bold text-gray-900">GH₵ {totalAmount.toLocaleString()}.00</p>
+                  <p className="text-3xl font-bold text-gray-900">GH₵ {formatCedis(totalAmount)}</p>
                 </div>
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <p className="text-sm text-gray-600">Total Entries</p>
@@ -598,7 +601,7 @@ function RegistryConsole() {
                 </div>
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <p className="text-sm text-gray-600">Average Donation</p>
-                  <p className="text-3xl font-bold text-gray-900">GH₵ {(totalAmount / entryCount).toFixed(2)}</p>
+                  <p className="text-3xl font-bold text-gray-900">GH₵ {formatCedis(totalAmount / entryCount)}</p>
                 </div>
               </div>
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -645,14 +648,15 @@ function RegistryConsole() {
           }
 
           body * {
-            display: none !important;
-          }
-          #root {
-            display: block !important;
+            visibility: hidden !important;
           }
 
           .print-root {
             display: block !important;
+            visibility: visible !important;
+            position: absolute;
+            left: 0;
+            top: 0;
             width: 100%;
             margin: 0;
             padding: 0;
@@ -660,7 +664,6 @@ function RegistryConsole() {
             print-color-adjust: exact;
           }
           .print-root * {
-            display: block !important;
             visibility: visible !important;
           }
 

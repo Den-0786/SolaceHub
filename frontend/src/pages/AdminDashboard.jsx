@@ -326,7 +326,7 @@ function AdminDashboard() {
               <p className="text-sm text-gray-500 mb-2">Total Donations</p>
               <div className="flex items-center gap-2 flex-nowrap">
                 <p className="text-xl font-bold text-gray-900">
-                  GH₵ {donationLedger.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {formatAmount(donationLedger.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0))}
                 </p>
               </div>
               <p className="text-xs text-gray-400 mt-2">{donationLedger.length} transactions</p>

@@ -230,6 +230,26 @@ function ChitConsole() {
     }
   };
 
+  const fetchChits = useCallback(async () => {
+    try {
+      const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.CHITS);
+      if (response.ok) {
+        const data = await response.json();
+        const chits = data.results || data || [];
+        setChitHistory(chits);
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        setIssuedToday(chits.filter((c) => c.date === today).length);
+      }
+    } catch (err) {
+      console.error('Failed to fetch chits:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchChits();
+  }, [activeEventId, fetchChits]);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
@@ -668,30 +688,38 @@ function ChitConsole() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {chitHistory.map((chit) => (
-                      <tr key={chit.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                          {chit.security_code}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {chit.representative_name}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {chit.number_of_people}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {formatVoucherType(chit.voucher_type)}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {chit.time}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                            ISSUED
-                          </span>
+                    {chitHistory.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
+                          No chits issued yet for this event.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      chitHistory.map((chit) => (
+                        <tr key={chit.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                            {chit.security_code}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {chit.representative_name}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {chit.number_of_people}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {formatVoucherType(chit.voucher_type)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {chit.time}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                              ISSUED
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -822,14 +850,15 @@ function ChitConsole() {
           }
 
           body * {
-            display: none !important;
-          }
-          #root {
-            display: block !important;
+            visibility: hidden !important;
           }
 
           .print-root {
             display: block !important;
+            visibility: visible !important;
+            position: absolute;
+            left: 0;
+            top: 0;
             width: 100%;
             margin: 0;
             padding: 0;
@@ -837,7 +866,6 @@ function ChitConsole() {
             print-color-adjust: exact;
           }
           .print-root * {
-            display: block !important;
             visibility: visible !important;
           }
 
