@@ -1,43 +1,81 @@
-import { useState, useMemo, useEffect } from 'react';
-import { CalendarDays, CalendarRange, Calendar, TrendingUp, BarChart3, Loader2 } from 'lucide-react';
-import { API_CONFIG, getAuthHeaders } from '../../config/api.js';
+import { useState, useMemo } from 'react';
+import { CalendarDays, CalendarRange, Calendar, TrendingUp, BarChart3, LayoutDashboard, CalendarCheck } from 'lucide-react';
 
-export default function AnalyticsTab() {
+const buildBuckets = (events, deployments, period) => {
+  const now = new Date();
+  let buckets = [];
+
+  if (period === 'Weekly') {
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      buckets.push({
+        label: d.toLocaleDateString('en-US', { weekday: 'short' }),
+        key: d.toDateString(),
+        events: 0,
+        deployments: 0,
+      });
+    }
+  } else if (period === 'Monthly') {
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      buckets.push({
+        label: d.toLocaleDateString('en-US', { month: 'short' }),
+        key: `${d.getFullYear()}-${d.getMonth()}`,
+        events: 0,
+        deployments: 0,
+      });
+    }
+  } else {
+    for (let i = 4; i >= 0; i--) {
+      const y = now.getFullYear() - i;
+      buckets.push({ label: String(y), key: String(y), events: 0, deployments: 0 });
+    }
+  }
+
+  const bucketOf = (dateValue) => {
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return null;
+    for (const b of buckets) {
+      if (period === 'Weekly' && date.toDateString() === b.key) return b;
+      if (period === 'Monthly' && `${date.getFullYear()}-${date.getMonth()}` === b.key) return b;
+      if (period === 'Yearly' && String(date.getFullYear()) === b.key) return b;
+    }
+    return null;
+  };
+
+  (events || []).forEach((e) => {
+    const b = bucketOf(e.created_at || e.date);
+    if (b) b.events += 1;
+  });
+  (deployments || []).forEach((d) => {
+    const b = bucketOf(d.created_at || d.start_date);
+    if (b) b.deployments += 1;
+  });
+
+  return buckets.map((b) => ({
+    label: b.label,
+    value1: b.events,
+    value2: b.deployments,
+    revenue1: b.events,
+    revenue2: b.deployments,
+  }));
+};
+
+export default function AnalyticsTab({ events = [], deployments = [] }) {
   const [analyticsPeriod, setAnalyticsPeriod] = useState('Weekly');
   const [hoveredData, setHoveredData] = useState(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [loading, setLoading] = useState(false);
-  const [analyticsData, setAnalyticsData] = useState({ Weekly: [], Monthly: [], Yearly: [] });
 
-  useEffect(() => {
-    fetchAnalyticsData();
-  }, []);
+  const currentData = useMemo(
+    () => buildBuckets(events, deployments, analyticsPeriod),
+    [events, deployments, analyticsPeriod]
+  );
 
-  const fetchAnalyticsData = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(API_CONFIG.ENDPOINTS.REPORTS, {
-        headers: getAuthHeaders(),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        // Process the data into the expected format
-        setAnalyticsData({
-          Weekly: data.weekly || [],
-          Monthly: data.monthly || [],
-          Yearly: data.yearly || []
-        });
-      }
-    } catch (err) {
-      console.error('Failed to fetch analytics data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const totalEvents = currentData.reduce((sum, d) => sum + d.value1, 0);
+  const totalDeployments = currentData.reduce((sum, d) => sum + d.value2, 0);
+  const activeEvents = (events || []).filter((e) => e.is_active).length;
 
-  const currentData = analyticsData[analyticsPeriod] || [];
-  const maxValue = useMemo(() => Math.max(...currentData.map(d => Math.max(d.value1, d.value2)), 0), [currentData]);
-  const totalRevenue = useMemo(() => currentData.reduce((sum, d) => sum + d.revenue1 + d.revenue2, 0), [currentData]);
+  const maxValue = useMemo(() => Math.max(...currentData.map((d) => Math.max(d.value1, d.value2)), 1), [currentData]);
 
   const generateStreamPath = (data, valueKey) => {
     if (data.length === 0) return '';
@@ -101,27 +139,24 @@ export default function AnalyticsTab() {
 
   const getTooltipPosition = () => {
     const tooltipWidth = 200;
-    const tooltipHeight = 120;
+    const tooltipHeight = 90;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    
+
     let left = mousePosition.x + 15;
     let top = mousePosition.y + 15;
-    
-    // Flip to left if too close to right edge
+
     if (left + tooltipWidth > viewportWidth - 20) {
       left = mousePosition.x - tooltipWidth - 15;
     }
-    
-    // Flip to top if too close to bottom edge
+
     if (top + tooltipHeight > viewportHeight - 20) {
       top = mousePosition.y - tooltipHeight - 15;
     }
-    
-    // Ensure tooltip stays within viewport
+
     left = Math.max(10, Math.min(left, viewportWidth - tooltipWidth - 10));
     top = Math.max(10, Math.min(top, viewportHeight - tooltipHeight - 10));
-    
+
     return { left, top };
   };
 
@@ -129,24 +164,13 @@ export default function AnalyticsTab() {
     setHoveredData(null);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="animate-spin text-indigo-950" size={32} />
-          <p className="text-sm text-gray-500">Loading analytics data...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Service Streaks <span className="text-indigo-600">&</span> Analytics</h2>
-          <p className="text-gray-500">Performance trends and revenue analysis for services rendered</p>
+          <h2 className="text-2xl font-bold text-gray-900">System Progress <span className="text-indigo-600">&</span> Analytics</h2>
+          <p className="text-gray-500">Growth trends for registered events and hired deployments</p>
         </div>
         <div className="flex bg-gray-100 rounded-xl p-1 w-full sm:w-auto overflow-x-auto gap-1">
           {['Weekly', 'Monthly', 'Yearly'].map((period) => (
@@ -172,34 +196,42 @@ export default function AnalyticsTab() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="rounded-2xl p-6 shadow-sm" style={{ backgroundColor: '#F5F0EB', borderColor: '#8B7E74' }}>
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp size={18} style={{ color: '#1C1C1E' }} />
-            <span className="text-sm" style={{ color: '#8B7E74' }}>Total Revenue (Stream 1)</span>
+            <LayoutDashboard size={18} style={{ color: '#1C1C1E' }} />
+            <span className="text-sm" style={{ color: '#8B7E74' }}>New Events</span>
           </div>
-          <p className="text-3xl font-bold" style={{ color: '#1C1C1E' }}>${currentData.reduce((sum, d) => sum + d.revenue1, 0).toLocaleString()}</p>
-          <p className="text-xs mt-1" style={{ color: '#8B7E74' }}>For selected period</p>
+          <p className="text-3xl font-bold" style={{ color: '#1C1C1E' }}>{totalEvents.toLocaleString()}</p>
+          <p className="text-xs mt-1" style={{ color: '#8B7E74' }}>Registered in selected period</p>
         </div>
         <div className="rounded-2xl p-6 shadow-sm" style={{ backgroundColor: '#F5F0EB', borderColor: '#8B7E74' }}>
           <div className="flex items-center gap-2 mb-2">
             <BarChart3 size={18} style={{ color: '#C9A87C' }} />
-            <span className="text-sm" style={{ color: '#8B7E74' }}>Total Revenue (Stream 2)</span>
+            <span className="text-sm" style={{ color: '#8B7E74' }}>New Deployments</span>
           </div>
-          <p className="text-3xl font-bold" style={{ color: '#1C1C1E' }}>${currentData.reduce((sum, d) => sum + d.revenue2, 0).toLocaleString()}</p>
-          <p className="text-xs mt-1" style={{ color: '#8B7E74' }}>For selected period</p>
+          <p className="text-3xl font-bold" style={{ color: '#1C1C1E' }}>{totalDeployments.toLocaleString()}</p>
+          <p className="text-xs mt-1" style={{ color: '#8B7E74' }}>Hired in selected period</p>
         </div>
         <div className="rounded-2xl p-6 shadow-sm" style={{ backgroundColor: '#F5F0EB', borderColor: '#8B7E74' }}>
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp size={18} style={{ color: '#8B7E74' }} />
-            <span className="text-sm" style={{ color: '#8B7E74' }}>Combined Revenue</span>
+            <CalendarCheck size={18} style={{ color: '#8B7E74' }} />
+            <span className="text-sm" style={{ color: '#8B7E74' }}>Active Events</span>
           </div>
-          <p className="text-3xl font-bold" style={{ color: '#1C1C1E' }}>${totalRevenue.toLocaleString()}</p>
-          <p className="text-xs mt-1" style={{ color: '#8B7E74' }}>Both streams combined</p>
+          <p className="text-3xl font-bold" style={{ color: '#1C1C1E' }}>{activeEvents.toLocaleString()}</p>
+          <p className="text-xs mt-1" style={{ color: '#8B7E74' }}>Currently live</p>
         </div>
       </div>
 
       {/* Streammap Visualization */}
       <div className="rounded-2xl border p-6 shadow-sm relative" style={{ backgroundColor: '#F5F0EB', borderColor: '#8B7E74' }}>
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold" style={{ color: '#1C1C1E' }}>Service Activity Streammap</h3>
+          <h3 className="text-lg font-semibold" style={{ color: '#1C1C1E' }}>Events & Deployments Growth</h3>
+          <div className="flex items-center gap-4 text-xs">
+            <span className="flex items-center gap-1.5" style={{ color: '#8B7E74' }}>
+              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: '#1C1C1E' }}></span> Events
+            </span>
+            <span className="flex items-center gap-1.5" style={{ color: '#8B7E74' }}>
+              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: '#C9A87C' }}></span> Deployments
+            </span>
+          </div>
         </div>
 
         {/* Floating Tooltip */}
@@ -215,11 +247,11 @@ export default function AnalyticsTab() {
             <p className="text-sm font-medium mb-2" style={{ color: '#F5F0EB' }}>{hoveredData.label}</p>
             <div className="flex items-center gap-2 mb-1">
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#1C1C1E' }}></div>
-              <p className="text-xs font-semibold" style={{ color: '#F5F0EB' }}>${hoveredData.revenue1.toLocaleString()}</p>
+              <p className="text-xs font-semibold" style={{ color: '#F5F0EB' }}>{hoveredData.value1} event(s)</p>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#C9A87C' }}></div>
-              <p className="text-xs font-semibold" style={{ color: '#F5F0EB' }}>${hoveredData.revenue2.toLocaleString()}</p>
+              <p className="text-xs font-semibold" style={{ color: '#F5F0EB' }}>{hoveredData.value2} deployment(s)</p>
             </div>
           </div>
         )}

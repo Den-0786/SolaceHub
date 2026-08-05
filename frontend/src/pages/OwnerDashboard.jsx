@@ -10,14 +10,13 @@ import {
   Clock,
   Settings,
   LogOut,
-  Search,
   Bell,
   Download,
-  Plus,
-  Users,
-  BarChart3,
+  FileText,
+  Loader2,
   Timer,
-  Circle
+  Circle,
+  BarChart3
 } from 'lucide-react';
 import OwnerSettingsModal from '../components/OwnerSettingsModal.jsx';
 import DeploymentTab from '../components/owner/DeploymentTab.jsx';
@@ -40,17 +39,13 @@ function OwnerDashboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeLink, setActiveLink] = useState('Dashboard');
   const [showSettings, setShowSettings] = useState(false);
-  const [analyticsPeriod, setAnalyticsPeriod] = useState('Weekly');
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [loading, setLoading] = useState(false);
-  
-  // Data state
-  const [analyticsData, setAnalyticsData] = useState(null);
-  const [analyticsLabels, setAnalyticsLabels] = useState(null);
+  const [exporting, setExporting] = useState(null);
 
   // Load events for the owner and auto-select one if none active
   useEffect(() => {
@@ -209,11 +204,6 @@ function OwnerDashboard() {
     }
   };
 
-  const maxValue = useMemo(() => {
-    if (!analyticsData || !analyticsData[analyticsPeriod]) return 0;
-    return Math.max(...analyticsData[analyticsPeriod], 0);
-  }, [analyticsPeriod, analyticsData]);
-
   const handleExtend24Hours = () => {
     setDurationHours((prev) => prev + 24);
   };
@@ -312,6 +302,53 @@ function OwnerDashboard() {
     }
   };
 
+  const triggerDownload = (blob, filename) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadPDF = async () => {
+    if (exporting) return;
+    setExporting('pdf');
+    try {
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.REPORTS}export/pdf/`);
+      if (response.ok) {
+        const blob = await response.blob();
+        triggerDownload(blob, `family-audit-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+      } else {
+        addToast(`PDF export failed (${response.status})`, 'error');
+      }
+    } catch (err) {
+      addToast('PDF export failed', 'error');
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleDownloadCSV = async () => {
+    if (exporting) return;
+    setExporting('csv');
+    try {
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.REPORTS}export/csv/`);
+      if (response.ok) {
+        const blob = await response.blob();
+        triggerDownload(blob, `solacehub-raw-data-${new Date().toISOString().slice(0, 10)}.csv`);
+      } else {
+        addToast(`CSV export failed (${response.status})`, 'error');
+      }
+    } catch (err) {
+      addToast('CSV export failed', 'error');
+    } finally {
+      setExporting(null);
+    }
+  };
+
   const metrics = useMemo(() => {
     const pendingCount = deployments.filter(d => d.status === 'pending' || d.status === 'Pending').length;
     const activeCount = deployments.filter(d => d.status === 'attended' || d.status === 'Attended').length;
@@ -367,7 +404,7 @@ function OwnerDashboard() {
     }
 
     if (activeLink === 'Analytics') {
-      return <AnalyticsTab />;
+      return <AnalyticsTab events={eventList} deployments={deployments} />;
     }
 
     return (
@@ -384,6 +421,37 @@ function OwnerDashboard() {
             </div>
           ))}
         </div>
+
+        {isLocked && (
+          <div className="bg-white rounded-2xl border-2 border-indigo-900 shadow-sm p-6 mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Final Family Report Ready</h2>
+                <p className="text-sm text-gray-500">
+                  Session expired. Download the complete audit report to share with the family.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={handleDownloadPDF}
+                  disabled={!!exporting}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-950 hover:bg-indigo-900 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  {exporting === 'pdf' ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                  {exporting === 'pdf' ? 'Generating PDF...' : 'Download Family Audit PDF'}
+                </button>
+                <button
+                  onClick={handleDownloadCSV}
+                  disabled={!!exporting}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  {exporting === 'csv' ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                  {exporting === 'csv' ? 'Exporting...' : 'Download Raw Data (CSV)'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Active Rental Session Controller */}
@@ -456,12 +524,18 @@ function OwnerDashboard() {
                 <h2 className="text-lg font-bold text-gray-900">Master Event Archive</h2>
                 <p className="text-sm text-gray-500">Expired deployments and transaction history</p>
               </div>
-              <button
-                onClick={handleExportCSV}
-                className="w-full sm:w-auto px-4 py-2.5 bg-indigo-900 hover:bg-indigo-800 text-white rounded-xl text-sm font-medium flex items-center justify-center sm:justify-start gap-2"
-              >
-                <Download size={16} /> Export Master CSV Backup
-              </button>
+              {isLocked ? (
+                <button
+                  onClick={handleExportCSV}
+                  className="w-full sm:w-auto px-4 py-2.5 bg-indigo-900 hover:bg-indigo-800 text-white rounded-xl text-sm font-medium flex items-center justify-center sm:justify-start gap-2"
+                >
+                  <Download size={16} /> Export Master CSV Backup
+                </button>
+              ) : (
+                <p className="text-xs text-gray-400">
+                  Exports unlock when the active session expires.
+                </p>
+              )}
             </div>
 
             <div className="w-full overflow-x-auto rounded-lg border border-gray-200 shadow-sm">

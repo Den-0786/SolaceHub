@@ -281,11 +281,12 @@ export default function SessionTimerTab({
               <span className="font-medium text-gray-900">Master CSV Backup Log</span>
             </div>
             <p className="text-sm text-gray-600 mb-3">
-              Export the full donation and chit transaction ledger even after credentials expire.
+              Export the full donation and chit transaction ledger once the session expires.
             </p>
             <button
               onClick={handleExportCSV}
-              className="w-full bg-indigo-950 hover:bg-indigo-900 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors"
+              disabled={!isLocked}
+              className="w-full bg-indigo-950 hover:bg-indigo-900 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               <Download size={18} /> Generate & Download Master CSV Log
             </button>
