@@ -1,32 +1,123 @@
-import { useState } from 'react';
-import { X, Printer, Tablet, CheckCircle, AlertCircle, Wifi, Battery, RefreshCw, Copy, Lock, Clock, Plus, MapPin, User, Settings, Download } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Printer, Tablet, CheckCircle, AlertCircle, Wifi, Battery, RefreshCw, Copy, Lock, Clock, Plus, MapPin, User, Settings, Download, Loader2 } from 'lucide-react';
+import { useToast } from '../../hooks/useToast.js';
+import { API_CONFIG, fetchWithAuth, getAuthHeaders } from '../../config/api.js';
 
 export default function ManageDeploymentModal({ deployment, onClose, onUpdateStatus, hardwareInventory, updateHardwareStatus, onEdit, onDelete }) {
+  const { addToast } = useToast();
+  const [status, setStatus] = useState(
+    deployment?.status ? deployment.status.charAt(0).toUpperCase() + deployment.status.slice(1) : 'Pending'
+  );
+  const [showCredentials, setShowCredentials] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState('--');
+  const [sessionProgress, setSessionProgress] = useState(0);
+  const [sessionTimer, setSessionTimer] = useState(deployment?.session_timer || null);
+  const [sessionBusy, setSessionBusy] = useState(false);
+  const [clientCredential, setClientCredential] = useState(null);
+  const [generatedPassword, setGeneratedPassword] = useState('');
+  const [donationCount, setDonationCount] = useState(0);
+  const [chitCount, setChitCount] = useState(0);
+
+  // Hardware selection state
+  const deploymentHardware = deployment?.hardware || [];
+  const [selectedTablets, setSelectedTablets] = useState(deploymentHardware.filter(h => h.startsWith('TAB')));
+  const [selectedDonationPrinter, setSelectedDonationPrinter] = useState(
+    deploymentHardware.find(h => h.startsWith('PRN') && !h.includes('B')) || ''
+  );
+  const [selectedChitPrinter, setSelectedChitPrinter] = useState(
+    deploymentHardware.find(h => h.includes('B')) || ''
+  );
+
+  // Real-time countdown based on the live session timer record
+  useEffect(() => {
+    if (!sessionTimer) return undefined;
+    const tick = () => {
+      const start = new Date(sessionTimer.start_timestamp).getTime();
+      if (isNaN(start)) return;
+      const durationMs = ((sessionTimer.duration_days * 24) + (sessionTimer.duration_hours || 0)) * 60 * 60 * 1000;
+      const diff = (start + durationMs) - Date.now();
+      if (!sessionTimer.is_active || diff <= 0) {
+        setTimeRemaining('00:00:00:00');
+        setSessionProgress(100);
+        return;
+      }
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeRemaining(
+        `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`
+      );
+      const total = durationMs || 1;
+      setSessionProgress(Math.min(100, Math.max(0, ((durationMs - diff) / total) * 100)));
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [sessionTimer]);
+
+  // Load real data: client credential, donor/chit counts, and the session timer
+  useEffect(() => {
+    if (!deployment) return;
+    let cancelled = false;
+
+    const loadData = async () => {
+      try {
+        const credResponse = await fetchWithAuth(API_CONFIG.ENDPOINTS.CREDENTIALS);
+        if (!cancelled && credResponse.ok) {
+          const data = await credResponse.json();
+          const list = data.results || data || [];
+          setClientCredential(list.find((c) => c.credential_type === 'client') || null);
+        }
+      } catch (err) {
+        console.error('Failed to fetch credentials:', err);
+      }
+
+      try {
+        const [donorsRes, chitsRes] = await Promise.all([
+          fetchWithAuth(API_CONFIG.ENDPOINTS.DONORS),
+          fetchWithAuth(API_CONFIG.ENDPOINTS.CHITS),
+        ]);
+        if (!cancelled) {
+          if (donorsRes.ok) {
+            const d = await donorsRes.json();
+            setDonationCount((d.results || d || []).length);
+          }
+          if (chitsRes.ok) {
+            const c = await chitsRes.json();
+            setChitCount((c.results || c || []).length);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch stats:', err);
+      }
+
+      try {
+        const sessionRes = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.DEPLOYMENTS}${deployment.id}/session-timer/`);
+        if (!cancelled && sessionRes.ok) {
+          setSessionTimer(await sessionRes.json());
+        }
+      } catch (err) {
+        console.error('Failed to fetch session timer:', err);
+      }
+    };
+
+    loadData();
+    return () => { cancelled = true; };
+  }, [deployment?.id]);
+
   if (!deployment) {
     return null;
   }
 
-  const initialStatus = deployment.status
-    ? deployment.status.charAt(0).toUpperCase() + deployment.status.slice(1)
-    : 'Pending';
-
-  const [status, setStatus] = useState(initialStatus);
-  const [showCredentials, setShowCredentials] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState('1d 12h 45m 30s');
-  const [sessionProgress, setSessionProgress] = useState(65); // Progress percentage
-  const [transactionStats, setTransactionStats] = useState({
-    donationCount: 124,
-    chitCount: 89
-  });
-  
-  // Hardware selection state
-  const [selectedTablets, setSelectedTablets] = useState(deployment.hardware ? deployment.hardware.filter(h => h.startsWith('TAB')) : []);
-  const [selectedDonationPrinter, setSelectedDonationPrinter] = useState(
-    deployment.hardware ? deployment.hardware.find(h => h.startsWith('PRN') && !h.includes('B')) || '' : ''
-  );
-  const [selectedChitPrinter, setSelectedChitPrinter] = useState(
-    deployment.hardware ? deployment.hardware.find(h => h.includes('B')) || '' : ''
-  );
+  const generatePassword = (length = 8) => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    let result = '';
+    for (let i = 0; i < length; i += 1) {
+      result += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return result;
+  };
 
   const handleStatusChange = (newStatus) => {
     setStatus(newStatus);
@@ -36,28 +127,15 @@ export default function ManageDeploymentModal({ deployment, onClose, onUpdateSta
   };
 
   const handleKeepPending = () => {
-    setStatus('Pending');
-    if (onUpdateStatus) {
-      onUpdateStatus(deployment.id, 'Pending');
-    }
+    handleStatusChange('Pending');
   };
 
   const handleMarkCompleted = () => {
-    setStatus('Attended');
-    if (onUpdateStatus) {
-      onUpdateStatus(deployment.id, 'Attended');
-    }
-    // Trigger master CSV backup logic would go here
-    console.log('Event marked as completed, triggering master CSV backup...');
+    handleStatusChange('Attended');
   };
 
   const handleRejectEvent = () => {
-    setStatus('Rejected');
-    if (onUpdateStatus) {
-      onUpdateStatus(deployment.id, 'Rejected');
-    }
-    // Hardware release is handled in the parent component
-    console.log('Event rejected, hardware released...');
+    handleStatusChange('Rejected');
   };
 
   const handleTestPrint = () => {
@@ -95,40 +173,142 @@ export default function ManageDeploymentModal({ deployment, onClose, onUpdateSta
     }
   };
 
-  const handleRegenerateCredentials = () => {
-    console.log('Regenerating temp credentials for deployment', deployment.id);
+  const handleExtend24Hours = async () => {
+    if (!sessionTimer) {
+      addToast('No session timer found. Configure the session first.', 'error');
+      return;
+    }
+    setSessionBusy(true);
+    try {
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.DEPLOYMENTS}${deployment.id}/session-timer/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          duration_days: sessionTimer.duration_days,
+          duration_hours: (sessionTimer.duration_hours || 0) + 24,
+          is_active: true,
+        }),
+      });
+      if (response.ok) {
+        setSessionTimer(await response.json());
+        addToast('Session extended by 24 hours', 'success');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        addToast('Failed to extend session: ' + (errorData.detail || errorData.error || JSON.stringify(errorData)), 'error', 6000);
+      }
+    } catch (err) {
+      console.error('Failed to extend session:', err);
+      addToast('Failed to extend session', 'error');
+    } finally {
+      setSessionBusy(false);
+    }
+  };
+
+  const handleLockSession = async () => {
+    if (!window.confirm('Locking this session will archive all donation & chit records, expire the client credentials, and lock all portals. Continue?')) {
+      return;
+    }
+    setSessionBusy(true);
+    try {
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.DEPLOYMENTS}${deployment.id}/backups/create/`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) {
+        if (sessionTimer) setSessionTimer({ ...sessionTimer, is_active: false });
+        addToast(`Session locked. ${data.record_count ?? 0} records archived.`, 'success');
+        if (data.warning) addToast(data.warning, 'warning', 6000);
+      } else {
+        addToast(data.error || `Failed to lock session (${response.status})`, 'error');
+      }
+    } catch (err) {
+      console.error('Failed to lock session:', err);
+      addToast('Failed to lock session', 'error');
+    } finally {
+      setSessionBusy(false);
+    }
+  };
+
+  const handleRegenerateCredentials = async () => {
+    const newUsername = `temp_family_${deployment.id}`;
+    const newPassword = generatePassword(8);
+    setSessionBusy(true);
+    try {
+      const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.CREDENTIALS_UPDATE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          credential_type: 'client',
+          username: newUsername,
+          password: newPassword,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) {
+        setClientCredential(data);
+        setGeneratedPassword(newPassword);
+        setShowCredentials(true);
+        addToast('Client credentials generated successfully', 'success');
+      } else {
+        addToast(data.error || 'Failed to generate credentials', 'error', 6000);
+      }
+    } catch (err) {
+      console.error('Failed to generate credentials:', err);
+      addToast('Failed to generate credentials', 'error');
+    } finally {
+      setSessionBusy(false);
+    }
   };
 
   const handleCopyCredentials = () => {
-    const credentials = `Username: temp_family_${deployment.id}\nPassword: temp_pass_${deployment.id}`;
-    navigator.clipboard.writeText(credentials);
-    alert('Credentials copied to clipboard!');
+    const username = clientCredential?.username || 'Not set';
+    const password = generatedPassword || 'set by client (not recoverable)';
+    navigator.clipboard.writeText(`Username: ${username}\nPassword: ${password}`).then(() => {
+      addToast('Credentials copied to clipboard', 'success');
+    }).catch(() => {
+      addToast('Failed to copy credentials', 'error');
+    });
   };
 
-  const handleExtend24Hours = () => {
-    console.log('Extending session by 24 hours for deployment', deployment.id);
-  };
-
-  const handleLockSession = () => {
-    console.log('Locking session for deployment', deployment.id);
-  };
-
-  const handleDownloadCSV = () => {
-    const rows = [
-      ['Receipt No.', 'Donor Name', 'Amount (GHC)', 'Time', 'Logged By'],
-      ['#RC-8821', 'Daniel Boateng', '2500.00', '14:22 PM', 'Kwame Akoto'],
-      ['#RC-8820', 'Ama Serwaa', '1200.00', '14:15 PM', 'Sister Abena'],
-      ['#CH-1024', 'Elder Owusu', 'VIP Package', '14:18 PM', 'Kwame Akoto']
-    ];
-    const csvContent = rows.map((row) => row.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `solacehub_master_backup_${deployment.id}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownloadCSV = async () => {
+    setSessionBusy(true);
+    try {
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.DEPLOYMENTS}${deployment.id}/backups/create/`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) {
+        addToast(`Backup created. ${data.record_count ?? 0} records archived.`, 'success');
+        if (data.warning) addToast(data.warning, 'warning', 6000);
+        if (data.csv_data) {
+          const blob = new Blob([data.csv_data], { type: 'text/csv;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.setAttribute('download', `solacehub_backup_${deployment.id}.csv`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        } else if (data.csv_file) {
+          const link = document.createElement('a');
+          link.href = data.csv_file;
+          link.setAttribute('download', `solacehub_backup_${deployment.id}.csv`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      } else {
+        addToast(data.error || data.message || `Failed to create backup (${response.status})`, 'error');
+      }
+    } catch (err) {
+      console.error('Backup export error:', err);
+      addToast('Backup export failed', 'error');
+    } finally {
+      setSessionBusy(false);
+    }
   };
 
   const assignedHardware = (deployment.hardware || []).map(hwId => {
@@ -263,14 +443,24 @@ export default function ManageDeploymentModal({ deployment, onClose, onUpdateSta
                 <Clock size={18} className="text-amber-600" />
                 Session Control
               </h3>
-              <div className="text-sm font-bold text-amber-700 bg-white px-3 py-1 rounded-full shadow-sm">{timeRemaining}</div>
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full shadow-sm ${
+                  sessionTimer?.is_active
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-red-100 text-red-700'
+                }`}>
+                  {sessionTimer?.is_active ? <CheckCircle size={12} /> : <Lock size={12} />}
+                  {sessionTimer?.is_active ? 'Active' : 'Locked / Inactive'}
+                </span>
+                <div className="text-sm font-bold text-amber-700 bg-white px-3 py-1 rounded-full shadow-sm">{timeRemaining}</div>
+              </div>
             </div>
 
             {/* Progress Bar */}
             <div className="mb-4">
               <div className="flex justify-between text-xs text-gray-600 mb-1">
                 <span>Session Progress</span>
-                <span>{sessionProgress}%</span>
+                <span>{sessionProgress.toFixed(1)}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div 
@@ -283,15 +473,17 @@ export default function ManageDeploymentModal({ deployment, onClose, onUpdateSta
             <div className="flex gap-3">
               <button
                 onClick={handleExtend24Hours}
-                className="flex-1 flex items-center justify-center gap-1.5 px-4 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-all shadow-sm"
+                disabled={sessionBusy || !sessionTimer}
+                className="flex-1 flex items-center justify-center gap-1.5 px-4 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-all shadow-sm disabled:opacity-50"
               >
-                <Plus size={16} /> Extend +24 Hours
+                {sessionBusy ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Extend +24 Hours
               </button>
               <button
                 onClick={handleLockSession}
-                className="flex-1 flex items-center justify-center gap-1.5 px-4 py-3 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition-all shadow-sm"
+                disabled={sessionBusy}
+                className="flex-1 flex items-center justify-center gap-1.5 px-4 py-3 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition-all shadow-sm disabled:opacity-50"
               >
-                <Lock size={16} /> Lock Session Now
+                {sessionBusy ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />} Lock Session Now
               </button>
             </div>
           </div>
@@ -315,18 +507,28 @@ export default function ManageDeploymentModal({ deployment, onClose, onUpdateSta
               <div className="bg-white rounded-xl p-4 space-y-3 shadow-sm">
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Temporary Family Head Username</label>
-                  <p className="text-sm font-semibold text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">temp_family_{deployment.id}</p>
+                  <p className="text-sm font-semibold text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">
+                    {clientCredential?.username || 'Not set — generate below'}
+                  </p>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Temporary Family Head Password</label>
-                  <p className="text-sm font-semibold text-gray-900 bg-gray-50 px-3 py-2 rounded-lg font-mono tracking-wider">••••••••••••••••••••••••••••••••</p>
+                  <p className="text-sm font-semibold text-gray-900 bg-gray-50 px-3 py-2 rounded-lg font-mono tracking-wider">
+                    {generatedPassword || '••••••••••••••••'}
+                  </p>
+                  {!generatedPassword && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      Passwords are stored hashed and cannot be recovered. Use Generate to issue a new one.
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button
                     onClick={handleRegenerateCredentials}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition-all shadow-sm"
+                    disabled={sessionBusy}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition-all shadow-sm disabled:opacity-50"
                   >
-                    <RefreshCw size={14} /> Regenerate Credentials
+                    {sessionBusy ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Generate Credentials
                   </button>
                   <button
                     onClick={handleCopyCredentials}
@@ -337,7 +539,7 @@ export default function ManageDeploymentModal({ deployment, onClose, onUpdateSta
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-gray-600 bg-white rounded-xl p-4 text-center">••••••••••••••••••••••••••••••••</p>
+              <p className="text-sm text-gray-600 bg-white rounded-xl p-4 text-center">••••••••••••••••</p>
             )}
           </div>
 
@@ -412,20 +614,21 @@ export default function ManageDeploymentModal({ deployment, onClose, onUpdateSta
 
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div className="bg-white rounded-xl p-4 shadow-sm text-center">
-                <p className="text-2xl font-bold text-emerald-600">{transactionStats.donationCount}</p>
+                <p className="text-2xl font-bold text-emerald-600">{donationCount}</p>
                 <p className="text-xs text-gray-600">Donation Count</p>
               </div>
               <div className="bg-white rounded-xl p-4 shadow-sm text-center">
-                <p className="text-2xl font-bold text-teal-600">{transactionStats.chitCount}</p>
+                <p className="text-2xl font-bold text-teal-600">{chitCount}</p>
                 <p className="text-xs text-gray-600">Chit Count</p>
               </div>
             </div>
 
             <button
               onClick={handleDownloadCSV}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl text-sm font-semibold hover:from-emerald-700 hover:to-teal-700 transition-all shadow-sm"
+              disabled={sessionBusy}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl text-sm font-semibold hover:from-emerald-700 hover:to-teal-700 transition-all shadow-sm disabled:opacity-50"
             >
-              <Download size={16} /> Download Master CSV Archive
+              {sessionBusy ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} Download Master CSV Archive
             </button>
           </div>
 
