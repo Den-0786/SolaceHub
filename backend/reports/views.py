@@ -1,12 +1,27 @@
+import csv
+import io
+from datetime import date
+
+from django.http import HttpResponse
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
 from .models import Report
 from .serializers import ReportSerializer
-from donors.models import Donor
-from chits.models import Chit
-from deployments.models import Deployment
+from .report_data import (
+    compute_report,
+    get_operator_name,
+    get_querysets,
+    VOUCHER_DISPLAY_NAMES,
+)
 
 
 def get_event_id(request):
@@ -49,136 +64,254 @@ class ReportSummaryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        event_id = get_event_id(request)
-
-        if event_id:
-            donors = Donor.objects.filter(event_id=event_id)
-            chits = Chit.objects.filter(event_id=event_id)
-            deployment = Deployment.objects.filter(event_id=event_id).first()
-        else:
-            donors = Donor.objects.all()
-            chits = Chit.objects.all()
-            deployment = None
-
-        donors_list = list(donors)
-        chits_list = list(chits)
-
-        # --- Summary ---
-        total_revenue = sum(float(d.amount or 0) for d in donors_list)
-        cash_revenue = sum(
-            float(d.amount or 0)
-            for d in donors_list
-            if 'cash' in (d.method or '').lower()
-        )
-        total_donors = len(donors_list)
-        total_chits = len(chits_list)
-        average_donation = round(total_revenue / total_donors, 2) if total_donors else 0
-        estimated_guests = max(total_chits, 1)
-
-        # --- Financial audit: day-by-day breakdown ---
-        by_day = {}
-        for d in donors_list:
-            day = d.event_day or 1
-            entry = by_day.setdefault(day, {'total': 0, 'donors': 0, 'date': ''})
-            entry['total'] += float(d.amount or 0)
-            entry['donors'] += 1
-            if d.date:
-                entry['date'] = d.date.isoformat()
-        day_breakdown = [
-            {
-                'day': f"Day {day}",
-                'date': info['date'],
-                'total': round(info['total'], 2),
-                'donors': info['donors'],
-            }
-            for day, info in sorted(by_day.items())
-        ]
-
-        # --- Financial audit: desk attendants ---
-        attendants = {}
-        for d in donors_list:
-            name = (
-                d.operator_name
-                or (d.logged_by.display_name if d.logged_by else None)
-                or (d.logged_by.username if d.logged_by else None)
-                or 'System'
-            )
-            att = attendants.setdefault(name, {'entries': 0, 'amount': 0})
-            att['entries'] += 1
-            att['amount'] += float(d.amount or 0)
-        desk_attendants = [
-            {'name': name, 'entries': att['entries'], 'amount': round(att['amount'], 2)}
-            for name, att in attendants.items()
-        ]
-
-        # --- Top donors ---
-        sorted_donors = sorted(donors_list, key=lambda d: float(d.amount or 0), reverse=True)[:10]
-        top_donors = [
-            {
-                'rank': i + 1,
-                'name': d.donor_name,
-                'amount': round(float(d.amount or 0), 2),
-                'phone': d.phone_number,
-                'type': 'VIP' if float(d.amount or 0) >= 1000 else 'Regular',
-            }
-            for i, d in enumerate(sorted_donors)
-        ]
-
-        # --- Refreshment / catering audit ---
-        display_names = {
-            'full_meal': 'Full Meal',
-            'drinks_only': 'Drinks Only',
-            'snacks_only': 'Snacks Only',
-        }
-        chit_type_counts = {}
-        for c in chits_list:
-            vt = c.voucher_type or ''
-            chit_type_counts[vt] = chit_type_counts.get(vt, 0) + 1
-        chit_breakdown = [
-            {
-                'type': display_names.get(vt, vt or 'Other'),
-                'count': count,
-                'percentage': round((count / total_chits) * 100) if total_chits else 0,
-            }
-            for vt, count in sorted(chit_type_counts.items(), key=lambda x: -x[1])
-        ]
-
-        daily = {}
-        for c in chits_list:
-            day = c.event_day or 1
-            row = daily.setdefault(day, {'food': 0, 'beverage': 0, 'vip': 0})
-            if c.voucher_type == 'full_meal':
-                row['food'] += 1
-            elif c.voucher_type == 'drinks_only':
-                row['beverage'] += 1
-            else:
-                row['vip'] += 1
-        daily_issuance = [
-            {'day': f"Day {day}", 'food': row['food'], 'beverage': row['beverage'], 'vip': row['vip']}
-            for day, row in sorted(daily.items())
-        ]
-
+        data = compute_report(get_event_id(request))
         return Response({
-            'summary': {
-                'totalRevenue': round(total_revenue, 2),
-                'cashRevenue': round(cash_revenue, 2),
-                'momoRevenue': round(total_revenue - cash_revenue, 2),
-                'totalDonors': total_donors,
-                'totalChitsIssued': total_chits,
-                'estimatedGuests': estimated_guests,
-                'averageDonation': average_donation,
-            },
-            'financialAudit': {
-                'deceasedName': deployment.deceased_name if deployment else 'Deceased',
-                'memorialDates': (
-                    f"{deployment.start_date} - {deployment.end_date}" if deployment else ''
-                ),
-                'dayBreakdown': day_breakdown,
-                'deskAttendants': desk_attendants,
-            },
-            'topDonors': top_donors,
-            'refreshmentAudit': {
-                'chitBreakdown': chit_breakdown,
-                'dailyIssuance': daily_issuance,
-            },
+            'summary': data['summary'],
+            'financialAudit': data['financialAudit'],
+            'topDonors': data['topDonors'],
+            'refreshmentAudit': data['refreshmentAudit'],
         })
+
+
+# ---------------------------------------------------------------------------
+# Exports
+# ---------------------------------------------------------------------------
+
+def _money(value):
+    return f"GH¢ {value:,.2f}"
+
+
+def _table(data, col_widths, alignments=None):
+    """Build a reportlab table with a clean audit-style look."""
+    table = Table(data, colWidths=col_widths, hAlign='LEFT')
+    alignments = alignments or []
+    style = [
+        ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#d1d5db')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+    ]
+    if data:
+        style.append(('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#eef2f7')))
+        style.append(('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'))
+        for i, align in enumerate(alignments):
+            if align:
+                style.append(('ALIGN', (i, 0), (i, -1), align))
+        if len(data) > 1:
+            style.append(('BACKGROUND', (0, 1), (-1, -1), colors.white))
+    table.setStyle(TableStyle(style))
+    return table
+
+
+def build_pdf(data):
+    """Render the complete family audit as a PDF and return it as bytes."""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=14 * mm,
+        leftMargin=14 * mm,
+        topMargin=16 * mm,
+        bottomMargin=16 * mm,
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'TitleLarge', parent=styles['Title'], fontSize=18, leading=22, spaceAfter=2
+    )
+    sub_style = ParagraphStyle(
+        'Subtitle', parent=styles['Normal'], fontSize=10, leading=14, textColor=colors.HexColor('#6b7280')
+    )
+    heading_style = ParagraphStyle(
+        'SectionHeading', parent=styles['Heading2'], fontSize=13, leading=16,
+        spaceBefore=14, spaceAfter=6, textColor=colors.HexColor('#111827'),
+    )
+
+    summary = data['summary']
+    audit = data['financialAudit']
+    top_donors = data['topDonors']
+    refreshment = data['refreshmentAudit']
+
+    story = []
+    story.append(Paragraph('Complete Family Audit Report', title_style))
+    story.append(Paragraph(audit['deceasedName'], sub_style))
+    if audit['memorialDates']:
+        story.append(Paragraph(f"Memorial dates: {audit['memorialDates']}", sub_style))
+    story.append(Paragraph(f"Generated on {date.today().strftime('%B %d, %Y')}", sub_style))
+
+    # Summary
+    story.append(Paragraph('Executive Summary', heading_style))
+    story.append(_table(
+        [
+            ['Total Revenue', 'Cash', 'Mobile Money'],
+            [_money(summary['totalRevenue']), _money(summary['cashRevenue']), _money(summary['momoRevenue'])],
+        ],
+        [60 * mm, 60 * mm, 60 * mm],
+        alignments=['RIGHT', 'RIGHT', 'RIGHT'],
+    ))
+    story.append(Spacer(1, 6))
+    story.append(_table(
+        [
+            ['Total Donors', 'Vouchers Issued', 'Estimated Guests', 'Average Donation'],
+            [
+                str(summary['totalDonors']),
+                str(summary['totalChitsIssued']),
+                str(summary['estimatedGuests']),
+                _money(summary['averageDonation']),
+            ],
+        ],
+        [45 * mm, 45 * mm, 45 * mm, 45 * mm],
+        alignments=['RIGHT', 'RIGHT', 'RIGHT', 'RIGHT'],
+    ))
+
+    # Financial audit
+    story.append(Paragraph('Executive Financial Audit Statement', heading_style))
+    day_rows = [['Event Day', 'Date', 'Total (GH¢)', 'Donors']]
+    for day in audit['dayBreakdown']:
+        day_rows.append([day['day'], day['date'], _money(day['total']), str(day['donors'])])
+    day_rows.append(['Grand Total', 'All Days', _money(summary['totalRevenue']), str(summary['totalDonors'])])
+    story.append(_table(day_rows, [40 * mm, 55 * mm, 55 * mm, 30 * mm], alignments=[None, None, 'RIGHT', 'RIGHT']))
+    story.append(Spacer(1, 6))
+
+    attendant_rows = [['Operator Name', 'Total Entries', 'Total Amount (GH¢)']]
+    for att in audit['deskAttendants']:
+        attendant_rows.append([att['name'], str(att['entries']), _money(att['amount'])])
+    story.append(_table(attendant_rows, [90 * mm, 45 * mm, 45 * mm], alignments=[None, 'RIGHT', 'RIGHT']))
+
+    # Top donors
+    story.append(Paragraph('Top Donors & VIP Acknowledgment List', heading_style))
+    donor_rows = [['Rank', 'Donor Name', 'Amount (GH¢)', 'Phone Number', 'Type']]
+    for donor in top_donors:
+        donor_rows.append([
+            f"#{donor['rank']}",
+            donor['name'],
+            _money(donor['amount']),
+            donor['phone'],
+            donor['type'],
+        ])
+    story.append(_table(donor_rows, [20 * mm, 50 * mm, 40 * mm, 45 * mm, 25 * mm], alignments=[None, None, 'RIGHT', None, None]))
+
+    # Refreshment audit
+    story.append(Paragraph('Refreshment & Catering Audit', heading_style))
+    chit_rows = [['Voucher Type', 'Count', 'Percentage']]
+    for item in refreshment['chitBreakdown']:
+        chit_rows.append([item['type'], str(item['count']), f"{item['percentage']}%"])
+    story.append(_table(chit_rows, [80 * mm, 50 * mm, 50 * mm], alignments=[None, 'RIGHT', 'RIGHT']))
+    story.append(Spacer(1, 6))
+
+    daily_rows = [['Event Day', 'Food & Soft Drink', 'Beverage Only', 'VIP Package', 'Daily Total']]
+    for day in refreshment['dailyIssuance']:
+        daily_rows.append([
+            day['day'],
+            str(day['food']),
+            str(day['beverage']),
+            str(day['vip']),
+            str(day['food'] + day['beverage'] + day['vip']),
+        ])
+    daily_rows.append([
+        'Grand Total',
+        str(sum(d['food'] for d in refreshment['dailyIssuance'])),
+        str(sum(d['beverage'] for d in refreshment['dailyIssuance'])),
+        str(sum(d['vip'] for d in refreshment['dailyIssuance'])),
+        str(summary['totalChitsIssued']),
+    ])
+    story.append(_table(daily_rows, [35 * mm, 35 * mm, 35 * mm, 35 * mm, 35 * mm], alignments=['CENTER', 'CENTER', 'CENTER', 'CENTER', 'CENTER']))
+
+    doc.build(story)
+    return buffer.getvalue()
+
+
+class ReportPDFExportView(APIView):
+    """Download the complete family audit as a PDF."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        data = compute_report(get_event_id(request))
+        pdf_bytes = build_pdf(data)
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = (
+            f'attachment; filename="family-audit-report-{date.today().isoformat()}.pdf"'
+        )
+        return response
+
+
+class ReportCSVExportView(APIView):
+    """Download the raw donor/chit data as an Excel-friendly CSV."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        event_id = get_event_id(request)
+        donors_list, chits_list, deployment = get_querysets(event_id)
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['SolaceHub - Raw Data Export'])
+        writer.writerow([
+            'Deceased',
+            deployment.deceased_name if deployment else '',
+        ])
+        if deployment:
+            writer.writerow(['Memorial dates', f"{deployment.start_date} - {deployment.end_date}"])
+        writer.writerow(['Generated on', date.today().isoformat()])
+        writer.writerow([])
+
+        writer.writerow(['SECTION: DONORS'])
+        writer.writerow([
+            'Receipt ID',
+            'Donor Name',
+            'Phone Number',
+            'Amount (GH¢)',
+            'Method',
+            'Event Day',
+            'Date',
+            'Time',
+            'Operator',
+        ])
+        for d in donors_list:
+            writer.writerow([
+                d.receipt_id,
+                d.donor_name,
+                d.phone_number,
+                float(d.amount or 0),
+                d.method,
+                d.event_day,
+                d.date.isoformat() if d.date else '',
+                d.time.isoformat() if d.time else '',
+                get_operator_name(d),
+            ])
+        writer.writerow([])
+
+        writer.writerow(['SECTION: CHITS'])
+        writer.writerow([
+            'Security Code',
+            'Representative Name',
+            'Voucher Type',
+            'Number of People',
+            'Event Day',
+            'Date',
+            'Time',
+            'Operator',
+        ])
+        for c in chits_list:
+            writer.writerow([
+                c.security_code,
+                c.representative_name,
+                VOUCHER_DISPLAY_NAMES.get(c.voucher_type, c.voucher_type or ''),
+                c.number_of_people,
+                c.event_day,
+                c.date.isoformat() if c.date else '',
+                c.time.isoformat() if c.time else '',
+                get_operator_name(c),
+            ])
+        writer.writerow([])
+
+        csv_content = '\ufeff' + output.getvalue()
+        response = HttpResponse(csv_content, content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = (
+            f'attachment; filename="solacehub-raw-data-{date.today().isoformat()}.csv"'
+        )
+        return response

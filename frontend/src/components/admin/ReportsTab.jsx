@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, FileText, TrendingUp, Users, Utensils, BarChart, Award, Calendar, DollarSign, Info, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Download, FileText, TrendingUp, Users, Utensils, BarChart, Award, Calendar, DollarSign, Info, ChevronDown, ChevronUp, Loader2, RefreshCw } from 'lucide-react';
 import { API_CONFIG, fetchWithAuth } from '../../config/api.js';
 
 export default function ReportsTab() {
@@ -9,6 +9,7 @@ export default function ReportsTab() {
   const [isMobile, setIsMobile] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showEmptyState, setShowEmptyState] = useState(false);
+  const [exporting, setExporting] = useState(null);
   
   // Data state
   const [summaryData, setSummaryData] = useState(null);
@@ -29,15 +30,22 @@ export default function ReportsTab() {
     fetchReportData();
   }, []);
 
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchReportData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+
   const fetchReportData = async () => {
     setLoading(true);
     setShowEmptyState(false);
-    
-    // Set a timeout to show empty state after 5 seconds
+
     const timeoutId = setTimeout(() => {
-      if (loading) {
-        setShowEmptyState(true);
-      }
+      setShowEmptyState(true);
     }, 5000);
     
     try {
@@ -67,12 +75,55 @@ export default function ReportsTab() {
     setModalSection(null);
   };
 
-  const handleDownloadPDF = () => {
-    console.log('Downloading complete family audit PDF...');
+  const triggerDownload = (blob, filename) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   };
 
-  const handleExportExcel = () => {
-    console.log('Exporting raw data to Excel/CSV...');
+  const handleRefresh = () => {
+    fetchReportData();
+  };
+
+  const handleDownloadPDF = async () => {
+    if (exporting) return;
+    setExporting('pdf');
+    try {
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.REPORTS}export/pdf/`);
+      if (response.ok) {
+        const blob = await response.blob();
+        triggerDownload(blob, `family-audit-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+      } else {
+        console.error('PDF export failed:', response.status);
+      }
+    } catch (err) {
+      console.error('PDF export failed:', err);
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    if (exporting) return;
+    setExporting('csv');
+    try {
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.REPORTS}export/csv/`);
+      if (response.ok) {
+        const blob = await response.blob();
+        triggerDownload(blob, `solacehub-raw-data-${new Date().toISOString().slice(0, 10)}.csv`);
+      } else {
+        console.error('CSV export failed:', response.status);
+      }
+    } catch (err) {
+      console.error('CSV export failed:', err);
+    } finally {
+      setExporting(null);
+    }
   };
 
   if (loading && !showEmptyState) {
@@ -107,16 +158,26 @@ export default function ReportsTab() {
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <button
-            onClick={handleDownloadPDF}
-            className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 bg-indigo-950 hover:bg-indigo-900 text-white rounded-xl text-sm font-medium transition-colors"
+            onClick={handleRefresh}
+            className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 rounded-xl text-sm font-medium transition-colors"
           >
-            <FileText size={16} /> Download Complete Family Audit PDF
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
+          </button>
+          <button
+            onClick={handleDownloadPDF}
+            disabled={!!exporting}
+            className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 bg-indigo-950 hover:bg-indigo-900 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            {exporting === 'pdf' ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+            {exporting === 'pdf' ? 'Generating PDF...' : 'Download Complete Family Audit PDF'}
           </button>
           <button
             onClick={handleExportExcel}
-            className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors"
+            disabled={!!exporting}
+            className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
           >
-            <Download size={16} /> Export Raw Data (Excel/CSV)
+            {exporting === 'csv' ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+            {exporting === 'csv' ? 'Exporting...' : 'Export Raw Data (Excel/CSV)'}
           </button>
         </div>
       </div>
