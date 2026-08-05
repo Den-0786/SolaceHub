@@ -34,8 +34,8 @@ function OwnerDashboard() {
   const navigate = useNavigate();
   const { settings, updateSettings } = useOwnerSettings();
   const { addToast } = useToast();
-  const { activeDeployment } = useDeployment();
-  const { activeEventId, setActiveEventId, loadEvents, events: eventList } = useEvent();
+  const { activeDeployment, setActiveDeployment } = useDeployment();
+  const { activeEventId, setActiveEventId, activeEvent, loadEvents, events: eventList } = useEvent();
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeLink, setActiveLink] = useState('Dashboard');
@@ -63,24 +63,41 @@ function OwnerDashboard() {
     initializeEvents();
   }, []);
 
-  // Fetch deployments from backend
+  // Deployment state shared with DeploymentTab and the Active Deployment card
+  const [deployments, setDeployments] = useState([]);
+  const [activeDeploymentData, setActiveDeploymentData] = useState(null);
+
+  // Fetch deployments for the active event and hydrate the Active Deployment
+  // card plus the shared session-timer state from the real backend data.
   useEffect(() => {
     const fetchDeployments = async () => {
       try {
         const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.DEPLOYMENTS);
         if (response.ok) {
           const data = await response.json();
-          setDeployments(data.results || data || []);
+          const list = data.results || data || [];
+          setDeployments(list);
+          const deployment =
+            list.find((d) => String(d.event) === String(activeEventId)) || list[0] || null;
+          setActiveDeploymentData(deployment);
+          if (deployment) {
+            setActiveDeployment(deployment);
+            setEventName(deployment.title || deployment.event_title || '');
+            const st = deployment.session_timer;
+            if (st && st.start_timestamp) {
+              setStartTimestamp(String(st.start_timestamp).slice(0, 16));
+              setDurationDays(st.duration_days || 0);
+              setDurationHours(st.duration_hours || 0);
+              setIsLocked(!st.is_active);
+            }
+          }
         }
       } catch (err) {
         console.error('Failed to fetch deployments:', err);
       }
     };
     fetchDeployments();
-  }, []);
-
-  // Deployment state shared with DeploymentTab
-  const [deployments, setDeployments] = useState([]);
+  }, [activeEventId]);
 
   // Session state
   const [eventName, setEventName] = useState('');
@@ -89,6 +106,38 @@ function OwnerDashboard() {
   const [durationHours, setDurationHours] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState('');
   const [isLocked, setIsLocked] = useState(false);
+
+  // Live countdown for the Active Deployment card, driven by the same
+  // session-timer state used by the Session Timer tab.
+  useEffect(() => {
+    const tick = () => {
+      if (!startTimestamp || (durationDays === 0 && durationHours === 0) || isLocked) {
+        setTimeRemaining('00d 00h 00m 00s');
+        return;
+      }
+      const start = new Date(startTimestamp).getTime();
+      if (isNaN(start)) {
+        setTimeRemaining('00d 00h 00m 00s');
+        return;
+      }
+      const durationMs = ((durationDays * 24) + durationHours) * 60 * 60 * 1000;
+      const diff = (start + durationMs) - Date.now();
+      if (diff <= 0) {
+        setTimeRemaining('00d 00h 00m 00s');
+        return;
+      }
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeRemaining(
+        `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`
+      );
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [startTimestamp, durationDays, durationHours, isLocked]);
 
   const sidebarLinks = [
     { name: 'Dashboard', icon: LayoutDashboard },
@@ -352,22 +401,45 @@ function OwnerDashboard() {
             <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
               <div className="bg-gradient-to-r from-indigo-50 to-white border border-indigo-100 rounded-xl p-3 sm:p-4">
                 <p className="text-[10px] sm:text-xs text-indigo-600 font-medium mb-1">Event Name</p>
-                <p className="text-xs sm:text-sm font-bold text-gray-900">{eventName}</p>
+                <p className="text-xs sm:text-sm font-bold text-gray-900">{eventName || activeEvent?.title || 'No active event'}</p>
+              </div>
+
+              <div className="bg-gradient-to-r from-purple-50 to-white border border-purple-100 rounded-xl p-3 sm:p-4">
+                <p className="text-[10px] sm:text-xs text-purple-600 font-medium mb-1">In Loving Memory</p>
+                <p className="text-xs sm:text-sm font-bold text-gray-900">{activeDeploymentData?.deceased_name || '\u2014'}</p>
+              </div>
+
+              <div className="bg-gradient-to-r from-amber-50 to-white border border-amber-100 rounded-xl p-3 sm:p-4">
+                <p className="text-[10px] sm:text-xs text-amber-600 font-medium mb-1">Memorial Dates</p>
+                <p className="text-xs sm:text-sm font-bold text-gray-900">
+                  {activeDeploymentData?.start_date
+                    ? `${activeDeploymentData.start_date} — ${activeDeploymentData.end_date || ''}`
+                    : '\u2014'}
+                </p>
               </div>
 
               <div className="bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 rounded-xl p-3 sm:p-4">
-                <p className="text-[10px] sm:text-xs text-emerald-600 font-medium mb-1">Duration</p>
-                <p className="text-xs sm:text-sm font-bold text-gray-900">{durationDays} days {durationHours} hours</p>
+                <p className="text-[10px] sm:text-xs text-emerald-600 font-medium mb-1">Venue</p>
+                <p className="text-xs sm:text-sm font-bold text-gray-900">{activeDeploymentData?.venue || '\u2014'}</p>
               </div>
 
               <div className="bg-gradient-to-r from-blue-50 to-white border border-blue-100 rounded-xl p-3 sm:p-4">
-                <p className="text-[10px] sm:text-xs text-blue-600 font-medium mb-1">Start Day & Time</p>
-                <p className="text-xs sm:text-sm font-bold text-gray-900">{new Date(startTimestamp).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                <p className="text-[10px] sm:text-xs text-blue-600 font-medium mb-1">Session Duration</p>
+                <p className="text-xs sm:text-sm font-bold text-gray-900">{durationDays} days {durationHours} hours</p>
               </div>
 
-              <div className="bg-gradient-to-r from-accent-50 to-white border border-amber-200 rounded-xl p-3 sm:p-4">
-                <p className="text-[10px] sm:text-xs text-accent-700 font-medium mb-1">End Day & Time</p>
-                <p className="text-xs sm:text-sm font-bold text-gray-900">{new Date(new Date(startTimestamp).getTime() + ((durationDays * 24 + durationHours) * 60 * 60 * 1000)).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+              <div className="bg-gradient-to-r from-slate-50 to-white border border-gray-200 rounded-xl p-3 sm:p-4 flex items-center justify-between">
+                <p className="text-[10px] sm:text-xs text-gray-500 font-medium">Status</p>
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                  activeDeploymentData?.status === 'attended'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : activeDeploymentData?.status === 'pending'
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-gray-100 text-gray-600'
+                }`}>
+                  <Circle size={6} className="fill-current" />
+                  {(activeDeploymentData?.status || 'No deployment').toUpperCase()}
+                </span>
               </div>
             </div>
 
@@ -550,6 +622,34 @@ function OwnerDashboard() {
       {/* Main Content */}
       <div className={`flex-1 transition-all duration-300 ${sidebarExpanded ? 'lg:ml-64' : 'lg:ml-20'} ml-0 pt-16 lg:pt-0 overflow-x-hidden`}>
         <main className="p-4 sm:p-6">
+          {/* Active Event Selector - always visible */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 mb-6 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="p-2 bg-indigo-50 rounded-lg">
+                <Calendar size={16} className="text-indigo-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Active Event</p>
+                <p className="text-sm font-semibold text-gray-900">
+                  {activeEvent?.title || 'No event selected'}
+                </p>
+              </div>
+            </div>
+            <div className="flex-1" />
+            <select
+              value={activeEventId || ''}
+              onChange={(e) => setActiveEventId(e.target.value)}
+              className="w-full sm:w-auto border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-950"
+            >
+              <option value="" disabled>Select an event...</option>
+              {eventList.map((event) => (
+                <option key={event.id} value={event.id}>
+                  {event.title} {event.access_code ? `(${event.access_code})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {renderMainContent()}
         </main>
       </div>

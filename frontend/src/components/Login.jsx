@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { User, Lock, KeyRound, LogIn, Eye, EyeOff } from 'lucide-react';
+import { User, Lock, KeyRound, LogIn, Eye, EyeOff, X } from 'lucide-react';
 import logo from '/SolaceHubLogo.jpeg';
 import { useToast } from '../hooks/useToast.js';
 import { API_CONFIG } from '../config/api.js';
@@ -12,10 +12,20 @@ function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showAccessCodeModal, setShowAccessCodeModal] = useState(false);
+  const [modalAccessCode, setModalAccessCode] = useState('');
   const { addToast } = useToast();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (e, forcedAccessCode) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const accessCodeToUse = (forcedAccessCode !== undefined ? forcedAccessCode : accessCode).trim();
+
+    if (!username.trim() || !password) {
+      addToast('Please enter your username and password', 'error');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -25,7 +35,7 @@ function Login() {
         body: JSON.stringify({
           username,
           password,
-          ...(accessCode.trim() && { access_code: accessCode.trim() }),
+          ...(accessCodeToUse && { access_code: accessCodeToUse }),
         }),
       });
 
@@ -70,6 +80,16 @@ function Login() {
     }
 
     setLoading(false);
+  };
+
+  const handleAccessCodeLogin = async () => {
+    if (!modalAccessCode.trim()) {
+      addToast('Please enter the event access code', 'error');
+      return;
+    }
+    setShowAccessCodeModal(false);
+    setModalAccessCode('');
+    await handleSubmit(null, modalAccessCode);
   };
 
   return (
@@ -132,23 +152,6 @@ function Login() {
               </div>
             </div>
 
-            {/* Access Code */}
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">OR USE ACCESS CODE</label>
-              <div className="relative">
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                  <KeyRound size={16} />
-                </div>
-                <input
-                  type="text"
-                  value={accessCode}
-                  onChange={(e) => setAccessCode(e.target.value)}
-                  placeholder="Event access code"
-                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-950 focus:border-transparent text-sm"
-                />
-              </div>
-            </div>
-
             {/* Remember Me & Forgot Password */}
             <div className="flex justify-between items-center">
               <div className="flex items-center">
@@ -166,6 +169,18 @@ function Login() {
               <Link to="/forgot-password" className="text-xs text-gray-400 hover:text-gray-600">Forgot?</Link>
             </div>
 
+            {/* Use Access Code (opens modal) */}
+            <button
+              type="button"
+              onClick={() => {
+                setModalAccessCode('');
+                setShowAccessCodeModal(true);
+              }}
+              className="w-full flex items-center justify-center gap-2 text-xs font-semibold text-indigo-950 hover:text-indigo-700 transition-colors py-1"
+            >
+              <KeyRound size={14} /> OR USE ACCESS CODE
+            </button>
+
             {/* Submit Button */}
             <button
               type="submit"
@@ -182,6 +197,62 @@ function Login() {
           <Link to="/" className="text-xs text-gray-400 hover:text-gray-600">← Back to Homepage</Link>
         </div>
       </div>
+
+      {/* Access Code Modal */}
+      {showAccessCodeModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowAccessCodeModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <KeyRound size={18} className="text-indigo-600" /> Use Access Code
+              </h3>
+              <button
+                onClick={() => setShowAccessCodeModal(false)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mb-4">
+              Enter the event access code. Your username and password are still required and will be used to sign in.
+            </p>
+            <input
+              type="text"
+              value={modalAccessCode}
+              onChange={(e) => setModalAccessCode(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleAccessCodeLogin();
+                }
+              }}
+              placeholder="e.g. ADUANA39923"
+              autoFocus
+              className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-950 focus:border-transparent text-sm"
+            />
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setShowAccessCodeModal(false)}
+                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAccessCodeLogin}
+                disabled={loading}
+                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium bg-indigo-950 text-white hover:bg-indigo-900 transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loading ? 'Signing in...' : 'Sign In'} {!loading && <LogIn size={14} />}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

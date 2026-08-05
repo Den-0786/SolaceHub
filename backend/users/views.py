@@ -71,10 +71,13 @@ def login_view(request):
             logger.info(f"Token {'created' if created else 'retrieved'} for user: {username}")
 
             user_data = UserSerializer(user).data
+            # When a real account (owner/admin) supplies an event access code,
+            # scope the session to that event so the dashboards open with the
+            # right active event instead of ignoring the access code.
             return Response({
                 'token': token.key,
                 'user': user_data,
-                'event_id': str(user.event_id) if user.event_id else None
+                'event_id': str(user.event_id) if user.event_id else (event_id or None)
             })
 
         # 2. Credential-based logins (client, desk_operator, master_fallback).
