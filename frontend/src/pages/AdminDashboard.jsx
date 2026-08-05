@@ -142,6 +142,7 @@ function AdminDashboard() {
     })[type] || type || '—';
 
   const ledgerRows = activeLedgerTab === 'donation' ? donationLedger : chitLedger;
+  const ledgerPreview = ledgerRows.slice(0, 5);
 
   // Active operators, contextual to the active ledger tab. Prefer the real
   // operator names recorded on donations/chits; fall back to the configured
@@ -343,7 +344,7 @@ function AdminDashboard() {
             <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
               <p className="text-sm text-gray-500 mb-2">Guests Catered For</p>
               <p className="text-3xl font-bold text-gray-900">
-                {chitLedger.reduce((sum, chit) => sum + (chit.guests || 0), 0)}
+                {chitLedger.reduce((sum, chit) => sum + (chit.number_of_people || 0), 0)}
               </p>
               <p className="text-xs text-gray-400 mt-2">Cumulative guest count</p>
             </div>
@@ -408,8 +409,8 @@ function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {ledgerRows.length > 0 ? (
-                      ledgerRows.map((entry, index) => {
+                    {ledgerPreview.length > 0 ? (
+                      ledgerPreview.map((entry, index) => {
                         const row = ledgerEntry(entry);
                         return (
                           <tr key={entry.id ?? index} className="border-b border-gray-50 hover:bg-gray-50">
@@ -431,6 +432,18 @@ function AdminDashboard() {
                   </tbody>
                 </table>
               </div>
+
+              {ledgerRows.length > 5 && (
+                <div className="mt-4 text-right">
+                  <button
+                    onClick={() => setActiveSidebarLink(activeLedgerTab === 'donation' ? 'Registries' : 'Chit Management')}
+                    className="inline-flex items-center gap-1 text-sm font-medium text-indigo-950 hover:text-indigo-700 transition-colors"
+                  >
+                    View all {ledgerRows.length} {activeLedgerTab === 'donation' ? 'donations' : 'chits'}
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Right Side Panels */}
