@@ -136,9 +136,12 @@ function AdminDashboard() {
 
   const formatVoucherType = (type) =>
     ({
-      full_meal: 'Full Meal',
-      drinks_only: 'Drinks Only',
-      snacks_only: 'Snacks Only',
+      full_package: 'Full Package',
+      water_only: 'Water Only',
+      drink_only: 'Drink Only',
+      drinks_water: 'Drinks & Water',
+      food_water: 'Food & Water',
+      food_drinks: 'Food & Drinks',
     })[type] || type || '—';
 
   const ledgerRows = activeLedgerTab === 'donation' ? donationLedger : chitLedger;

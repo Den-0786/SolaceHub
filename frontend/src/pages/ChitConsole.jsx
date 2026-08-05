@@ -46,7 +46,7 @@ function ChitConsole() {
   const [staffName, setStaffName] = useState("");
   const [representativeName, setRepresentativeName] = useState("");
   const [numberOfPeople, setNumberOfPeople] = useState(1);
-  const [voucherType, setVoucherType] = useState("full_meal");
+  const [voucherType, setVoucherType] = useState("full_package");
   const [securityCode, setSecurityCode] = useState(generateSecurityCode);
   const [issuedToday, setIssuedToday] = useState(0);
   const [currentView, setCurrentView] = useState("desk");
@@ -55,11 +55,23 @@ function ChitConsole() {
   const [currentDate, setCurrentDate] = useState("");
 
   const voucherTypes = [
-    "Food & Soft Drink",
-    "Food Only",
-    "Beverage / Water Only",
-    "VIP Package",
+    { value: "full_package", label: "Full Package" },
+    { value: "water_only", label: "Water Only" },
+    { value: "drink_only", label: "Drink Only" },
+    { value: "drinks_water", label: "Drinks & Water" },
+    { value: "food_water", label: "Food & Water" },
+    { value: "food_drinks", label: "Food & Drinks" },
   ];
+
+  const formatVoucherType = (type) =>
+    ({
+      full_package: "Full Package",
+      water_only: "Water Only",
+      drink_only: "Drink Only",
+      drinks_water: "Drinks & Water",
+      food_water: "Food & Water",
+      food_drinks: "Food & Drinks",
+    })[type] || type || "—";
 
   const handleStaffLogin = () => {
     // Allow any name as operator name (no validation against credentials)
@@ -111,7 +123,7 @@ function ChitConsole() {
         const handleAfterPrint = () => {
           setRepresentativeName("");
           setNumberOfPeople(1);
-          setVoucherType("full_meal");
+          setVoucherType("full_package");
           setSecurityCode(generateSecurityCode());
           addToast("Chit issued successfully", "success");
           window.removeEventListener('afterprint', handleAfterPrint);
@@ -483,8 +495,8 @@ function ChitConsole() {
                         className="w-full px-4 py-3 border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-900"
                       >
                         {voucherTypes.map((type) => (
-                          <option key={type} value={type}>
-                            {type}
+                          <option key={type.value} value={type.value}>
+                            {type.label}
                           </option>
                         ))}
                       </select>
@@ -539,7 +551,7 @@ function ChitConsole() {
                         </div>
                       </div>
                       <p className="text-xs text-indigo-600">FUNERAL OF</p>
-                      <h4 className="text-sm font-bold text-indigo-900">
+                      <h4 className="text-xs font-bold text-indigo-900">
                         {activeDeployment?.deceased_name || activeDeployment?.title || activeDeployment?.event_title || "Event"}
                       </h4>
                       {activeDeployment?.deceased_age && (
@@ -556,31 +568,31 @@ function ChitConsole() {
                         <p className="text-xs font-medium">REFRESHMENT CHIT</p>
                         <Utensils size={32} className="mx-auto my-2" />
                         <p className="text-xs">GUESTS</p>
-                        <p className="text-3xl font-bold">{numberOfPeople}</p>
+                        <p className="text-xl font-bold">{numberOfPeople}</p>
                       </div>
 
                       {/* Metadata */}
                       <div className="border-t border-dashed border-indigo-300 pt-3 space-y-1">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-indigo-600">ISSUED TO</span>
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-indigo-500">ISSUED TO</span>
                           <span className="font-medium text-indigo-900">
                             {representativeName || "-"}
                           </span>
                         </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-indigo-600">TYPE</span>
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-indigo-500">TYPE</span>
                           <span className="font-medium text-indigo-900">
-                            {voucherType}
+                            {formatVoucherType(voucherType)}
                           </span>
                         </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-indigo-600">SECURITY CODE</span>
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-indigo-500">SECURITY CODE</span>
                           <span className="font-medium text-indigo-900">
                             {securityCode}
                           </span>
                         </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-indigo-600">ISSUED BY</span>
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-indigo-500">ISSUED BY</span>
                           <span className="font-medium text-indigo-900">
                             {settings.chitOperatorName || '-'}
                           </span>
@@ -659,23 +671,23 @@ function ChitConsole() {
                     {chitHistory.map((chit) => (
                       <tr key={chit.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                          {chit.code}
+                          {chit.security_code}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
-                          {chit.representative}
+                          {chit.representative_name}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900">
-                          {chit.guests}
+                          {chit.number_of_people}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
-                          {chit.type}
+                          {formatVoucherType(chit.voucher_type)}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
                           {chit.time}
                         </td>
                         <td className="px-4 py-3 text-sm">
                           <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                            {chit.status}
+                            ISSUED
                           </span>
                         </td>
                       </tr>
@@ -708,16 +720,18 @@ function ChitConsole() {
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <p className="text-sm text-gray-600">Total Guests Served</p>
                   <p className="text-3xl font-bold text-gray-900">
-                    {chitHistory.reduce((sum, chit) => sum + chit.guests, 0)}
+                    {chitHistory.reduce((sum, chit) => sum + (chit.number_of_people || 0), 0)}
                   </p>
                 </div>
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <p className="text-sm text-gray-600">Average Guests / Chit</p>
                   <p className="text-3xl font-bold text-gray-900">
-                    {(
-                      chitHistory.reduce((sum, chit) => sum + chit.guests, 0) /
-                      chitHistory.length
-                    ).toFixed(1)}
+                    {chitHistory.length
+                      ? (
+                          chitHistory.reduce((sum, chit) => sum + (chit.number_of_people || 0), 0) /
+                          chitHistory.length
+                        ).toFixed(1)
+                      : '0.0'}
                   </p>
                 </div>
               </div>
@@ -728,20 +742,24 @@ function ChitConsole() {
                 <div className="space-y-3">
                   {voucherTypes.map((type) => {
                     const count = chitHistory.filter(
-                      (chit) => chit.type === type,
+                      (chit) => chit.voucher_type === type.value,
                     ).length;
                     return (
                       <div
-                        key={type}
+                        key={type.value}
                         className="flex items-center justify-between"
                       >
-                        <span className="text-sm text-gray-600">{type}</span>
+                        <span className="text-sm text-gray-600">{type.label}</span>
                         <div className="flex items-center gap-3">
                           <div className="w-32 bg-gray-200 rounded-full h-2">
                             <div
                               className="bg-amber-600 h-2 rounded-full"
                               style={{
-                                width: `${(count / chitHistory.length) * 100}%`,
+                                width: `${
+                                  chitHistory.length
+                                    ? (count / chitHistory.length) * 100
+                                    : 0
+                                }%`,
                               }}
                             ></div>
                           </div>
@@ -795,14 +813,10 @@ function ChitConsole() {
       <style>{`
         @media print {
           body * {
-            display: none !important;
+            visibility: hidden !important;
           }
           .printable-chit, .printable-chit * {
-            display: block !important;
             visibility: visible !important;
-          }
-          .printable-chit .flex {
-            display: flex !important;
           }
           .printable-chit {
             position: absolute;

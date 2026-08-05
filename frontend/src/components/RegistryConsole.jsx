@@ -636,14 +636,10 @@ function RegistryConsole() {
       <style>{`
         @media print {
           body * {
-            display: none !important;
+            visibility: hidden !important;
           }
           .printable-receipt, .printable-receipt * {
-            display: block !important;
             visibility: visible !important;
-          }
-          .printable-receipt .flex {
-            display: flex !important;
           }
           .printable-receipt {
             position: absolute;

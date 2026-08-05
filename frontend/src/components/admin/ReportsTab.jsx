@@ -2,6 +2,24 @@ import { useState, useEffect } from 'react';
 import { Download, FileText, TrendingUp, Users, Utensils, BarChart, Award, Calendar, DollarSign, Info, ChevronDown, ChevronUp, Loader2, RefreshCw } from 'lucide-react';
 import { API_CONFIG, fetchWithAuth } from '../../config/api.js';
 
+const VOUCHER_TYPE_KEYS = [
+  'full_package',
+  'water_only',
+  'drink_only',
+  'drinks_water',
+  'food_water',
+  'food_drinks',
+];
+
+const VOUCHER_TYPE_LABELS = {
+  full_package: 'Full Package',
+  water_only: 'Water Only',
+  drink_only: 'Drink Only',
+  drinks_water: 'Drinks & Water',
+  food_water: 'Food & Water',
+  food_drinks: 'Food & Drinks',
+};
+
 export default function ReportsTab() {
   const [activeModule, setActiveModule] = useState('financial');
   const [expandedSections, setExpandedSections] = useState({});
@@ -546,9 +564,9 @@ export default function ReportsTab() {
                       <thead style={{ backgroundColor: '#f9fafb' }}>
                         <tr>
                           <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Event Day</th>
-                          <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Food & Soft Drink</th>
-                          <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Beverage Only</th>
-                          <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>VIP Package</th>
+                          {VOUCHER_TYPE_KEYS.map((key) => (
+                            <th key={key} style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{VOUCHER_TYPE_LABELS[key]}</th>
+                          ))}
                           <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Daily Total</th>
                         </tr>
                       </thead>
@@ -556,17 +574,17 @@ export default function ReportsTab() {
                         {refreshmentAuditData.dailyIssuance.map((day, index) => (
                           <tr key={index} style={{ borderBottom: '1px solid #f3f4f6' }}>
                             <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: '500', color: '#111827', textAlign: 'center' }}>{day.day}</td>
-                            <td style={{ padding: '12px 16px', fontSize: '14px', textAlign: 'center', color: '#4b5563' }}>{day.food}</td>
-                            <td style={{ padding: '12px 16px', fontSize: '14px', textAlign: 'center', color: '#4b5563' }}>{day.beverage}</td>
-                            <td style={{ padding: '12px 16px', fontSize: '14px', textAlign: 'center', color: '#4b5563' }}>{day.vip}</td>
-                            <td style={{ padding: '12px 16px', fontSize: '14px', textAlign: 'center', fontWeight: 'bold', color: '#111827' }}>{day.food + day.beverage + day.vip}</td>
+                            {VOUCHER_TYPE_KEYS.map((key) => (
+                              <td key={key} style={{ padding: '12px 16px', fontSize: '14px', textAlign: 'center', color: '#4b5563' }}>{day[key]}</td>
+                            ))}
+                            <td style={{ padding: '12px 16px', fontSize: '14px', textAlign: 'center', fontWeight: 'bold', color: '#111827' }}>{VOUCHER_TYPE_KEYS.reduce((sum, key) => sum + (day[key] || 0), 0)}</td>
                           </tr>
                         ))}
                         <tr style={{ backgroundColor: '#fef3c7', fontWeight: 'bold' }}>
                           <td style={{ padding: '12px 16px', fontSize: '14px', color: '#92400e', textAlign: 'center' }}>Grand Total</td>
-                          <td style={{ padding: '12px 16px', fontSize: '14px', textAlign: 'center', color: '#b45309' }}>{refreshmentAuditData.dailyIssuance.reduce((sum, day) => sum + day.food, 0)}</td>
-                          <td style={{ padding: '12px 16px', fontSize: '14px', textAlign: 'center', color: '#b45309' }}>{refreshmentAuditData.dailyIssuance.reduce((sum, day) => sum + day.beverage, 0)}</td>
-                          <td style={{ padding: '12px 16px', fontSize: '14px', textAlign: 'center', color: '#b45309' }}>{refreshmentAuditData.dailyIssuance.reduce((sum, day) => sum + day.vip, 0)}</td>
+                          {VOUCHER_TYPE_KEYS.map((key) => (
+                            <td key={key} style={{ padding: '12px 16px', fontSize: '14px', textAlign: 'center', color: '#b45309' }}>{refreshmentAuditData.dailyIssuance.reduce((sum, day) => sum + (day[key] || 0), 0)}</td>
+                          ))}
                           <td style={{ padding: '12px 16px', fontSize: '14px', textAlign: 'center', color: '#92400e' }}>{summaryData.totalChitsIssued}</td>
                         </tr>
                       </tbody>

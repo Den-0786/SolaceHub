@@ -2,9 +2,12 @@ from django.db import models
 
 class Chit(models.Model):
     VOUCHER_TYPES = [
-        ('full_meal', 'Full Meal'),
-        ('drinks_only', 'Drinks Only'),
-        ('snacks_only', 'Snacks Only'),
+        ('full_package', 'Full Package'),
+        ('water_only', 'Water Only'),
+        ('drink_only', 'Drink Only'),
+        ('drinks_water', 'Drinks & Water'),
+        ('food_water', 'Food & Water'),
+        ('food_drinks', 'Food & Drinks'),
     ]
     
     security_code = models.CharField(max_length=50, unique=True)

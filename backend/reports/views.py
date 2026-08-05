@@ -21,6 +21,7 @@ from .report_data import (
     get_operator_name,
     get_querysets,
     VOUCHER_DISPLAY_NAMES,
+    VOUCHER_TYPES,
 )
 
 
@@ -201,23 +202,25 @@ def build_pdf(data):
     story.append(_table(chit_rows, [80 * mm, 50 * mm, 50 * mm], alignments=[None, 'RIGHT', 'RIGHT']))
     story.append(Spacer(1, 6))
 
-    daily_rows = [['Event Day', 'Food & Soft Drink', 'Beverage Only', 'VIP Package', 'Daily Total']]
+    daily_header = ['Event Day'] + [VOUCHER_DISPLAY_NAMES[vt] for vt in VOUCHER_TYPES] + ['Daily Total']
+    daily_rows = [daily_header]
     for day in refreshment['dailyIssuance']:
         daily_rows.append([
             day['day'],
-            str(day['food']),
-            str(day['beverage']),
-            str(day['vip']),
-            str(day['food'] + day['beverage'] + day['vip']),
+            *[str(day[vt]) for vt in VOUCHER_TYPES],
+            str(sum(day[vt] for vt in VOUCHER_TYPES)),
         ])
     daily_rows.append([
         'Grand Total',
-        str(sum(d['food'] for d in refreshment['dailyIssuance'])),
-        str(sum(d['beverage'] for d in refreshment['dailyIssuance'])),
-        str(sum(d['vip'] for d in refreshment['dailyIssuance'])),
+        *[str(sum(d[vt] for d in refreshment['dailyIssuance'])) for vt in VOUCHER_TYPES],
         str(summary['totalChitsIssued']),
     ])
-    story.append(_table(daily_rows, [35 * mm, 35 * mm, 35 * mm, 35 * mm, 35 * mm], alignments=['CENTER', 'CENTER', 'CENTER', 'CENTER', 'CENTER']))
+    daily_col_width = 35 * mm
+    story.append(_table(
+        daily_rows,
+        [daily_col_width] * len(daily_header),
+        alignments=['CENTER'] * len(daily_header),
+    ))
 
     doc.build(story)
     return buffer.getvalue()

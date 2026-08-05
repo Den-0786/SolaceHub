@@ -141,23 +141,25 @@ export default function ChitManagementTab() {
 
   const formatVoucherType = (type) =>
     ({
-      full_meal: 'Full Meal',
-      drinks_only: 'Drinks Only',
-      snacks_only: 'Snacks Only',
+      full_package: 'Full Package',
+      water_only: 'Water Only',
+      drink_only: 'Drink Only',
+      drinks_water: 'Drinks & Water',
+      food_water: 'Food & Water',
+      food_drinks: 'Food & Drinks',
     })[type] || type || '—';
 
   const getVoucherTypeColor = (type) => {
     switch (type) {
-      case 'full_meal':
-      case 'Food & Soft Drink':
+      case 'full_package':
         return 'bg-amber-100 text-amber-800';
-      case 'drinks_only':
-      case 'Beverage / Water Only':
+      case 'water_only':
+      case 'drink_only':
         return 'bg-blue-100 text-blue-800';
-      case 'snacks_only':
-      case 'VIP Package':
-        return 'bg-purple-100 text-purple-800';
-      case 'Food Only':
+      case 'drinks_water':
+        return 'bg-cyan-100 text-cyan-800';
+      case 'food_water':
+      case 'food_drinks':
         return 'bg-emerald-100 text-emerald-800';
       default:
         return 'bg-gray-100 text-gray-800';

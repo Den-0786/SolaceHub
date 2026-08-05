@@ -3,10 +3,14 @@ from chits.models import Chit
 from deployments.models import Deployment
 
 VOUCHER_DISPLAY_NAMES = {
-    'full_meal': 'Full Meal',
-    'drinks_only': 'Drinks Only',
-    'snacks_only': 'Snacks Only',
+    'full_package': 'Full Package',
+    'water_only': 'Water Only',
+    'drink_only': 'Drink Only',
+    'drinks_water': 'Drinks & Water',
+    'food_water': 'Food & Water',
+    'food_drinks': 'Food & Drinks',
 }
+VOUCHER_TYPES = list(VOUCHER_DISPLAY_NAMES.keys())
 
 
 def get_querysets(event_id):
@@ -104,15 +108,12 @@ def compute_report(event_id):
     daily = {}
     for c in chits_list:
         day = c.event_day or 1
-        row = daily.setdefault(day, {'food': 0, 'beverage': 0, 'vip': 0})
-        if c.voucher_type == 'full_meal':
-            row['food'] += 1
-        elif c.voucher_type == 'drinks_only':
-            row['beverage'] += 1
-        else:
-            row['vip'] += 1
+        row = daily.setdefault(day, {vt: 0 for vt in VOUCHER_TYPES})
+        vt = c.voucher_type or ''
+        if vt in row:
+            row[vt] += 1
     daily_issuance = [
-        {'day': f"Day {day}", 'food': row['food'], 'beverage': row['beverage'], 'vip': row['vip']}
+        {'day': f"Day {day}", **row}
         for day, row in sorted(daily.items())
     ]
 
