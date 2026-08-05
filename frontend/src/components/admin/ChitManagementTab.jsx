@@ -103,7 +103,7 @@ export default function ChitManagementTab() {
 
       return matchesSearch && matchesDay;
     });
-  }, [searchQuery, dayFilter]);
+  }, [chitData, searchQuery, dayFilter]);
 
   // Pagination
   const totalPages = Math.ceil(filteredData.length / entriesPerPage);

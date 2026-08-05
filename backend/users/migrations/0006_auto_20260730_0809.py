@@ -6,7 +6,9 @@ from django.db import migrations
 def create_initial_credentials(apps, schema_editor):
     Credential = apps.get_model('users', 'Credential')
     
-    # Create initial credential entries if they don't exist
+    # Create initial credential entries if they don't exist. Idempotent:
+    # migration 0005 already seeds the same rows, so a fresh database must
+    # not try to insert duplicates (which would violate the unique constraint).
     credentials = [
         {
             'credential_type': 'client',
@@ -35,7 +37,10 @@ def create_initial_credentials(apps, schema_editor):
     ]
     
     for cred_data in credentials:
-        Credential.objects.create(**cred_data)
+        Credential.objects.get_or_create(
+            credential_type=cred_data['credential_type'],
+            defaults=cred_data,
+        )
 
 
 class Migration(migrations.Migration):

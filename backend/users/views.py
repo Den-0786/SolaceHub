@@ -244,6 +244,11 @@ class CredentialListView(generics.ListAPIView):
         event_id = self.request.META.get('HTTP_X_EVENT_ID') or self.request.query_params.get('event_id')
         if event_id:
             return Credential.objects.filter(event_id=event_id)
+        # Non-owners (clients/operators) must only ever see credentials for
+        # their own event, even if the X-Event-ID header is missing.
+        user = self.request.user
+        if user.role not in ('owner', 'admin') and user.event_id:
+            return Credential.objects.filter(event_id=user.event_id)
         return Credential.objects.all()
 
 
@@ -255,6 +260,11 @@ class CredentialDetailView(generics.RetrieveUpdateAPIView):
         event_id = self.request.META.get('HTTP_X_EVENT_ID') or self.request.query_params.get('event_id')
         if event_id:
             return Credential.objects.filter(event_id=event_id)
+        # Non-owners (clients/operators) must only ever see credentials for
+        # their own event, even if the X-Event-ID header is missing.
+        user = self.request.user
+        if user.role not in ('owner', 'admin') and user.event_id:
+            return Credential.objects.filter(event_id=user.event_id)
         return Credential.objects.all()
 
 
@@ -272,6 +282,38 @@ def update_credential_view(request):
             or request.data.get('event_id')
             or request.query_params.get('event_id')
         )
+
+        # Role-based credential provisioning:
+        # - The owner provisions the client (admin) credential and the master
+        #   fallback key. The owner does NOT create desk-operator credentials.
+        # - The client (admin) provisions the shared desk-operator credential
+        #   for operators, and only for their own event.
+        user = request.user
+        if credential_type in ('client', 'master_fallback'):
+            if user.role != 'owner':
+                return Response(
+                    {'error': 'Only the system owner can provision client or master fallback credentials.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        elif credential_type == 'desk_operator':
+            if user.role not in ('client', 'admin'):
+                return Response(
+                    {'error': 'Only an admin can provision desk-operator credentials.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            # Force the operator credential to the requester's own event so an
+            # admin can never create or modify credentials for another family.
+            event_id = str(user.event_id) if user.event_id else event_id
+            if not event_id:
+                return Response(
+                    {'error': 'No event context. Please select an event.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            return Response(
+                {'error': f'Unknown credential type: {credential_type}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             credential, _ = Credential.objects.update_or_create(

@@ -98,7 +98,7 @@ export default function RegistriesTab() {
 
       return matchesSearch && matchesDay;
     });
-  }, [searchQuery, dayFilter]);
+  }, [donorData, searchQuery, dayFilter]);
 
   // Pagination
   const totalPages = Math.ceil(filteredData.length / entriesPerPage);
