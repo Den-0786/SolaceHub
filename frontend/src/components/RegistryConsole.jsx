@@ -632,28 +632,164 @@ function RegistryConsole() {
         </main>
       </div>
 
-      {/* Print Styles */}
+      {/* Thermal Print Template & Styles */}
       <style>{`
+        .print-root {
+          display: none;
+        }
+
         @media print {
+          @page {
+            size: 80mm auto;
+            margin: 0;
+          }
+
           body * {
-            visibility: hidden !important;
+            display: none !important;
           }
-          .printable-receipt, .printable-receipt * {
-            visibility: visible !important;
+          #root {
+            display: block !important;
           }
-          .printable-receipt {
-            position: absolute;
-            left: 0;
-            top: 0;
+
+          .print-root {
+            display: block !important;
             width: 100%;
             margin: 0;
             padding: 0;
-            page-break-inside: avoid;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
+          .print-root * {
+            display: block !important;
+            visibility: visible !important;
+          }
+
+          .print-receipt {
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 76mm;
+            margin: 0 auto;
+            padding: 1.5mm 2mm;
+            background: #fff;
+            color: #000;
+            font-family: Arial, Helvetica, sans-serif;
+            text-align: center;
+            page-break-inside: avoid;
+          }
+
+          .pc-logo img {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 50%;
+            margin: 0 auto;
+          }
+
+          .pc-title {
+            font-size: 11px;
+            font-weight: bold;
+            margin: 1mm 0 0;
+          }
+          .pc-memo {
+            font-size: 9px;
+            margin: 0.5mm 0;
+          }
+          .pc-name {
+            font-size: 11px;
+            font-weight: bold;
+            margin: 0.5mm 0;
+          }
+          .pc-sub {
+            font-size: 9px;
+            margin: 0.5mm 0;
+          }
+
+          .pc-divider {
+            border-top: 1px dashed #000;
+            margin: 1.5mm 0;
+          }
+
+          .pc-key {
+            border: 1px solid #000;
+            margin: 2mm auto;
+            padding: 1.5mm;
+            width: 100%;
+          }
+          .pc-key .pc-label {
+            font-size: 8px;
+            letter-spacing: 1px;
+            margin: 0;
+          }
+          .pc-key strong {
+            font-size: 12px;
+            margin: 0.5mm 0 0;
+          }
+
+          .pc-thanks {
+            font-size: 9px;
+            line-height: 1.4;
+            margin: 0;
+          }
+          .pc-foot {
+            font-size: 9px;
+            margin: 0.5mm 0;
+          }
         }
       `}</style>
+
+      {/* Thermal Donation Receipt Template (shown only when printing) */}
+      <div className="print-root">
+        <div className="print-receipt">
+          <div className="pc-logo">
+            {activeDeployment?.deceased_image ? (
+              <img src={activeDeployment.deceased_image} alt="Deceased" />
+            ) : (
+              <img src={logo} alt="SolaceHub" />
+            )}
+          </div>
+          <p className="pc-title">FUNERAL DONATION RECEIPT</p>
+          <p className="pc-memo">In Memory of</p>
+          <p className="pc-name">
+            {activeDeployment?.deceased_name || activeDeployment?.title || activeDeployment?.event_title || 'Event'}
+          </p>
+          {activeDeployment?.deceased_age && (
+            <p className="pc-sub">Age: {activeDeployment.deceased_age}</p>
+          )}
+          {activeDeployment?.id && (
+            <p className="pc-sub">Event ID: #{activeDeployment.id}</p>
+          )}
+
+          <div className="pc-divider"></div>
+
+          <p className="pc-sub">Receipt #: {previewReceiptId}</p>
+          <p className="pc-sub">
+            {currentDate} {currentTime}
+          </p>
+
+          <div className="pc-key">
+            <div>
+              <p className="pc-label">DONOR NAME</p>
+              <strong>{donorName || 'Guest'}</strong>
+            </div>
+            <div>
+              <p className="pc-label">AMOUNT RECEIVED</p>
+              <strong>{formatAmountForDisplay(amount)}</strong>
+            </div>
+          </div>
+
+          <div className="pc-divider"></div>
+
+          <p className="pc-thanks">
+            Thank you for your kind donation &amp; support during this time of
+            mourning. Your generosity is deeply appreciated by the bereaved family.
+          </p>
+          <p className="pc-foot">Issued by: {settings.donationOperatorName || 'Operator'}</p>
+
+          <div className="pc-divider"></div>
+
+          <p className="pc-foot">System-Generated Document</p>
+        </div>
+      </div>
 
       {/* Staff Login Modal */}
       {showRegistrationForm && (

@@ -809,28 +809,208 @@ function ChitConsole() {
         </div>
       </footer>
 
-      {/* Print Styles */}
+      {/* Thermal Print Template & Styles */}
       <style>{`
+        .print-root {
+          display: none;
+        }
+
         @media print {
+          @page {
+            size: 80mm auto;
+            margin: 0;
+          }
+
           body * {
-            visibility: hidden !important;
+            display: none !important;
           }
-          .printable-chit, .printable-chit * {
-            visibility: visible !important;
+          #root {
+            display: block !important;
           }
-          .printable-chit {
-            position: absolute;
-            left: 0;
-            top: 0;
+
+          .print-root {
+            display: block !important;
             width: 100%;
             margin: 0;
             padding: 0;
-            page-break-inside: avoid;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
+          .print-root * {
+            display: block !important;
+            visibility: visible !important;
+          }
+
+          .print-chit {
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 76mm;
+            margin: 0 auto;
+            padding: 1.5mm 2mm;
+            background: #fff;
+            color: #000;
+            font-family: Arial, Helvetica, sans-serif;
+            text-align: center;
+            page-break-inside: avoid;
+          }
+
+          .pc-logo img {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 50%;
+            margin: 0 auto;
+          }
+
+          .pc-label {
+            font-size: 8px;
+            letter-spacing: 1px;
+            margin: 0.5mm 0 0;
+          }
+          .pc-name {
+            font-size: 11px;
+            font-weight: bold;
+            margin: 0.5mm 0;
+          }
+          .pc-sub {
+            font-size: 9px;
+            margin: 0.5mm 0;
+          }
+
+          .pc-ticket {
+            background: #000;
+            color: #fff;
+            width: 100%;
+            margin: 2mm auto;
+            padding: 2mm;
+          }
+          .pc-ticket-title {
+            font-size: 9px;
+            letter-spacing: 1px;
+            margin: 0 0 1mm;
+          }
+          .pc-guests-label {
+            font-size: 8px;
+            letter-spacing: 1px;
+            margin: 0;
+          }
+          .pc-guests-count {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 0;
+          }
+
+          .pc-divider {
+            border-top: 1px dashed #000;
+            margin: 1.5mm 0;
+          }
+
+          .pc-meta {
+            margin: 0;
+          }
+          .pc-row {
+            display: flex !important;
+            justify-content: space-between;
+            align-items: baseline;
+            margin: 0.75mm 0;
+          }
+          .pc-row span {
+            font-size: 9px;
+            line-height: 1.3;
+          }
+          .pc-row span:first-child {
+            letter-spacing: 0.5px;
+          }
+          .pc-row span:last-child {
+            font-weight: bold;
+          }
+
+          .pc-barcode {
+            margin-top: 1mm;
+          }
+          .pc-bars {
+            display: flex !important;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 1px;
+            margin-bottom: 1mm;
+          }
+          .pc-bars div {
+            width: 1.5px;
+            height: 24px;
+            background: #000;
+          }
+          .pc-valid {
+            font-size: 8px;
+            font-weight: bold;
+            margin: 0.75mm 0 0;
+          }
         }
       `}</style>
+
+      {/* Thermal Chit Print Template (shown only when printing) */}
+      <div className="print-root">
+        <div className="print-chit">
+          <div className="pc-logo">
+            {activeDeployment?.deceased_image ? (
+              <img src={activeDeployment.deceased_image} alt="Deceased" />
+            ) : (
+              <img src={logo} alt="SolaceHub" />
+            )}
+          </div>
+          <p className="pc-label">FUNERAL OF</p>
+          <p className="pc-name">
+            {activeDeployment?.deceased_name || activeDeployment?.title || activeDeployment?.event_title || "Event"}
+          </p>
+          {activeDeployment?.deceased_age && (
+            <p className="pc-sub">Age: {activeDeployment.deceased_age}</p>
+          )}
+          {activeDeployment?.id && (
+            <p className="pc-sub">Event ID: #{activeDeployment.id}</p>
+          )}
+
+          <div className="pc-ticket">
+            <p className="pc-ticket-title">REFRESHMENT CHIT</p>
+            <p className="pc-guests-label">GUESTS</p>
+            <p className="pc-guests-count">{numberOfPeople}</p>
+          </div>
+
+          <div className="pc-divider"></div>
+
+          <div className="pc-meta">
+            <div className="pc-row">
+              <span>ISSUED TO</span>
+              <span>{representativeName || "-"}</span>
+            </div>
+            <div className="pc-row">
+              <span>TYPE</span>
+              <span>{formatVoucherType(voucherType)}</span>
+            </div>
+            <div className="pc-row">
+              <span>SECURITY CODE</span>
+              <span>{securityCode}</span>
+            </div>
+            <div className="pc-row">
+              <span>ISSUED BY</span>
+              <span>{settings.chitOperatorName || "-"}</span>
+            </div>
+          </div>
+
+          <div className="pc-divider"></div>
+
+          <div className="pc-barcode">
+            <div className="pc-bars">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+                <div key={i}></div>
+              ))}
+            </div>
+            <p className="pc-sub">
+              {currentDate} | {currentTime}
+            </p>
+            <p className="pc-valid">VALID FOR SINGLE-USE TODAY ONLY.</p>
+          </div>
+        </div>
+      </div>
 
       {/* Desk Operator Login Modal */}
       {showStaffLoginModal && (
