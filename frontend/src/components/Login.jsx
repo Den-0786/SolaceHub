@@ -46,6 +46,8 @@ function Login() {
         localStorage.setItem('user', JSON.stringify(data.user));
         if (data.event_id) {
           localStorage.setItem('activeEventId', data.event_id);
+        } else {
+          localStorage.removeItem('activeEventId');
         }
 
         const routeMap = {

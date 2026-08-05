@@ -310,11 +310,11 @@ function AdminDashboard() {
         <main className="p-4 sm:p-6">
           {/* Render different content based on active sidebar link */}
           {activeSidebarLink === 'Registries' ? (
-            <RegistriesTab />
+            <RegistriesTab key={activeEventId} />
           ) : activeSidebarLink === 'Chit Management' ? (
-            <ChitManagementTab />
+            <ChitManagementTab key={activeEventId} />
           ) : activeSidebarLink === 'Reports' ? (
-            <ReportsTab />
+            <ReportsTab key={activeEventId} />
           ) : (
             <>
               {/* Analytics Overview Cards */}
