@@ -143,6 +143,17 @@ function AdminDashboard() {
 
   const ledgerRows = activeLedgerTab === 'donation' ? donationLedger : chitLedger;
 
+  // Active operators, contextual to the active ledger tab. Prefer the real
+  // operator names recorded on donations/chits; fall back to the configured
+  // desk operator credential when no records exist yet.
+  const ledgerOperatorNames = ledgerRows
+    .map((entry) => entry.operator_name)
+    .filter(Boolean);
+  const operatorRole = activeLedgerTab === 'donation' ? 'Donation Operator' : 'Chit Operator';
+  const displayedOperators = [...new Set(ledgerOperatorNames)].length
+    ? [...new Set(ledgerOperatorNames)].map((name) => ({ name, role: operatorRole, status: 'Active' }))
+    : activeOperators;
+
   const ledgerEntry = (entry) => {
     if (activeLedgerTab === 'chit') {
       return {
@@ -433,8 +444,8 @@ function AdminDashboard() {
                   </button>
                 </div>
                 <div className="space-y-4">
-                  {activeOperators.length > 0 ? (
-                    activeOperators.map((operator, index) => (
+                  {displayedOperators.length > 0 ? (
+                    displayedOperators.map((operator, index) => (
                       <div key={index} className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
                           <User size={18} className="text-indigo-950" />

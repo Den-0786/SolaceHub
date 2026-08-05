@@ -54,6 +54,64 @@ export default function ChitManagementTab() {
     }
   };
 
+  // Calculate analytics - group by calendar date dynamically
+  const analytics = useMemo(() => {
+    const totalChits = chitData.length;
+    const totalGuests = chitData.reduce((sum, chit) => sum + (chit.number_of_people || 0), 0);
+
+    // Group by calendar date
+    const groupedByDate = chitData.reduce((acc, chit) => {
+      const date = chit.date || '';
+      if (!acc[date]) {
+        acc[date] = {
+          chitsIssued: 0,
+          guestsCatered: 0,
+          dayNumber: chit.event_day,
+          dateLabel: chit.date
+        };
+      }
+      acc[date].chitsIssued += 1;
+      acc[date].guestsCatered += chit.number_of_people || 0;
+      return acc;
+    }, {});
+
+    // Convert to array and sort by day number
+    const daySummaries = Object.values(groupedByDate)
+      .sort((a, b) => a.dayNumber - b.dayNumber)
+      .slice(0, settings.durationDays || 3); // Limit to duration_days from settings
+
+    return {
+      totalChits,
+      totalGuests,
+      daySummaries
+    };
+  }, [chitData, settings.durationDays]);
+
+  // Filter data based on search and day filter
+  const filteredData = useMemo(() => {
+    return chitData.filter(chit => {
+      const matchesSearch =
+        (chit.representative_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (chit.security_code || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (chit.voucher_type || '').toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesDay =
+        dayFilter === 'all' ||
+        (dayFilter === 'day1' && chit.event_day === 1) ||
+        (dayFilter === 'day2' && chit.event_day === 2) ||
+        (dayFilter === `day${chit.event_day}` && chit.event_day === parseInt(dayFilter.replace('day', '')));
+
+      return matchesSearch && matchesDay;
+    });
+  }, [searchQuery, dayFilter]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredData.length / entriesPerPage);
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * entriesPerPage;
+    return filteredData.slice(startIndex, startIndex + entriesPerPage);
+  }, [filteredData, currentPage]);
+
   if (loading && !showEmptyState) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -77,78 +135,30 @@ export default function ChitManagementTab() {
     );
   }
 
-  // Calculate analytics - group by calendar date dynamically
-  const analytics = useMemo(() => {
-    const totalChits = chitData.length;
-    const totalGuests = chitData.reduce((sum, chit) => sum + chit.guests, 0);
-
-    // Group by calendar date
-    const groupedByDate = chitData.reduce((acc, chit) => {
-      const date = chit.calendarDate;
-      if (!acc[date]) {
-        acc[date] = {
-          chitsIssued: 0,
-          guestsCatered: 0,
-          dayNumber: chit.dayNumber,
-          dateLabel: chit.date
-        };
-      }
-      acc[date].chitsIssued += 1;
-      acc[date].guestsCatered += chit.guests;
-      return acc;
-    }, {});
-
-    // Convert to array and sort by day number
-    const daySummaries = Object.values(groupedByDate)
-      .sort((a, b) => a.dayNumber - b.dayNumber)
-      .slice(0, settings.durationDays || 3); // Limit to duration_days from settings
-
-    return {
-      totalChits,
-      totalGuests,
-      daySummaries
-    };
-  }, [chitData, settings.durationDays]);
-
-  // Filter data based on search and day filter
-  const filteredData = useMemo(() => {
-    return chitData.filter(chit => {
-      const matchesSearch =
-        chit.representative.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        chit.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        chit.type.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchesDay =
-        dayFilter === 'all' ||
-        (dayFilter === 'day1' && chit.dayNumber === 1) ||
-        (dayFilter === 'day2' && chit.dayNumber === 2) ||
-        (dayFilter === `day${chit.dayNumber}` && chit.dayNumber === parseInt(dayFilter.replace('day', '')));
-
-      return matchesSearch && matchesDay;
-    });
-  }, [searchQuery, dayFilter]);
-
-  // Pagination
-  const totalPages = Math.ceil(filteredData.length / entriesPerPage);
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * entriesPerPage;
-    return filteredData.slice(startIndex, startIndex + entriesPerPage);
-  }, [filteredData, currentPage]);
-
   const handleExport = () => {
     console.log('Exporting chit data...');
   };
 
+  const formatVoucherType = (type) =>
+    ({
+      full_meal: 'Full Meal',
+      drinks_only: 'Drinks Only',
+      snacks_only: 'Snacks Only',
+    })[type] || type || '—';
+
   const getVoucherTypeColor = (type) => {
     switch (type) {
-      case 'VIP Package':
-        return 'bg-purple-100 text-purple-800';
+      case 'full_meal':
       case 'Food & Soft Drink':
         return 'bg-amber-100 text-amber-800';
-      case 'Food Only':
-        return 'bg-emerald-100 text-emerald-800';
+      case 'drinks_only':
       case 'Beverage / Water Only':
         return 'bg-blue-100 text-blue-800';
+      case 'snacks_only':
+      case 'VIP Package':
+        return 'bg-purple-100 text-purple-800';
+      case 'Food Only':
+        return 'bg-emerald-100 text-emerald-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -311,29 +321,29 @@ export default function ChitManagementTab() {
                 paginatedData.map((chit) => (
                   <tr key={chit.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#020617' }}>{chit.id}</span>
+                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#020617' }}>{chit.security_code}</span>
                     </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>{chit.representative}</span>
+                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>{chit.representative_name}</span>
                     </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#111827' }}>{chit.guests} Guests</span>
+                      <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#111827' }}>{chit.number_of_people} Guests</span>
                     </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 10px', borderRadius: '9999px', fontSize: '12px', fontWeight: '500', backgroundColor: getVoucherTypeColor(chit.type).includes('purple') ? '#f3e8ff' : getVoucherTypeColor(chit.type).includes('amber') ? '#fef3c7' : getVoucherTypeColor(chit.type).includes('emerald') ? '#d1fae5' : '#dbeafe', color: getVoucherTypeColor(chit.type).includes('purple') ? '#6b21a8' : getVoucherTypeColor(chit.type).includes('amber') ? '#92400e' : getVoucherTypeColor(chit.type).includes('emerald') ? '#065f46' : '#1e40af' }}>
-                        {chit.type}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 10px', borderRadius: '9999px', fontSize: '12px', fontWeight: '500', backgroundColor: getVoucherTypeColor(chit.voucher_type).includes('purple') ? '#f3e8ff' : getVoucherTypeColor(chit.voucher_type).includes('amber') ? '#fef3c7' : getVoucherTypeColor(chit.voucher_type).includes('emerald') ? '#d1fae5' : '#dbeafe', color: getVoucherTypeColor(chit.voucher_type).includes('purple') ? '#6b21a8' : getVoucherTypeColor(chit.voucher_type).includes('amber') ? '#92400e' : getVoucherTypeColor(chit.voucher_type).includes('emerald') ? '#065f46' : '#1e40af' }}>
+                        {formatVoucherType(chit.voucher_type)}
                       </span>
                     </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 10px', borderRadius: '9999px', fontSize: '12px', fontWeight: '500', backgroundColor: chit.dayNumber === 1 ? '#fef3c7' : chit.dayNumber === 2 ? '#d1fae5' : '#dbeafe', color: chit.dayNumber === 1 ? '#92400e' : chit.dayNumber === 2 ? '#065f46' : '#1e40af' }}>
-                        Day {chit.dayNumber}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 10px', borderRadius: '9999px', fontSize: '12px', fontWeight: '500', backgroundColor: chit.event_day === 1 ? '#fef3c7' : chit.event_day === 2 ? '#d1fae5' : '#dbeafe', color: chit.event_day === 1 ? '#92400e' : chit.event_day === 2 ? '#065f46' : '#1e40af' }}>
+                        Day {chit.event_day}
                       </span>
                     </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                       <span style={{ fontSize: '14px', color: '#4b5563' }}>{chit.time} | {chit.date}</span>
                     </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontSize: '14px', color: '#4b5563' }}>{chit.issuedBy}</span>
+                      <span style={{ fontSize: '14px', color: '#4b5563' }}>{chit.issued_by_name || chit.operator_name || 'System'}</span>
                     </td>
                   </tr>
                 ))

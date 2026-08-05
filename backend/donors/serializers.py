@@ -23,7 +23,7 @@ class DonorSerializer(serializers.ModelSerializer):
         model = Donor
         fields = [
             'id', 'donor_name', 'phone_number', 'amount', 'receipt_id', 'time',
-            'date', 'method', 'status', 'event_day', 'deployment',
+            'date', 'method', 'status', 'event_day', 'operator_name', 'deployment',
             'deceased_name', 'deceased_age', 'deceased_image',
             'logged_by', 'logged_by_name', 'created_at', 'updated_at',
         ]

@@ -41,7 +41,7 @@ export default function ReportsTab() {
     }, 5000);
     
     try {
-      const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.REPORTS);
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.REPORTS}summary/`);
       if (response.ok) {
         const data = await response.json();
         setSummaryData(data.summary);

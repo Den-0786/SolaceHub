@@ -12,6 +12,7 @@ class Chit(models.Model):
     number_of_people = models.IntegerField()
     voucher_type = models.CharField(max_length=50, choices=VOUCHER_TYPES)
     event_day = models.IntegerField()
+    operator_name = models.CharField(max_length=150, blank=True, null=True)
     time = models.TimeField()
     date = models.DateField(auto_now_add=True)
     issued_by = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True)

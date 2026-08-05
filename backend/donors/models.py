@@ -10,6 +10,7 @@ class Donor(models.Model):
     method = models.CharField(max_length=50)
     status = models.CharField(max_length=50, default='PRINTED')
     event_day = models.IntegerField()
+    operator_name = models.CharField(max_length=150, blank=True, null=True)
     logged_by = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True)
     deployment = models.ForeignKey('deployments.Deployment', on_delete=models.CASCADE, null=True, blank=True, related_name='donations')
     event = models.ForeignKey('events.Event', on_delete=models.CASCADE, null=True, blank=True, related_name='donors')

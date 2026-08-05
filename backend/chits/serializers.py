@@ -23,7 +23,7 @@ class ChitSerializer(serializers.ModelSerializer):
         model = Chit
         fields = [
             'id', 'security_code', 'representative_name', 'number_of_people',
-            'voucher_type', 'event_day', 'time', 'date', 'deployment',
+            'voucher_type', 'event_day', 'operator_name', 'time', 'date', 'deployment',
             'deceased_name', 'deceased_age', 'deceased_image',
             'issued_by', 'issued_by_name', 'created_at',
         ]

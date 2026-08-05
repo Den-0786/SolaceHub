@@ -49,29 +49,6 @@ export default function RegistriesTab() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="animate-spin text-indigo-950" size={32} />
-          <p className="text-sm text-gray-500">Loading registry data...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!loading && donorData.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center bg-white rounded-2xl p-8 border border-gray-200 shadow-sm">
-          <FileText size={48} className="text-gray-300 mx-auto mb-4" />
-          <p className="text-base font-medium text-gray-900 mb-2">No registry data yet</p>
-          <p className="text-sm text-gray-500">Donation entries will appear here once they are logged</p>
-        </div>
-      </div>
-    );
-  }
-
   // Calculate analytics - group by calendar date dynamically
   const analytics = useMemo(() => {
     const totalDonations = donorData.reduce((sum, donor) => sum + parseFloat(donor.amount || 0), 0);
@@ -129,6 +106,29 @@ export default function RegistriesTab() {
     const startIndex = (currentPage - 1) * entriesPerPage;
     return filteredData.slice(startIndex, startIndex + entriesPerPage);
   }, [filteredData, currentPage]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="animate-spin text-indigo-950" size={32} />
+          <p className="text-sm text-gray-500">Loading registry data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (donorData.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center bg-white rounded-2xl p-8 border border-gray-200 shadow-sm">
+          <FileText size={48} className="text-gray-300 mx-auto mb-4" />
+          <p className="text-base font-medium text-gray-900 mb-2">No registry data yet</p>
+          <p className="text-sm text-gray-500">Donation entries will appear here once they are logged</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleExport = () => {
     // Placeholder for export functionality

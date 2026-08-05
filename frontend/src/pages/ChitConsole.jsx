@@ -89,6 +89,7 @@ function ChitConsole() {
           voucher_type: voucherType,
           event_day: 1,
           time: currentTime,
+          operator_name: settings.chitOperatorName || null,
         }),
       });
 

@@ -114,6 +114,7 @@ function RegistryConsole() {
           time: currentTime,
           method: 'Cash',
           event_day: 1,
+          operator_name: settings.donationOperatorName || null,
         }),
       });
 
@@ -518,7 +519,7 @@ function RegistryConsole() {
                         </td>
                         <td className="py-3 px-4 text-sm text-gray-600">{transaction.time} • {transaction.method}</td>
                         <td className="py-3 px-4 text-sm font-medium text-gray-900">GH₵ {(Math.round(transaction.amount * 100) / 100).toFixed(2)}</td>
-                        <td className="py-3 px-4 text-sm text-gray-600">{transaction.logged_by_name || settings.donationOperatorName || 'Operator'}</td>
+                        <td className="py-3 px-4 text-sm text-gray-600">{transaction.operator_name || settings.donationOperatorName || 'Operator'}</td>
                         <td className="py-3 px-4">
                           <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">{transaction.status}</span>
                         </td>
@@ -556,7 +557,7 @@ function RegistryConsole() {
                         <td className="px-4 py-3 text-sm text-gray-600">{transaction.time}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{transaction.method}</td>
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">GH₵ {(Math.round(transaction.amount * 100) / 100).toFixed(2)}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{transaction.logged_by_name || settings.donationOperatorName || 'Operator'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{transaction.operator_name || settings.donationOperatorName || 'Operator'}</td>
                         <td className="px-4 py-3 text-sm"><span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">{transaction.status}</span></td>
                       </tr>
                     ))}
