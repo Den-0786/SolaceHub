@@ -4,16 +4,17 @@ import { useDeployment } from '../../contexts/DeploymentContext';
 import { useEvent } from '../../contexts/EventContext';
 import { useToast } from '../../hooks/useToast.js';
 import { API_CONFIG, fetchWithAuth } from '../../config/api.js';
+import ManageDeploymentModal from './ManageDeploymentModal.jsx';
 
 export default function DeploymentTab({ deployments, setDeployments }) {
   const { setActiveDeployment } = useDeployment();
   const { events } = useEvent();
   const { addToast } = useToast();
   const [showModal, setShowModal] = useState(false);
+  const [editingDeployment, setEditingDeployment] = useState(null);
   const [selectedDeployment, setSelectedDeployment] = useState(null);
   const [loading, setLoading] = useState(false);
   const [hardware, setHardware] = useState([]);
-  const [showHardwareModal, setShowHardwareModal] = useState(false);
 
   // New deployment form state
   const [newDeployment, setNewDeployment] = useState({
@@ -28,6 +29,7 @@ export default function DeploymentTab({ deployments, setDeployments }) {
   // Fetch deployments from backend
   useEffect(() => {
     fetchDeployments();
+    fetchHardware();
   }, []);
 
   const fetchDeployments = async () => {
@@ -42,6 +44,18 @@ export default function DeploymentTab({ deployments, setDeployments }) {
       console.error('Failed to fetch deployments:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchHardware = async () => {
+    try {
+      const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.HARDWARE);
+      if (response.ok) {
+        const data = await response.json();
+        setHardware(data.results || data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch hardware:', err);
     }
   };
 
@@ -63,6 +77,113 @@ export default function DeploymentTab({ deployments, setDeployments }) {
     setActiveDeployment(deployment);
   };
 
+  const handleUpdateStatus = async (deploymentId, newStatus) => {
+    const normalizedStatus = (newStatus || '').toLowerCase();
+    try {
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.DEPLOYMENTS}${deploymentId}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: normalizedStatus }),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        setDeployments(prev => prev.map(d => d.id === deploymentId ? updated : d));
+        setSelectedDeployment(updated);
+        addToast(`Deployment marked as ${normalizedStatus}`, 'success');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        addToast('Failed to update status: ' + (errorData.detail || errorData.error || JSON.stringify(errorData)), 'error', 6000);
+      }
+    } catch (err) {
+      console.error('Failed to update deployment status:', err);
+      addToast('Failed to update deployment status', 'error');
+    }
+  };
+
+  const updateHardwareStatus = async (hardwareId, status, deploymentId) => {
+    const statusMap = {
+      'Available': 'ready',
+      'In Use': 'in_use',
+      'Online': 'online',
+      'Offline': 'offline',
+    };
+    const normalizedStatus = statusMap[status] || status.toLowerCase().replace(' ', '_');
+    try {
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.HARDWARE}${hardwareId}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: normalizedStatus,
+          deployment: deploymentId || null,
+        }),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        setHardware(prev => prev.map(h => h.id === hardwareId ? updated : h));
+        addToast('Hardware status updated', 'success');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        addToast('Failed to update hardware: ' + (errorData.detail || errorData.error || JSON.stringify(errorData)), 'error', 6000);
+      }
+    } catch (err) {
+      console.error('Failed to update hardware status:', err);
+      addToast('Failed to update hardware status', 'error');
+    }
+  };
+
+  const handleEditDeployment = (deployment) => {
+    setEditingDeployment(deployment);
+    setNewDeployment({
+      event: deployment.event || '',
+      venue: deployment.venue || '',
+      client: deployment.client || '',
+      phone: deployment.phone || '',
+      start_date: deployment.start_date || '',
+      end_date: deployment.end_date || '',
+    });
+    setSelectedDeployment(null);
+    setShowModal(true);
+  };
+
+  const handleDeleteDeployment = async (deployment) => {
+    if (!window.confirm(`Delete deployment for "${deployment.title || deployment.event_title || deployment.venue}"? This cannot be undone.`)) {
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.DEPLOYMENTS}${deployment.id}/`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (response.ok) {
+        setDeployments(prev => prev.filter(d => d.id !== deployment.id));
+        setSelectedDeployment(null);
+        addToast('Deployment deleted', 'success');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        addToast('Failed to delete deployment: ' + (errorData.detail || errorData.error || JSON.stringify(errorData)), 'error', 6000);
+      }
+    } catch (err) {
+      console.error('Failed to delete deployment:', err);
+      addToast('Failed to delete deployment', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const closeDeploymentModal = () => {
+    setShowModal(false);
+    setEditingDeployment(null);
+    setNewDeployment({
+      event: '',
+      venue: '',
+      client: '',
+      phone: '',
+      start_date: '',
+      end_date: '',
+    });
+  };
+
   const handleRegisterDeployment = async () => {
     if (!newDeployment.event || !newDeployment.venue || !newDeployment.client || !newDeployment.phone || !newDeployment.start_date || !newDeployment.end_date) {
       addToast('Please fill in all required fields', 'error');
@@ -78,32 +199,29 @@ export default function DeploymentTab({ deployments, setDeployments }) {
         phone: newDeployment.phone,
         start_date: newDeployment.start_date,
         end_date: newDeployment.end_date,
-        status: 'pending'
+        status: editingDeployment ? editingDeployment.status : 'pending'
       };
 
-      const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.DEPLOYMENTS, {
-        method: 'POST',
+      const url = API_CONFIG.ENDPOINTS.DEPLOYMENTS + (editingDeployment ? `${editingDeployment.id}/` : '');
+      const response = await fetchWithAuth(url, {
+        method: editingDeployment ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(deploymentData),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setDeployments(prev => [...prev, data]);
-        setShowModal(false);
-
-        setNewDeployment({
-          event: '',
-          venue: '',
-          client: '',
-          phone: '',
-          start_date: '',
-          end_date: '',
-        });
+        if (editingDeployment) {
+          setDeployments(prev => prev.map(d => d.id === editingDeployment.id ? data : d));
+          addToast('Deployment updated successfully', 'success');
+        } else {
+          setDeployments(prev => [...prev, data]);
+        }
+        closeDeploymentModal();
       } else {
         const errorData = await response.json().catch(() => ({}));
         console.error('Failed to create deployment:', errorData);
-        addToast('Failed to create deployment: ' + (errorData.error || errorData.detail || JSON.stringify(errorData)), 'error', 6000);
+        addToast('Failed to save deployment: ' + (errorData.error || errorData.detail || JSON.stringify(errorData)), 'error', 6000);
       }
     } catch (err) {
       console.error('Failed to register deployment:', err);
@@ -275,8 +393,8 @@ export default function DeploymentTab({ deployments, setDeployments }) {
         <div className="fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-gray-900">Register New Deployment</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl">
+              <h3 className="text-xl font-bold text-gray-900">{editingDeployment ? 'Edit Deployment' : 'Register New Deployment'}</h3>
+              <button onClick={closeDeploymentModal} className="text-gray-400 hover:text-gray-600 text-2xl">
                 ×
               </button>
             </div>
@@ -349,17 +467,30 @@ export default function DeploymentTab({ deployments, setDeployments }) {
                 </div>
               </div>
               <div className="flex gap-3 pt-4">
-                <button onClick={() => setShowModal(false)} className="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-xl font-medium hover:bg-gray-50 text-sm">
+                <button onClick={closeDeploymentModal} className="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-xl font-medium hover:bg-gray-50 text-sm">
                   Cancel
                 </button>
                 <button onClick={handleRegisterDeployment} className="bg-indigo-950 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-indigo-900 text-sm flex items-center gap-2">
                   {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-                  Register Deployment
+                  {editingDeployment ? 'Save Changes' : 'Register Deployment'}
                 </button>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Manage Deployment Modal */}
+      {selectedDeployment && (
+        <ManageDeploymentModal
+          deployment={selectedDeployment}
+          onClose={() => setSelectedDeployment(null)}
+          onUpdateStatus={handleUpdateStatus}
+          hardwareInventory={hardware}
+          updateHardwareStatus={updateHardwareStatus}
+          onEdit={() => handleEditDeployment(selectedDeployment)}
+          onDelete={() => handleDeleteDeployment(selectedDeployment)}
+        />
       )}
     </>
   );

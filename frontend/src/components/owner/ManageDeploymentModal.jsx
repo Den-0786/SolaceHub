@@ -1,12 +1,16 @@
 import { useState } from 'react';
 import { X, Printer, Tablet, CheckCircle, AlertCircle, Wifi, Battery, RefreshCw, Copy, Lock, Clock, Plus, MapPin, User, Settings, Download } from 'lucide-react';
 
-export default function ManageDeploymentModal({ deployment, onClose, onUpdateStatus, hardwareInventory, updateHardwareStatus }) {
+export default function ManageDeploymentModal({ deployment, onClose, onUpdateStatus, hardwareInventory, updateHardwareStatus, onEdit, onDelete }) {
   if (!deployment) {
     return null;
   }
-  
-  const [status, setStatus] = useState(deployment.status || 'Pending');
+
+  const initialStatus = deployment.status
+    ? deployment.status.charAt(0).toUpperCase() + deployment.status.slice(1)
+    : 'Pending';
+
+  const [status, setStatus] = useState(initialStatus);
   const [showCredentials, setShowCredentials] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState('1d 12h 45m 30s');
   const [sessionProgress, setSessionProgress] = useState(65); // Progress percentage
@@ -424,6 +428,28 @@ export default function ManageDeploymentModal({ deployment, onClose, onUpdateSta
               <Download size={16} /> Download Master CSV Archive
             </button>
           </div>
+
+          {/* Edit & Delete Actions */}
+          {(onEdit || onDelete) && (
+            <div className="flex flex-col sm:flex-row gap-3 border-t border-gray-100 pt-4">
+              {onEdit && (
+                <button
+                  onClick={onEdit}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-all shadow-sm"
+                >
+                  <Settings size={16} /> Edit Deployment Details
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={onDelete}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition-all shadow-sm"
+                >
+                  <AlertCircle size={16} /> Delete Deployment
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
