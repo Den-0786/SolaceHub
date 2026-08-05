@@ -24,7 +24,7 @@ class DonorListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         event_id = get_event_id(self.request)
-        serializer.save(event_id=event_id)
+        serializer.save(event_id=event_id, logged_by=self.request.user)
 
 
 class DonorDetailView(generics.RetrieveUpdateDestroyAPIView):

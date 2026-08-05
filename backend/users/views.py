@@ -169,16 +169,17 @@ def login_view(request):
             else:
                 user_identifier = f"{assigned_event_id}_{credential.username}" if assigned_event_id else credential.username
 
+            operator_name = credential.desk_operator_name or credential.username
             user, created = User.objects.get_or_create(
                 username=user_identifier,
                 defaults={
                     'role': user_role,
-                    'display_name': credential.username,
+                    'display_name': operator_name,
                     'event_id': assigned_event_id,
                 }
             )
             user.role = user_role
-            user.display_name = credential.username
+            user.display_name = operator_name
             if assigned_event_id:
                 user.event_id = assigned_event_id
             user.set_password(password)
@@ -294,13 +295,14 @@ def update_credential_view(request):
                     }
                     user_role = role_map.get(credential_type, 'client')
                     user_identifier = f"{event_id}_{credential.username}" if event_id else credential.username
+                    operator_name = credential.desk_operator_name or credential.username
                     user, created = User.objects.get_or_create(
                         username=user_identifier,
-                        defaults={'role': user_role, 'display_name': credential.username, 'event_id': event_id}
+                        defaults={'role': user_role, 'display_name': operator_name, 'event_id': event_id}
                     )
                     if created or user.role not in ('owner', 'admin'):
                         user.role = user_role
-                        user.display_name = credential.username
+                        user.display_name = operator_name
                         if event_id:
                             user.event_id = event_id
                         user.set_password(raw_password)

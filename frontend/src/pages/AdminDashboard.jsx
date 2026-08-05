@@ -66,6 +66,22 @@ function AdminDashboard() {
         const chitsData = await chitsResponse.json();
         setChitLedger(chitsData.results || chitsData || []);
       }
+
+      // Fetch desk operator credentials for the Active Operators panel
+      const credsResponse = await fetchWithAuth(API_CONFIG.ENDPOINTS.CREDENTIALS);
+      if (credsResponse.ok) {
+        const credsData = await credsResponse.json();
+        const creds = credsData.results || credsData || [];
+        setActiveOperators(
+          creds
+            .filter((c) => c.credential_type === 'desk_operator')
+            .map((c) => ({
+              name: c.desk_operator_name || c.username || 'Desk Operator',
+              role: 'Desk Operator',
+              status: c.session_expired ? 'Inactive' : 'Active',
+            }))
+        );
+      }
     } catch (err) {
       console.error('Failed to fetch dashboard data:', err);
     } finally {
@@ -113,6 +129,35 @@ function AdminDashboard() {
     setActiveDeployment(updatedDeployment);
     setShowDeceasedForm(false);
     addToast('Deceased entry saved successfully.', 'success', 3000);
+  };
+
+  const formatAmount = (value) =>
+    `GH₵ ${parseFloat(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const formatVoucherType = (type) =>
+    ({
+      full_meal: 'Full Meal',
+      drinks_only: 'Drinks Only',
+      snacks_only: 'Snacks Only',
+    })[type] || type || '—';
+
+  const ledgerRows = activeLedgerTab === 'donation' ? donationLedger : chitLedger;
+
+  const ledgerEntry = (entry) => {
+    if (activeLedgerTab === 'chit') {
+      return {
+        receipt: entry.security_code || entry.id,
+        name: entry.representative_name,
+        amountLabel: formatVoucherType(entry.voucher_type),
+        loggedBy: entry.issued_by_name,
+      };
+    }
+    return {
+      receipt: entry.receipt_id,
+      name: entry.donor_name,
+      amountLabel: formatAmount(entry.amount),
+      loggedBy: entry.logged_by_name,
+    };
   };
 
   return (
@@ -352,15 +397,26 @@ function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(activeLedgerTab === 'donation' ? donationLedger : chitLedger).map((entry, index) => (
-                      <tr key={index} className="border-b border-gray-50 hover:bg-gray-50">
-                        <td className="py-3 px-4 text-sm font-medium text-indigo-950">{entry.receiptNo}</td>
-                        <td className="py-3 px-4 text-sm text-gray-900">{entry.donorName}</td>
-                        <td className="py-3 px-4 text-sm font-medium text-gray-900">{entry.amount}</td>
-                        <td className="py-3 px-4 text-sm text-gray-500">{entry.time}</td>
-                        <td className="py-3 px-4 text-sm text-gray-500">{entry.loggedBy}</td>
+                    {ledgerRows.length > 0 ? (
+                      ledgerRows.map((entry, index) => {
+                        const row = ledgerEntry(entry);
+                        return (
+                          <tr key={entry.id ?? index} className="border-b border-gray-50 hover:bg-gray-50">
+                            <td className="py-3 px-4 text-sm font-medium text-indigo-950">{row.receipt}</td>
+                            <td className="py-3 px-4 text-sm text-gray-900">{row.name || 'Anonymous'}</td>
+                            <td className="py-3 px-4 text-sm font-medium text-gray-900">{row.amountLabel}</td>
+                            <td className="py-3 px-4 text-sm text-gray-500">{entry.time}</td>
+                            <td className="py-3 px-4 text-sm text-gray-500">{row.loggedBy || 'System'}</td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-sm text-gray-500">
+                          No {activeLedgerTab === 'donation' ? 'donations' : 'chits'} recorded yet.
+                        </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -377,21 +433,27 @@ function AdminDashboard() {
                   </button>
                 </div>
                 <div className="space-y-4">
-                  {activeOperators.map((operator, index) => (
-                    <div key={index} className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                        <User size={18} className="text-indigo-950" />
+                  {activeOperators.length > 0 ? (
+                    activeOperators.map((operator, index) => (
+                      <div key={index} className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                          <User size={18} className="text-indigo-950" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">{operator.name}</p>
+                          <p className="text-xs text-gray-500">{operator.role}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Circle size={6} className="text-green-500 fill-green-500" />
+                          <span className="text-xs text-green-600 font-medium">{operator.status}</span>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">{operator.name}</p>
-                        <p className="text-xs text-gray-500">{operator.role}</p>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Circle size={6} className="text-green-500 fill-green-500" />
-                        <span className="text-xs text-green-600 font-medium">{operator.status}</span>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      No desk operator assigned yet.
+                    </p>
+                  )}
                 </div>
               </div>
 

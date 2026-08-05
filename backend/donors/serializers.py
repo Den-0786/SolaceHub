@@ -4,7 +4,7 @@ from .models import Donor
 
 
 class DonorSerializer(serializers.ModelSerializer):
-    logged_by_name = serializers.CharField(source='logged_by.username', read_only=True)
+    logged_by_name = serializers.SerializerMethodField()
     deployment = serializers.PrimaryKeyRelatedField(
         queryset=Deployment.objects.all(),
         required=False,
@@ -13,6 +13,11 @@ class DonorSerializer(serializers.ModelSerializer):
     deceased_name = serializers.CharField(source='deployment.deceased_name', read_only=True)
     deceased_age = serializers.IntegerField(source='deployment.deceased_age', read_only=True)
     deceased_image = serializers.ImageField(source='deployment.deceased_image', read_only=True)
+
+    def get_logged_by_name(self, obj):
+        if obj.logged_by:
+            return obj.logged_by.display_name or obj.logged_by.username
+        return None
 
     class Meta:
         model = Donor

@@ -4,7 +4,7 @@ from .models import Chit
 
 
 class ChitSerializer(serializers.ModelSerializer):
-    issued_by_name = serializers.CharField(source='issued_by.username', read_only=True)
+    issued_by_name = serializers.SerializerMethodField()
     deployment = serializers.PrimaryKeyRelatedField(
         queryset=Deployment.objects.all(),
         required=False,
@@ -13,6 +13,11 @@ class ChitSerializer(serializers.ModelSerializer):
     deceased_name = serializers.CharField(source='deployment.deceased_name', read_only=True)
     deceased_age = serializers.IntegerField(source='deployment.deceased_age', read_only=True)
     deceased_image = serializers.ImageField(source='deployment.deceased_image', read_only=True)
+
+    def get_issued_by_name(self, obj):
+        if obj.issued_by:
+            return obj.issued_by.display_name or obj.issued_by.username
+        return None
 
     class Meta:
         model = Chit
