@@ -49,7 +49,6 @@ function OwnerDashboard() {
   const [loading, setLoading] = useState(false);
   
   // Data state
-  const [events, setEvents] = useState([]);
   const [analyticsData, setAnalyticsData] = useState(null);
   const [analyticsLabels, setAnalyticsLabels] = useState(null);
 
@@ -210,7 +209,11 @@ function OwnerDashboard() {
     loadEvents().then(() => {
       if (newEvent?.id) {
         setActiveEventId(newEvent.id);
-        addToast(`Switched to event: ${newEvent.title || newEvent.family_name}`, 'success');
+        addToast(
+          `Switched to event: ${newEvent.title || newEvent.family_name}${newEvent.access_code ? ` (Access Code: ${newEvent.access_code})` : ''}`,
+          'success',
+          6000
+        );
       }
     });
   };
@@ -394,21 +397,31 @@ function OwnerDashboard() {
                 <thead>
                   <tr className="border-b border-gray-100">
                     <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Event Title</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Family</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Date</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Transactions</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Access Code</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {events.map((event, index) => (
-                    <tr key={index} className="border-b border-gray-50 hover:bg-indigo-50">
+                  {eventList.map((event, index) => (
+                    <tr key={event.id || index} className="border-b border-gray-50 hover:bg-indigo-50">
                       <td className="py-3 px-4 text-sm font-medium text-gray-900">{event.title}</td>
+                      <td className="py-3 px-4 text-sm text-gray-500">{event.family_name}</td>
                       <td className="py-3 px-4 text-sm text-gray-500">{event.date}</td>
-                      <td className="py-3 px-4 text-sm text-gray-900">{event.transactions}</td>
+                      <td className="py-3 px-4 text-sm">
+                        {event.access_code ? (
+                          <code className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 text-indigo-900 text-xs font-semibold">
+                            {event.access_code}
+                          </code>
+                        ) : (
+                          <span className="text-sm text-gray-400">&mdash;</span>
+                        )}
+                      </td>
                       <td className="py-3 px-4">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-600">
-                          <Circle size={6} className="text-indigo-400 fill-indigo-400" />
-                          {event.status}
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${event.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                          <Circle size={6} className={event.is_active ? 'fill-emerald-500 text-emerald-500' : 'fill-gray-400 text-gray-400'} />
+                          {event.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                     </tr>

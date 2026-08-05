@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Users, Type, Hash, Plus } from 'lucide-react';
+import { Calendar, Users, Type, Hash, Plus, X, CheckCircle, Copy } from 'lucide-react';
 import { useToast } from '../../hooks/useToast.js';
 import { fetchWithAuth, API_CONFIG } from '../../config/api.js';
 
@@ -10,6 +10,17 @@ export default function CreateEventForm({ onCreated }) {
   const [date, setDate] = useState('');
   const [accessCode, setAccessCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [createdEvent, setCreatedEvent] = useState(null);
+
+  const copyAccessCode = async () => {
+    if (!createdEvent?.access_code) return;
+    try {
+      await navigator.clipboard.writeText(createdEvent.access_code);
+      addToast('Access code copied to clipboard', 'success');
+    } catch {
+      addToast('Could not copy access code', 'error');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,7 +52,12 @@ export default function CreateEventForm({ onCreated }) {
       console.log('Response data:', data);
 
       if (response.ok) {
-        addToast('Event created successfully', 'success');
+        setCreatedEvent(data);
+        addToast(
+          `Event created successfully${data.access_code ? ` - Access Code: ${data.access_code}` : ''}`,
+          'success',
+          6000
+        );
         setTitle('');
         setFamilyName('');
         setDate('');
@@ -64,6 +80,45 @@ export default function CreateEventForm({ onCreated }) {
         <Plus size={20} className="text-indigo-600" />
         Create New Event
       </h3>
+
+      {createdEvent && (
+        <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <CheckCircle size={20} className="text-emerald-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-emerald-900">Event created successfully</p>
+                <p className="text-sm text-emerald-700 mt-1">
+                  {createdEvent.title || createdEvent.family_name} &mdash; {createdEvent.date}
+                </p>
+                <div className="mt-3 flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-medium text-emerald-700">Access Code:</span>
+                  <code className="text-sm font-bold text-emerald-900 bg-white border border-emerald-200 rounded-lg px-3 py-1">
+                    {createdEvent.access_code || '\u2014'}
+                  </code>
+                  {createdEvent.access_code && (
+                    <button
+                      onClick={copyAccessCode}
+                      className="p-1.5 rounded-lg hover:bg-emerald-100 text-emerald-700 transition-colors"
+                      title="Copy access code"
+                    >
+                      <Copy size={16} />
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-emerald-700 mt-2">Share this code with operators so they can sign in for this event.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setCreatedEvent(null)}
+              className="p-1 hover:bg-emerald-100 rounded-lg text-emerald-700 transition-colors"
+              title="Dismiss"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
