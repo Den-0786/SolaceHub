@@ -643,12 +643,12 @@ function OwnerDashboard() {
               <table className="w-full min-w-[600px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-gray-100">
-                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Event Title</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Family</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Date</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Access Code</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Event Title</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Family</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Date</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Access Code</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Status</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -657,9 +657,9 @@ function OwnerDashboard() {
                     const isBusy = exportingEvent?.id === event.id;
                     return (
                       <tr key={event.id || index} className="border-b border-gray-50 hover:bg-indigo-50">
-                        <td className="py-3 px-4 text-sm font-medium text-gray-900">{event.title}</td>
-                        <td className="py-3 px-4 text-sm text-gray-500">{event.family_name}</td>
-                        <td className="py-3 px-4 text-sm text-gray-500">{event.date}</td>
+                        <td className="py-3 px-4 text-sm font-medium text-gray-900 whitespace-nowrap">{event.title}</td>
+                        <td className="py-3 px-4 text-sm text-gray-500 whitespace-nowrap">{event.family_name}</td>
+                        <td className="py-3 px-4 text-sm text-gray-500 whitespace-nowrap">{event.date}</td>
                         <td className="py-3 px-4 text-sm">
                           {event.access_code ? (
                             <code className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 text-indigo-900 text-xs font-semibold">

@@ -18,6 +18,7 @@ from .models import Report
 from .serializers import ReportSerializer
 from .report_data import (
     compute_report,
+    get_event,
     get_operator_name,
     get_querysets,
     VOUCHER_DISPLAY_NAMES,
@@ -142,6 +143,12 @@ def build_pdf(data):
 
     story = []
     story.append(Paragraph('Complete Family Audit Report', title_style))
+    event = data.get('event')
+    if event:
+        if event.family_name:
+            story.append(Paragraph(event.family_name, sub_style))
+        if event.title and event.title != event.family_name:
+            story.append(Paragraph(event.title, sub_style))
     story.append(Paragraph(audit['deceasedName'], sub_style))
     if audit['memorialDates']:
         story.append(Paragraph(f"Memorial dates: {audit['memorialDates']}", sub_style))
@@ -254,17 +261,25 @@ class ReportCSVExportView(APIView):
     def get(self, request):
         event_id = get_event_id(request)
         donors_list, chits_list, deployment = get_querysets(event_id)
+        event = get_event(event_id)
 
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow(['SolaceHub - Raw Data Export'])
-        writer.writerow([
-            'Deceased',
-            deployment.deceased_name if deployment else '',
-        ])
+        if event:
+            if event.family_name:
+                writer.writerow(['Family'])
+                writer.writerow([event.family_name])
+            if event.title and event.title != event.family_name:
+                writer.writerow(['Event'])
+                writer.writerow([event.title])
+        writer.writerow(['Deceased'])
+        writer.writerow([deployment.deceased_name if deployment else ''])
         if deployment:
-            writer.writerow(['Memorial dates', f"{deployment.start_date} - {deployment.end_date}"])
-        writer.writerow(['Generated on', date.today().isoformat()])
+            writer.writerow(['Memorial dates'])
+            writer.writerow([f"{deployment.start_date} - {deployment.end_date}"])
+        writer.writerow(['Generated on'])
+        writer.writerow([date.today().isoformat()])
         writer.writerow([])
 
         writer.writerow(['SECTION: DONORS'])

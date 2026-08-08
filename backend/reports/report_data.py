@@ -1,6 +1,13 @@
+import csv
+import io
+from datetime import date as date_cls
+from datetime import time as time_cls
+from types import SimpleNamespace
+
 from donors.models import Donor
 from chits.models import Chit
-from deployments.models import Deployment
+from deployments.models import Backup, Deployment
+from events.models import Event
 
 VOUCHER_DISPLAY_NAMES = {
     'full_package': 'Full Package',
@@ -13,17 +20,132 @@ VOUCHER_DISPLAY_NAMES = {
 VOUCHER_TYPES = list(VOUCHER_DISPLAY_NAMES.keys())
 
 
+def _to_float(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _to_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _to_date(value):
+    if not value:
+        return None
+    try:
+        return date_cls.fromisoformat(str(value).strip())
+    except ValueError:
+        return None
+
+
+def _to_time(value):
+    if not value:
+        return None
+    try:
+        return time_cls.fromisoformat(str(value).strip())
+    except ValueError:
+        return None
+
+
+def _operator_name(value):
+    """Operator display name from an archived credential username.
+
+    Archived values look like "{event_uuid}_{username}", so strip the event
+    prefix to keep the report readable.
+    """
+    if not value:
+        return 'System'
+    value = str(value).strip()
+    if '_' in value:
+        return value.split('_', 1)[1] or value
+    return value
+
+
+def load_archived_records(event_id):
+    """Rebuild donor/chit records from the latest non-empty archived backup.
+
+    Session expiry archives all donor/chit data into a Backup CSV and then
+    clears the live tables, so downloads for expired events must source their
+    rows from the archive.
+    """
+    if not event_id:
+        return [], []
+    backup = (
+        Backup.objects.filter(event_id=event_id, record_count__gt=0)
+        .order_by('-created_at')
+        .first()
+    )
+    if backup is None:
+        return [], []
+    try:
+        with backup.csv_file.open('r') as f:
+            raw = f.read()
+    except Exception:
+        return [], []
+    if raw.startswith('\ufeff'):
+        raw = raw[1:]
+
+    reader = csv.DictReader(io.StringIO(raw))
+    donors, chits = [], []
+    for row in reader:
+        record_type = (row.get('Record Type') or '').strip()
+        if record_type == 'Donation':
+            donors.append(SimpleNamespace(
+                receipt_id=row.get('Receipt / Security Code') or '',
+                donor_name=row.get('Name') or '',
+                phone_number=row.get('Phone') or '',
+                amount=_to_float(row.get('Amount')),
+                method=row.get('Method') or '',
+                event_day=_to_int(row.get('Event Day')),
+                date=_to_date(row.get('Date')),
+                time=_to_time(row.get('Time')),
+                operator_name=_operator_name(row.get('Logged / Issued By')),
+                status=row.get('Status') or '',
+            ))
+        elif record_type == 'Chit':
+            chits.append(SimpleNamespace(
+                security_code=row.get('Receipt / Security Code') or '',
+                representative_name=row.get('Name') or '',
+                voucher_type=row.get('Voucher Type') or '',
+                number_of_people=_to_int(row.get('Number of People')) or 0,
+                event_day=_to_int(row.get('Event Day')),
+                date=_to_date(row.get('Date')),
+                time=_to_time(row.get('Time')),
+                operator_name=_operator_name(row.get('Logged / Issued By')),
+            ))
+    return donors, chits
+
+
+def get_event(event_id):
+    return Event.objects.filter(id=event_id).first() if event_id else None
+
+
 def get_querysets(event_id):
-    """Resolve donors, chits, and deployment scoped to an optional event id."""
+    """Resolve donors, chits, and deployment scoped to an optional event id.
+
+    When the live tables are empty (e.g. after session expiry cleared them),
+    fall back to the archived backup CSV so reports still contain real data.
+    """
     if event_id:
-        donors = Donor.objects.filter(event_id=event_id)
-        chits = Chit.objects.filter(event_id=event_id)
+        donors = list(Donor.objects.filter(event_id=event_id))
+        chits = list(Chit.objects.filter(event_id=event_id))
         deployment = Deployment.objects.filter(event_id=event_id).first()
     else:
-        donors = Donor.objects.all()
-        chits = Chit.objects.all()
+        donors = list(Donor.objects.all())
+        chits = list(Chit.objects.all())
         deployment = None
-    return list(donors), list(chits), deployment
+
+    if not donors and not chits:
+        archived_donors, archived_chits = load_archived_records(event_id)
+        if archived_donors or archived_chits:
+            donors, chits = archived_donors, archived_chits
+
+    return donors, chits, deployment
 
 
 def get_operator_name(record):
@@ -141,4 +263,5 @@ def compute_report(event_id):
             'dailyIssuance': daily_issuance,
         },
         'deployment': deployment,
+        'event': get_event(event_id),
     }
