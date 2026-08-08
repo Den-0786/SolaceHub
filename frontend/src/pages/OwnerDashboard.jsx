@@ -46,6 +46,7 @@ function OwnerDashboard() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(null);
+  const [exportingEvent, setExportingEvent] = useState(null);
 
   // Load events for the owner and auto-select one if none active
   useEffect(() => {
@@ -397,6 +398,58 @@ function OwnerDashboard() {
     }
   };
 
+  const eventFilename = (event, kind) => {
+    const safe = (event.title || event.family_name || 'event').replace(/[^\w-]+/g, '_');
+    return `${safe}-${kind}-${new Date().toISOString().slice(0, 10)}`;
+  };
+
+  const handleExportEventPDF = async (event) => {
+    if (exportingEvent) return;
+    setExportingEvent({ id: event.id, type: 'pdf' });
+    try {
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.REPORTS}export/pdf/?event_id=${event.id}`);
+      if (response.ok) {
+        const blob = await response.blob();
+        triggerDownload(blob, `${eventFilename(event, 'audit-report')}.pdf`);
+      } else {
+        addToast(`PDF export failed (${response.status})`, 'error');
+      }
+    } catch (err) {
+      addToast('PDF export failed', 'error');
+    } finally {
+      setExportingEvent(null);
+    }
+  };
+
+  const handleExportEventCSV = async (event) => {
+    if (exportingEvent) return;
+    setExportingEvent({ id: event.id, type: 'csv' });
+    try {
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.REPORTS}export/csv/?event_id=${event.id}`);
+      if (response.ok) {
+        const blob = await response.blob();
+        triggerDownload(blob, `${eventFilename(event, 'raw-data')}.csv`);
+      } else {
+        addToast(`CSV export failed (${response.status})`, 'error');
+      }
+    } catch (err) {
+      addToast('CSV export failed', 'error');
+    } finally {
+      setExportingEvent(null);
+    }
+  };
+
+  const isEventExpired = (eventId) => {
+    const deployment = deployments.find((d) => String(d.event) === String(eventId));
+    const st = deployment?.session_timer;
+    if (!st || !st.start_timestamp) return false;
+    const durationMs = ((st.duration_days || 0) * 24 + (st.duration_hours || 0)) * 60 * 60 * 1000;
+    if (durationMs <= 0) return false;
+    const start = new Date(st.start_timestamp).getTime();
+    if (isNaN(start)) return false;
+    return Date.now() > start + durationMs;
+  };
+
   const metrics = useMemo(() => {
     const pendingCount = deployments.filter(d => d.status === 'pending' || d.status === 'Pending').length;
     const activeCount = deployments.filter(d => d.status === 'attended' || d.status === 'Attended').length;
@@ -595,31 +648,72 @@ function OwnerDashboard() {
                     <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Date</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Access Code</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {eventList.map((event, index) => (
-                    <tr key={event.id || index} className="border-b border-gray-50 hover:bg-indigo-50">
-                      <td className="py-3 px-4 text-sm font-medium text-gray-900">{event.title}</td>
-                      <td className="py-3 px-4 text-sm text-gray-500">{event.family_name}</td>
-                      <td className="py-3 px-4 text-sm text-gray-500">{event.date}</td>
-                      <td className="py-3 px-4 text-sm">
-                        {event.access_code ? (
-                          <code className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 text-indigo-900 text-xs font-semibold">
-                            {event.access_code}
-                          </code>
-                        ) : (
-                          <span className="text-sm text-gray-400">&mdash;</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${event.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-                          <Circle size={6} className={event.is_active ? 'fill-emerald-500 text-emerald-500' : 'fill-gray-400 text-gray-400'} />
-                          {event.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {eventList.map((event, index) => {
+                    const expired = isEventExpired(event.id);
+                    const isBusy = exportingEvent?.id === event.id;
+                    return (
+                      <tr key={event.id || index} className="border-b border-gray-50 hover:bg-indigo-50">
+                        <td className="py-3 px-4 text-sm font-medium text-gray-900">{event.title}</td>
+                        <td className="py-3 px-4 text-sm text-gray-500">{event.family_name}</td>
+                        <td className="py-3 px-4 text-sm text-gray-500">{event.date}</td>
+                        <td className="py-3 px-4 text-sm">
+                          {event.access_code ? (
+                            <code className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 text-indigo-900 text-xs font-semibold">
+                              {event.access_code}
+                            </code>
+                          ) : (
+                            <span className="text-sm text-gray-400">&mdash;</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                            expired
+                              ? 'bg-red-100 text-red-700'
+                              : event.is_active
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            <Circle size={6} className={expired ? 'fill-red-500 text-red-500' : event.is_active ? 'fill-emerald-500 text-emerald-500' : 'fill-gray-400 text-gray-400'} />
+                            {expired ? 'Expired' : event.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleExportEventPDF(event)}
+                              disabled={!!exportingEvent}
+                              title={`Download ${event.title} as PDF`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 text-xs font-medium transition-colors disabled:opacity-50"
+                            >
+                              {isBusy && exportingEvent?.type === 'pdf' ? (
+                                <Loader2 size={13} className="animate-spin" />
+                              ) : (
+                                <FileText size={13} />
+                              )}
+                              PDF
+                            </button>
+                            <button
+                              onClick={() => handleExportEventCSV(event)}
+                              disabled={!!exportingEvent}
+                              title={`Download ${event.title} as CSV`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-medium transition-colors disabled:opacity-50"
+                            >
+                              {isBusy && exportingEvent?.type === 'csv' ? (
+                                <Loader2 size={13} className="animate-spin" />
+                              ) : (
+                                <Download size={13} />
+                              )}
+                              CSV
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

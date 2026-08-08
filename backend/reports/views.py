@@ -26,10 +26,15 @@ from .report_data import (
 
 
 def get_event_id(request):
-    """Read the active event id from the X-Event-ID header or query param."""
+    """Read the active event id from the query param or X-Event-ID header.
+
+    The explicit query param wins so a per-event export (e.g.
+    ?event_id=<id>) is never overridden by the X-Event-ID header that the
+    frontend sends for the currently active event.
+    """
     return (
-        request.META.get('HTTP_X_EVENT_ID')
-        or request.query_params.get('event_id')
+        request.query_params.get('event_id')
+        or request.META.get('HTTP_X_EVENT_ID')
     )
 
 
