@@ -104,3 +104,47 @@ def expire_deployment_session(event):
         'backup': backup,
         'storage_error': storage_error,
     }
+
+
+def timer_expiry(timer):
+    """Computed expiry datetime for a session timer, or None when no duration is set.
+
+    A timer with zero duration is treated as unarmed (e.g. the placeholder record
+    auto-created when a session timer is first fetched) and never expires.
+    """
+    if timer is None:
+        return None
+    duration = timedelta(days=timer.duration_days or 0, hours=timer.duration_hours or 0)
+    if duration.total_seconds() <= 0:
+        return None
+    return timer.start_timestamp + duration
+
+
+def event_session_expired(event_id=None, timer=None):
+    """Return True when an event's session timer has elapsed.
+
+    This intentionally ignores the `is_active` flag so credentials stop working
+    the moment the computed expiry passes, even if the timer was marked inactive
+    without the credentials ever being locked.
+    """
+    if timer is None:
+        if not event_id:
+            return False
+        from .models import SessionTimer
+        timer = SessionTimer.objects.filter(event_id=event_id).order_by('-updated_at', '-start_timestamp').first()
+        if timer is None:
+            return False
+    expiry = timer_expiry(timer)
+    return expiry is not None and timezone.now() > expiry
+
+
+def find_expired_session(event_id=None):
+    """Return the first session timer whose computed expiry has passed."""
+    from .models import SessionTimer
+    timers = SessionTimer.objects.all()
+    if event_id:
+        timers = timers.filter(event_id=event_id)
+    for timer in timers:
+        if event_session_expired(timer=timer):
+            return timer
+    return None

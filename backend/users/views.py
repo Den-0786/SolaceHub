@@ -17,6 +17,7 @@ from .serializers import (
     CredentialUpdateSerializer,
 )
 from events.models import Event
+from deployments.utils import event_session_expired
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +146,10 @@ def login_view(request):
                     event_id=event_context,
                     session_expired=False,
                 ).exists()
-                if active_client:
+                # Fallback unlocks once the session has actually ended, whether
+                # that is recorded via the client session_expired flag or simply
+                # because the session timer's computed expiry has passed.
+                if active_client and not event_session_expired(event_context):
                     return Response(
                         {
                             'error': 'Session still active',
@@ -153,6 +157,22 @@ def login_view(request):
                         },
                         status=status.HTTP_403_FORBIDDEN
                     )
+
+            # Enforce the session timer at login, independent of the stored
+            # session_expired flag. This is the authoritative gate: as soon as
+            # the event's timer elapses, client and desk-operator credentials
+            # stop working even if no background job ever flagged them.
+            if credential.credential_type in ('client', 'desk_operator') and event_session_expired(
+                credential.event_id or event_id
+            ):
+                logger.info(f"Blocking login for expired session: {username} ({credential.credential_type})")
+                return Response(
+                    {
+                        'error': 'Session expired',
+                        'message': 'Your session has expired. Please contact the system administrator.'
+                    },
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
 
             logger.info(f"Credential match for username: {username}, type: {credential.credential_type}")
 

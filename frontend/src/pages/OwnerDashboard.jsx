@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Menu,
@@ -80,10 +80,21 @@ function OwnerDashboard() {
             setEventName(deployment.title || deployment.event_title || '');
             const st = deployment.session_timer;
             if (st && st.start_timestamp) {
-              setStartTimestamp(String(st.start_timestamp).slice(0, 16));
-              setDurationDays(st.duration_days || 0);
-              setDurationHours(st.duration_hours || 0);
-              setIsLocked(!st.is_active);
+              const loadedStart = String(st.start_timestamp).slice(0, 16);
+              const loadedDays = st.duration_days || 0;
+              const loadedHours = st.duration_hours || 0;
+              const loadedLocked = !st.is_active;
+              setStartTimestamp(loadedStart);
+              setDurationDays(loadedDays);
+              setDurationHours(loadedHours);
+              setIsLocked(loadedLocked);
+              timerPersistRef.current = {
+                deploymentId: deployment.id,
+                startTimestamp: loadedStart,
+                durationDays: loadedDays,
+                durationHours: loadedHours,
+                isLocked: loadedLocked,
+              };
             }
           }
         }
@@ -101,6 +112,43 @@ function OwnerDashboard() {
   const [durationHours, setDurationHours] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState('');
   const [isLocked, setIsLocked] = useState(false);
+  const timerPersistRef = useRef(null);
+
+  // Persist the Session Timer tab configuration to the backend so expiry is
+  // enforced server-side. Without this the countdown is only local state and
+  // the backend never learns about the duration, so nothing ever expires.
+  useEffect(() => {
+    const deploymentId = activeDeploymentData?.id;
+    if (!deploymentId || !startTimestamp) return;
+    if (durationDays === 0 && durationHours === 0 && !isLocked) return;
+
+    const snapshot = { deploymentId, startTimestamp, durationDays, durationHours, isLocked };
+    if (timerPersistRef.current && JSON.stringify(timerPersistRef.current) === JSON.stringify(snapshot)) return;
+
+    const timeout = setTimeout(async () => {
+      try {
+        const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.DEPLOYMENTS}${deploymentId}/session-timer/`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            start_timestamp: startTimestamp,
+            duration_days: durationDays,
+            duration_hours: durationHours,
+            is_active: !isLocked,
+          }),
+        });
+        if (response.ok) {
+          timerPersistRef.current = snapshot;
+        } else {
+          console.error('Failed to persist session timer:', await response.text());
+        }
+      } catch (err) {
+        console.error('Failed to persist session timer:', err);
+      }
+    }, 800);
+
+    return () => clearTimeout(timeout);
+  }, [activeDeploymentData?.id, startTimestamp, durationDays, durationHours, isLocked]);
 
   // Live countdown for the Active Deployment card, driven by the same
   // session-timer state used by the Session Timer tab.
