@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, FileText, TrendingUp, Users, Utensils, BarChart, Award, Calendar, DollarSign, Info, ChevronDown, ChevronUp, Loader2, RefreshCw } from 'lucide-react';
+import { Download, FileText, TrendingUp, Users, Utensils, BarChart, Award, Calendar, DollarSign, Info, Loader2, RefreshCw } from 'lucide-react';
 import { API_CONFIG, fetchWithAuth } from '../../config/api.js';
 
 const VOUCHER_TYPE_KEYS = [
@@ -21,10 +21,8 @@ const VOUCHER_TYPE_LABELS = {
 };
 
 export default function ReportsTab() {
-  const [activeModule, setActiveModule] = useState('financial');
-  const [expandedSections, setExpandedSections] = useState({});
   const [modalSection, setModalSection] = useState(null);
-  const [isMobile, setIsMobile] = useState(false);
+  const [, setIsMobile] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showEmptyState, setShowEmptyState] = useState(false);
   const [exporting, setExporting] = useState(null);
@@ -83,14 +81,6 @@ export default function ReportsTab() {
       clearTimeout(timeoutId);
       setLoading(false);
     }
-  };
-
-  const toggleSection = (section) => {
-    setModalSection(section);
-  };
-
-  const closeModal = () => {
-    setModalSection(null);
   };
 
   const triggerDownload = (blob, filename) => {

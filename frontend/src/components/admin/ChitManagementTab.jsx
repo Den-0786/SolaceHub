@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
-import { Search, Filter, Download, Utensils, Calendar, Users, FileText, TrendingUp, Loader2, Ticket } from 'lucide-react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { Search, Download, Utensils, Calendar, FileText, TrendingUp, Loader2, Ticket } from 'lucide-react';
 import { useOwnerSettings } from '../../hooks/useOwnerSettings.js';
 import { API_CONFIG, fetchWithAuth } from '../../config/api.js';
 
@@ -23,21 +23,18 @@ export default function ChitManagementTab() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  useEffect(() => {
-    fetchChitData();
-  }, []);
-
-  const fetchChitData = async () => {
+  const fetchChitData = useCallback(async () => {
     setLoading(true);
     setShowEmptyState(false);
-    
-    // Set a timeout to show empty state after 5 seconds
+
+    // Show empty state if the request is still pending after 5 seconds
+    let requestPending = true;
     const timeoutId = setTimeout(() => {
-      if (loading) {
+      if (requestPending) {
         setShowEmptyState(true);
       }
     }, 5000);
-    
+
     try {
       const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.CHITS);
       if (response.ok) {
@@ -49,10 +46,15 @@ export default function ChitManagementTab() {
     } catch (err) {
       console.error('Failed to fetch chit data:', err);
     } finally {
+      requestPending = false;
       clearTimeout(timeoutId);
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchChitData();
+  }, [fetchChitData]);
 
   // Calculate analytics - group by calendar date dynamically
   const analytics = useMemo(() => {

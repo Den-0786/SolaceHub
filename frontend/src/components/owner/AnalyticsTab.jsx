@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { CalendarDays, CalendarRange, Calendar, TrendingUp, BarChart3, LayoutDashboard, CalendarCheck } from 'lucide-react';
+import { CalendarDays, CalendarRange, Calendar, BarChart3, LayoutDashboard, CalendarCheck } from 'lucide-react';
 
 const buildBuckets = (events, deployments, period) => {
   const now = new Date();
@@ -94,7 +94,6 @@ export default function AnalyticsTab({ events = [], deployments = [] }) {
       const prev = points[i - 1];
       const curr = points[i];
       const xc = (prev.x + curr.x) / 2;
-      const yc = (prev.y + curr.y) / 2;
       path += ` C ${xc},${prev.y} ${xc},${curr.y} ${curr.x},${curr.y}`;
     }
 
@@ -119,7 +118,6 @@ export default function AnalyticsTab({ events = [], deployments = [] }) {
       const prev = points[i - 1];
       const curr = points[i];
       const xc = (prev.x + curr.x) / 2;
-      const yc = (prev.y + curr.y) / 2;
       path += ` C ${xc},${prev.y} ${xc},${curr.y} ${curr.x},${curr.y}`;
     }
 

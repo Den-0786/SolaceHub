@@ -3,7 +3,7 @@ import { X, Printer, Tablet, CheckCircle, AlertCircle, Wifi, Battery, RefreshCw,
 import { useToast } from '../../hooks/useToast.js';
 import { API_CONFIG, fetchWithAuth, getAuthHeaders } from '../../config/api.js';
 
-export default function ManageDeploymentModal({ deployment, onClose, onUpdateStatus, hardwareInventory, updateHardwareStatus, onEdit, onDelete }) {
+export default function ManageDeploymentModal({ deployment, onClose, onUpdateStatus, hardwareInventory, onEdit, onDelete }) {
   const { addToast } = useToast();
   const [status, setStatus] = useState(
     deployment?.status ? deployment.status.charAt(0).toUpperCase() + deployment.status.slice(1) : 'Pending'
@@ -17,16 +17,6 @@ export default function ManageDeploymentModal({ deployment, onClose, onUpdateSta
   const [generatedPassword, setGeneratedPassword] = useState('');
   const [donationCount, setDonationCount] = useState(0);
   const [chitCount, setChitCount] = useState(0);
-
-  // Hardware selection state
-  const deploymentHardware = deployment?.hardware || [];
-  const [selectedTablets, setSelectedTablets] = useState(deploymentHardware.filter(h => h.startsWith('TAB')));
-  const [selectedDonationPrinter, setSelectedDonationPrinter] = useState(
-    deploymentHardware.find(h => h.startsWith('PRN') && !h.includes('B')) || ''
-  );
-  const [selectedChitPrinter, setSelectedChitPrinter] = useState(
-    deploymentHardware.find(h => h.includes('B')) || ''
-  );
 
   // Real-time countdown based on the live session timer record
   useEffect(() => {
@@ -104,7 +94,7 @@ export default function ManageDeploymentModal({ deployment, onClose, onUpdateSta
 
     loadData();
     return () => { cancelled = true; };
-  }, [deployment?.id]);
+  }, [deployment]);
 
   if (!deployment) {
     return null;
@@ -144,33 +134,6 @@ export default function ManageDeploymentModal({ deployment, onClose, onUpdateSta
 
   const handleSwapHardware = () => {
     console.log('Opening hardware swap dialog for', deployment.hardware);
-  };
-
-  const handleHardwareUpdate = () => {
-    const selectedHardware = [
-      ...selectedTablets,
-      selectedDonationPrinter,
-      selectedChitPrinter
-    ].filter(h => h);
-
-    // Release old hardware
-    (deployment.hardware || []).forEach(hardwareId => {
-      if (!selectedHardware.includes(hardwareId)) {
-        updateHardwareStatus(hardwareId, 'Available', null);
-      }
-    });
-
-    // Assign new hardware
-    selectedHardware.forEach(hardwareId => {
-      if (!(deployment.hardware || []).includes(hardwareId)) {
-        updateHardwareStatus(hardwareId, 'In Use', deployment.id);
-      }
-    });
-
-    // Update deployment with new hardware
-    if (onUpdateStatus) {
-      onUpdateStatus(deployment.id, status, selectedHardware);
-    }
   };
 
   const handleExtend24Hours = async () => {

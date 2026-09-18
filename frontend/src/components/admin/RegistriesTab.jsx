@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useMemo, useEffect } from 'react';
 import { Search, Download, Wallet, Calendar, FileText, TrendingUp, Loader2 } from 'lucide-react';
 import { useOwnerSettings } from '../../hooks/useOwnerSettings.js';
@@ -11,7 +10,7 @@ export default function RegistriesTab() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showEmptyState, setShowEmptyState] = useState(false);
+  const [, setShowEmptyState] = useState(false);
   const [donorData, setDonorData] = useState([]);
   const entriesPerPage = 15;
 

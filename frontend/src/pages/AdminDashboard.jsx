@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Bell, HelpCircle, User, LayoutDashboard, ClipboardList, Ticket, BarChart, Settings, LogOut, Plus, TrendingUp, Filter, MoreHorizontal, Activity, Circle, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, User, LayoutDashboard, ClipboardList, Ticket, BarChart, Settings, LogOut, Plus, Filter, MoreHorizontal, Activity, Circle, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import logo from '/SolaceHubLogo.jpeg';
 import { useToast } from '../hooks/useToast.js';
 import { useNavigate } from 'react-router-dom';
@@ -23,13 +23,12 @@ function AdminDashboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [activeDeployment, setActiveDeployment] = useState(null);
-  const [deceasedEntries, setDeceasedEntries] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [donationLedger, setDonationLedger] = useState([]);
   const [chitLedger, setChitLedger] = useState([]);
   const [activeOperators, setActiveOperators] = useState([]);
-  const [recentPulse, setRecentPulse] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [recentPulse] = useState([]);
+  const [, setLoading] = useState(false);
 
   useEffect(() => {
     if (!activeEventId) {

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { API_CONFIG, fetchWithAuth } from '../config/api.js';
 
 const EventContext = createContext();
@@ -14,16 +14,16 @@ export function EventProvider({ children }) {
   const [activeEvent, setActiveEvent] = useState(null);
   const [events, setEvents] = useState([]);
 
-  const setActiveEventId = (id) => {
+  const setActiveEventId = useCallback((id) => {
     setActiveEventIdState(id);
     if (id) {
       localStorage.setItem('activeEventId', id);
     } else {
       localStorage.removeItem('activeEventId');
     }
-  };
+  }, []);
 
-  const loadEvents = async () => {
+  const loadEvents = useCallback(async () => {
     try {
       console.log('Loading events from backend...');
       const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.EVENTS);
@@ -41,13 +41,13 @@ export function EventProvider({ children }) {
       console.error('Failed to load events:', err);
     }
     return [];
-  };
+  }, []);
 
-  const refreshActiveEvent = (eventList) => {
+  const refreshActiveEvent = useCallback((eventList) => {
     const list = eventList && eventList.length ? eventList : events;
     const found = list.find((e) => e.id === activeEventId) || list[0] || null;
     setActiveEvent(found);
-  };
+  }, [events, activeEventId]);
 
   useEffect(() => {
     if (activeEventId) {
@@ -58,24 +58,28 @@ export function EventProvider({ children }) {
     }
   }, [activeEventId, events]);
 
+  const value = useMemo(
+    () => ({
+      activeEventId,
+      setActiveEventId,
+      activeEvent,
+      setActiveEvent,
+      events,
+      setEvents,
+      loadEvents,
+      refreshActiveEvent,
+    }),
+    [activeEventId, setActiveEventId, activeEvent, events, loadEvents, refreshActiveEvent]
+  );
+
   return (
-    <EventContext.Provider
-      value={{
-        activeEventId,
-        setActiveEventId,
-        activeEvent,
-        setActiveEvent,
-        events,
-        setEvents,
-        loadEvents,
-        refreshActiveEvent,
-      }}
-    >
+    <EventContext.Provider value={value}>
       {children}
     </EventContext.Provider>
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useEvent() {
   const context = useContext(EventContext);
   if (!context) {

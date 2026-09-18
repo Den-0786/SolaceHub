@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useCallback } from 'react';
 import { API_CONFIG, fetchWithAuth } from '../config/api.js';
 
 const defaultSettings = {
@@ -42,7 +42,7 @@ export function OwnerSettingsProvider({ children }) {
   });
 
   // Fetch credentials from backend API
-  const fetchCredentialsFromBackend = async () => {
+  const fetchCredentialsFromBackend = useCallback(async () => {
     // Only fetch if user is authenticated
     const authToken = localStorage.getItem('authToken');
     if (!authToken) {
@@ -58,8 +58,8 @@ export function OwnerSettingsProvider({ children }) {
           credentialMap[cred.credential_type] = cred;
         });
 
-        const newSettings = {
-          ...settings,
+        setSettings((prev) => ({
+          ...prev,
           clientUsername: credentialMap.client?.username || '',
           clientPassword: '', // Don't store hashed password
           clientTempLogin: credentialMap.client?.temp_login ?? true,
@@ -69,14 +69,12 @@ export function OwnerSettingsProvider({ children }) {
           masterFallbackUsername: credentialMap.master_fallback?.username || '',
           masterFallbackPassword: '', // Don't store hashed password
           sessionExpired: credentialMap.client?.session_expired ?? false
-        };
-        setSettings(newSettings);
-        localStorage.setItem('solacehub_owner_settings', JSON.stringify(newSettings));
+        }));
       }
     } catch (err) {
       console.error('Failed to fetch credentials from backend:', err);
     }
-  };
+  }, []);
 
   // Save credentials to backend API
   const saveCredentialsToBackend = async (credentialType, data) => {
@@ -98,7 +96,7 @@ export function OwnerSettingsProvider({ children }) {
 
   useEffect(() => {
     fetchCredentialsFromBackend();
-  }, []);
+  }, [fetchCredentialsFromBackend]);
 
   useEffect(() => {
     localStorage.setItem('solacehub_owner_settings', JSON.stringify(settings));

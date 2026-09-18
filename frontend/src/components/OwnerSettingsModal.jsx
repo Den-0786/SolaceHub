@@ -185,7 +185,7 @@ function OwnerSettingsModal({ onClose }) {
         const data = await response.json();
         addToast(data.error || 'Failed to change password', 'error');
       }
-    } catch (err) {
+    } catch {
       addToast('Connection error', 'error');
     } finally {
       setPasswordChangeLoading(false);

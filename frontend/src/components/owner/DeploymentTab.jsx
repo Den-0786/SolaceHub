@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Plus, Settings, MapPin, Phone, User, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, Settings, MapPin, User, Loader2 } from 'lucide-react';
 import { useDeployment } from '../../contexts/DeploymentContext';
 import { useEvent } from '../../contexts/EventContext';
 import { useToast } from '../../hooks/useToast.js';
@@ -26,13 +26,7 @@ export default function DeploymentTab({ deployments, setDeployments }) {
     end_date: '',
   });
 
-  // Fetch deployments from backend
-  useEffect(() => {
-    fetchDeployments();
-    fetchHardware();
-  }, []);
-
-  const fetchDeployments = async () => {
+  const fetchDeployments = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.DEPLOYMENTS);
@@ -45,9 +39,9 @@ export default function DeploymentTab({ deployments, setDeployments }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [setDeployments]);
 
-  const fetchHardware = async () => {
+  const fetchHardware = useCallback(async () => {
     try {
       const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.HARDWARE);
       if (response.ok) {
@@ -57,7 +51,13 @@ export default function DeploymentTab({ deployments, setDeployments }) {
     } catch (err) {
       console.error('Failed to fetch hardware:', err);
     }
-  };
+  }, []);
+
+  // Fetch deployments from backend
+  useEffect(() => {
+    fetchDeployments();
+    fetchHardware();
+  }, [fetchDeployments, fetchHardware]);
 
   const getStatusBadge = (status) => {
     const styles = {
@@ -230,65 +230,6 @@ export default function DeploymentTab({ deployments, setDeployments }) {
       setLoading(false);
     }
   };
-
-  // Responsive table component for deployments
-  const DeploymentCard = ({ deployment }) => (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 mb-3 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <h4 className="font-medium text-gray-900 text-sm truncate">{deployment.title || deployment.event_title || 'No Event'}</h4>
-          <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-            <MapPin size={12} className="shrink-0" /> {deployment.venue}
-          </p>
-        </div>
-        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border shrink-0 ${getStatusBadge(deployment.status)}`}>
-          {deployment.status}
-        </span>
-      </div>
-      
-      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-        <div>
-          <p className="text-gray-500 font-semibold">Client</p>
-          <p className="text-gray-900 font-medium flex items-center gap-1">
-            <User size={12} /> {deployment.client}
-          </p>
-        </div>
-        <div>
-          <p className="text-gray-500 font-semibold">Phone</p>
-          <p className="text-gray-900 font-medium flex items-center gap-1">
-            <Phone size={12} /> {deployment.phone}
-          </p>
-        </div>
-        <div>
-          <p className="text-gray-500 font-semibold">Dates</p>
-          <p className="text-gray-900 font-medium">
-            {deployment.start_date} - {deployment.end_date}
-          </p>
-        </div>
-        <div>
-          <p className="text-gray-500 font-semibold">Hardware</p>
-          <p className="text-gray-900 font-medium">
-            {deployment.hardware_set?.length || 0} devices
-          </p>
-        </div>
-        <div>
-          <p className="text-gray-500 font-semibold">Session</p>
-          <p className="text-gray-900 font-medium">
-            {deployment.session_timer?.is_active ? 'Active' : 'Inactive'}
-          </p>
-        </div>
-      </div>
-      
-      <div className="mt-3 pt-3 border-t border-gray-100">
-        <button 
-          onClick={() => handleManageDeployment(deployment)}
-          className="w-full text-indigo-600 hover:text-indigo-900 text-sm font-medium flex items-center justify-center gap-1 py-1.5 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
-        >
-          <Settings size={14} /> Manage Deployment
-        </button>
-      </div>
-    </div>
-  );
 
   return (
     <>

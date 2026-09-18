@@ -141,6 +141,17 @@ CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_raw.split(',')
 CORS_ALLOW_ALL_ORIGINS = True  # Allow all origins for production testing
 CORS_ALLOW_CREDENTIALS = True
 
+# Security hardening. Defaults are secure when DEBUG is off; override any of
+# these with environment variables (e.g. set SECURE_SSL_REDIRECT=False when
+# running the backend locally over plain HTTP).
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'True' if not DEBUG else 'False').lower() == 'true'
+SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'True' if not DEBUG else 'False').lower() == 'true'
+CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'True' if not DEBUG else 'False').lower() == 'true'
+SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '31536000' if not DEBUG else '0'))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv('SECURE_HSTS_INCLUDE_SUBDOMAINS', 'True' if not DEBUG else 'False').lower() == 'true'
+SECURE_HSTS_PRELOAD = os.getenv('SECURE_HSTS_PRELOAD', 'True' if not DEBUG else 'False').lower() == 'true'
+
 # The frontend sends X-Event-ID on every authenticated API call; it must be
 # allowed in CORS preflight or browsers block all requests with "Failed to fetch".
 CORS_ALLOW_HEADERS = [

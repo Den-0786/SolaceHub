@@ -3,7 +3,6 @@ import { Clock, Plus, Lock, RotateCcw, Download, Timer, Calendar, CheckCircle, A
 
 export default function SessionTimerTab({
   eventName,
-  setEventName,
   startTimestamp,
   setStartTimestamp,
   durationDays,
@@ -58,7 +57,7 @@ export default function SessionTimerTab({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [startTimestamp, durationDays, durationHours, isLocked, onExpire]);
+  }, [startTimestamp, durationDays, durationHours, isLocked, onExpire, setIsLocked, setTimeRemaining]);
 
   const handleExtend24Hours = () => {
     setDurationHours((prev) => prev + 24);

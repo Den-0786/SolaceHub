@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, Check } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import HowItWorksModal from './HowItWorksModal';
 
 function Hero({ id, onGetStarted }) {

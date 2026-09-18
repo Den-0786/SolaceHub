@@ -153,7 +153,7 @@ function ChitConsole() {
         addToast("Connection error. Please check your network.", "error");
       }
     }
-  }, [securityCode, representativeName, numberOfPeople, voucherType, navigate, addToast]);
+  }, [securityCode, representativeName, numberOfPeople, voucherType, navigate, addToast, settings.chitOperatorName]);
 
   const handleDecreasePeople = () => {
     if (numberOfPeople > 1) {
@@ -211,11 +211,7 @@ function ChitConsole() {
     }
   }, [settings.sessionExpired, navigate, addToast]);
 
-  useEffect(() => {
-    fetchDeploymentForEvent();
-  }, [activeEventId]);
-
-  const fetchDeploymentForEvent = async () => {
+  const fetchDeploymentForEvent = useCallback(async () => {
     if (!activeEventId) return;
     try {
       const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.DEPLOYMENTS);
@@ -228,7 +224,11 @@ function ChitConsole() {
     } catch (err) {
       console.error('Failed to fetch deployment:', err);
     }
-  };
+  }, [activeEventId, setActiveDeployment]);
+
+  useEffect(() => {
+    fetchDeploymentForEvent();
+  }, [fetchDeploymentForEvent]);
 
   const fetchChits = useCallback(async () => {
     try {

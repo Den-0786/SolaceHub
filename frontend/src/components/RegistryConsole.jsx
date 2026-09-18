@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Printer, Share2, Settings, User, Plus, ArrowUp, LogOut, ChevronLeft, ChevronRight, History, BarChart, LayoutDashboard, X, Menu } from 'lucide-react';
+import { Printer, Share2, User, Plus, ArrowUp, LogOut, ChevronLeft, ChevronRight, History, BarChart, LayoutDashboard, X, Menu } from 'lucide-react';
 import logo from '/SolaceHubLogo.jpeg';
 import { useToast } from '../hooks/useToast.js';
 import { useDeployment } from '../contexts/DeploymentContext';
@@ -78,11 +78,7 @@ function RegistryConsole() {
     fetchDonors();
   }, []);
 
-  useEffect(() => {
-    fetchDeploymentForEvent();
-  }, [activeEventId]);
-
-  const fetchDeploymentForEvent = async () => {
+  const fetchDeploymentForEvent = useCallback(async () => {
     if (!activeEventId) return;
     try {
       const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.DEPLOYMENTS);
@@ -95,7 +91,11 @@ function RegistryConsole() {
     } catch (err) {
       console.error('Failed to fetch deployment:', err);
     }
-  };
+  }, [activeEventId, setActiveDeployment]);
+
+  useEffect(() => {
+    fetchDeploymentForEvent();
+  }, [fetchDeploymentForEvent]);
 
   const fetchDonors = async () => {
     try {
@@ -180,15 +180,6 @@ function RegistryConsole() {
     window.print();
   };
 
-  const formatAmount = (value) => {
-    if (!value) return 'GH₵ 0.00';
-    const num = typeof value === 'string' ? parseFloat(value.replace(/[^0-9.]/g, '')) : value;
-    if (isNaN(num)) return 'GH₵ 0.00';
-    // Round to avoid floating-point precision issues
-    const rounded = Math.round(num * 100) / 100;
-    return `GH₵ ${rounded.toFixed(2)}`;
-  };
-
   const formatAmountForDisplay = (value) => {
     if (!value) return 'GH₵ 0.00';
     const num = typeof value === 'string' ? parseFloat(value.replace(/[^0-9.]/g, '')) : value;
@@ -196,22 +187,6 @@ function RegistryConsole() {
     // Round to avoid floating-point precision issues
     const rounded = Math.round(num * 100) / 100;
     return `GH₵ ${rounded.toFixed(2)}`;
-  };
-
-  const handleAmountChange = (e) => {
-    let value = e.target.value;
-    // Remove any non-numeric characters except decimal point
-    value = value.replace(/[^0-9.]/g, '');
-    // Allow only one decimal point
-    const parts = value.split('.');
-    if (parts.length > 2) {
-      value = parts[0] + '.' + parts.slice(1).join('');
-    }
-    // Limit decimal places to 2
-    if (parts.length === 2 && parts[1].length > 2) {
-      value = parts[0] + '.' + parts[1].slice(0, 2);
-    }
-    setAmount(value);
   };
 
   const handleVisitorRegistration = (e) => {
