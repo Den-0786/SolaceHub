@@ -23,6 +23,16 @@ const generateReceiptId = () => {
 const formatCedis = (value) =>
   new Intl.NumberFormat('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value || 0);
 
+const computeEventDay = (startDate) => {
+  if (!startDate) return 1;
+  const dayMs = 24 * 60 * 60 * 1000;
+  const start = new Date(startDate);
+  const now = new Date();
+  const startUtc = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+  const nowUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.max(1, Math.floor((nowUtc - startUtc) / dayMs) + 1);
+};
+
 function RegistryConsole() {
   const navigate = useNavigate();
   const { addToast } = useToast();
@@ -130,7 +140,7 @@ function RegistryConsole() {
           receipt_id: previewReceiptId,
           time: currentTime,
           method: 'Cash',
-          event_day: 1,
+          event_day: computeEventDay(activeDeployment?.start_date),
           operator_name: settings.donationOperatorName || null,
         }),
       });

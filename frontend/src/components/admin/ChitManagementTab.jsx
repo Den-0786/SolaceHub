@@ -3,6 +3,16 @@ import { Search, Download, Utensils, Calendar, FileText, TrendingUp, Loader2, Ti
 import { useOwnerSettings } from '../../hooks/useOwnerSettings.js';
 import { API_CONFIG, fetchWithAuth } from '../../config/api.js';
 
+const computeEventDay = (recordDate, startDate) => {
+  if (!startDate) return null;
+  const dayMs = 24 * 60 * 60 * 1000;
+  const start = new Date(startDate);
+  const rec = new Date(recordDate);
+  const startUtc = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+  const recUtc = Date.UTC(rec.getFullYear(), rec.getMonth(), rec.getDate());
+  return Math.max(1, Math.floor((recUtc - startUtc) / dayMs) + 1);
+};
+
 export default function ChitManagementTab() {
   const { settings } = useOwnerSettings();
   const [searchQuery, setSearchQuery] = useState('');
@@ -12,6 +22,7 @@ export default function ChitManagementTab() {
   const [loading, setLoading] = useState(false);
   const [showEmptyState, setShowEmptyState] = useState(false);
   const [chitData, setChitData] = useState([]);
+  const [deploymentStartDate, setDeploymentStartDate] = useState(null);
   const entriesPerPage = 15;
 
   useEffect(() => {
@@ -54,7 +65,23 @@ export default function ChitManagementTab() {
 
   useEffect(() => {
     fetchChitData();
+    fetchDeploymentStartDate();
   }, [fetchChitData]);
+
+  const fetchDeploymentStartDate = async () => {
+    try {
+      const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.DEPLOYMENTS);
+      if (response.ok) {
+        const data = await response.json();
+        const list = data.results || data || [];
+        if (list.length > 0) {
+          setDeploymentStartDate(list[0].start_date);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch deployment start date:', err);
+    }
+  };
 
   // Calculate analytics - group by calendar date dynamically
   const analytics = useMemo(() => {
@@ -68,7 +95,7 @@ export default function ChitManagementTab() {
         acc[date] = {
           chitsIssued: 0,
           guestsCatered: 0,
-          dayNumber: chit.event_day,
+          dayNumber: computeEventDay(chit.date, deploymentStartDate) ?? chit.event_day,
           dateLabel: chit.date
         };
       }
@@ -87,7 +114,7 @@ export default function ChitManagementTab() {
       totalGuests,
       daySummaries
     };
-  }, [chitData, settings.durationDays]);
+  }, [chitData, settings.durationDays, deploymentStartDate]);
 
   // Filter data based on search and day filter
   const filteredData = useMemo(() => {
@@ -97,15 +124,17 @@ export default function ChitManagementTab() {
         (chit.security_code || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (chit.voucher_type || '').toLowerCase().includes(searchQuery.toLowerCase());
 
+      const chitDay = computeEventDay(chit.date, deploymentStartDate) ?? chit.event_day;
+
       const matchesDay =
         dayFilter === 'all' ||
-        (dayFilter === 'day1' && chit.event_day === 1) ||
-        (dayFilter === 'day2' && chit.event_day === 2) ||
-        (dayFilter === `day${chit.event_day}` && chit.event_day === parseInt(dayFilter.replace('day', '')));
+        (dayFilter === 'day1' && chitDay === 1) ||
+        (dayFilter === 'day2' && chitDay === 2) ||
+        (dayFilter === `day${chitDay}` && chitDay === parseInt(dayFilter.replace('day', '')));
 
       return matchesSearch && matchesDay;
     });
-  }, [chitData, searchQuery, dayFilter]);
+  }, [chitData, searchQuery, dayFilter, deploymentStartDate]);
 
   // Pagination
   const totalPages = Math.ceil(filteredData.length / entriesPerPage);
@@ -340,7 +369,7 @@ export default function ChitManagementTab() {
                     </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 10px', borderRadius: '9999px', fontSize: '12px', fontWeight: '500', backgroundColor: chit.event_day === 1 ? '#fef3c7' : chit.event_day === 2 ? '#d1fae5' : '#dbeafe', color: chit.event_day === 1 ? '#92400e' : chit.event_day === 2 ? '#065f46' : '#1e40af' }}>
-                        Day {chit.event_day}
+                        Day {computeEventDay(chit.date, deploymentStartDate) ?? chit.event_day}
                       </span>
                     </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>

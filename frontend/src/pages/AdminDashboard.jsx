@@ -416,11 +416,11 @@ function AdminDashboard() {
                         const row = ledgerEntry(entry);
                         return (
                           <tr key={entry.id ?? index} className="border-b border-gray-50 hover:bg-gray-50">
-                            <td className="py-3 px-4 text-sm font-medium text-indigo-950">{row.receipt}</td>
-                            <td className="py-3 px-4 text-sm text-gray-900">{row.name || 'Anonymous'}</td>
-                            <td className="py-3 px-4 text-sm font-medium text-gray-900">{row.amountLabel}</td>
-                            <td className="py-3 px-4 text-sm text-gray-500">{entry.time}</td>
-                            <td className="py-3 px-4 text-sm text-gray-500">{row.loggedBy || 'System'}</td>
+                            <td className="py-3 px-4 text-sm font-medium text-indigo-950 whitespace-nowrap">{row.receipt}</td>
+                            <td className="py-3 px-4 text-sm text-gray-900 whitespace-nowrap">{row.name || 'Anonymous'}</td>
+                            <td className="py-3 px-4 text-sm font-medium text-gray-900 whitespace-nowrap">{row.amountLabel}</td>
+                            <td className="py-3 px-4 text-sm text-gray-500 whitespace-nowrap">{entry.time}</td>
+                            <td className="py-3 px-4 text-sm text-gray-500 whitespace-nowrap">{row.loggedBy || 'System'}</td>
                           </tr>
                         );
                       })

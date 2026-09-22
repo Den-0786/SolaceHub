@@ -34,6 +34,16 @@ const generateSecurityCode = () => {
   return `CHIT-${code}`;
 };
 
+const computeEventDay = (startDate) => {
+  if (!startDate) return 1;
+  const dayMs = 24 * 60 * 60 * 1000;
+  const start = new Date(startDate);
+  const now = new Date();
+  const startUtc = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+  const nowUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.max(1, Math.floor((nowUtc - startUtc) / dayMs) + 1);
+};
+
 function ChitConsole() {
   const navigate = useNavigate();
   const { addToast } = useToast();
@@ -109,7 +119,7 @@ function ChitConsole() {
           representative_name: representativeName || "Guest",
           number_of_people: numberOfPeople,
           voucher_type: voucherType,
-          event_day: 1,
+          event_day: computeEventDay(activeDeployment?.start_date),
           time: currentTime,
           operator_name: settings.chitOperatorName || null,
         }),
@@ -158,7 +168,7 @@ function ChitConsole() {
         addToast("Connection error. Please check your network.", "error");
       }
     }
-  }, [securityCode, representativeName, numberOfPeople, voucherType, navigate, addToast, settings.chitOperatorName]);
+  }, [securityCode, representativeName, numberOfPeople, voucherType, navigate, addToast, settings.chitOperatorName, activeDeployment?.start_date]);
 
   const handleDecreasePeople = () => {
     if (numberOfPeople > 1) {

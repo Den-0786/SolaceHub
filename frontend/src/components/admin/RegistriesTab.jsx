@@ -3,6 +3,16 @@ import { Search, Download, Wallet, Calendar, FileText, TrendingUp, Loader2 } fro
 import { useOwnerSettings } from '../../hooks/useOwnerSettings.js';
 import { API_CONFIG, fetchWithAuth } from '../../config/api.js';
 
+const computeEventDay = (recordDate, startDate) => {
+  if (!startDate) return null;
+  const dayMs = 24 * 60 * 60 * 1000;
+  const start = new Date(startDate);
+  const rec = new Date(recordDate);
+  const startUtc = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+  const recUtc = Date.UTC(rec.getFullYear(), rec.getMonth(), rec.getDate());
+  return Math.max(1, Math.floor((recUtc - startUtc) / dayMs) + 1);
+};
+
 export default function RegistriesTab() {
   const { settings } = useOwnerSettings();
   const [searchQuery, setSearchQuery] = useState('');
@@ -12,6 +22,7 @@ export default function RegistriesTab() {
   const [loading, setLoading] = useState(false);
   const [, setShowEmptyState] = useState(false);
   const [donorData, setDonorData] = useState([]);
+  const [deploymentStartDate, setDeploymentStartDate] = useState(null);
   const entriesPerPage = 15;
 
   useEffect(() => {
@@ -25,7 +36,23 @@ export default function RegistriesTab() {
 
   useEffect(() => {
     fetchDonorData();
+    fetchDeploymentStartDate();
   }, []);
+
+  const fetchDeploymentStartDate = async () => {
+    try {
+      const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.DEPLOYMENTS);
+      if (response.ok) {
+        const data = await response.json();
+        const list = data.results || data || [];
+        if (list.length > 0) {
+          setDeploymentStartDate(list[0].start_date);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch deployment start date:', err);
+    }
+  };
 
   const fetchDonorData = async () => {
     setLoading(true);
@@ -60,7 +87,7 @@ export default function RegistriesTab() {
         acc[date] = {
           total: 0,
           donors: 0,
-          dayNumber: donor.event_day,
+          dayNumber: computeEventDay(donor.date, deploymentStartDate) ?? donor.event_day,
           dateLabel: new Date(donor.date).toLocaleDateString()
         };
       }
@@ -79,7 +106,7 @@ export default function RegistriesTab() {
       totalDonors,
       daySummaries
     };
-  }, [donorData, settings.durationDays]);
+  }, [donorData, settings.durationDays, deploymentStartDate]);
 
   // Filter data based on search and day filter
   const filteredData = useMemo(() => {
@@ -89,15 +116,17 @@ export default function RegistriesTab() {
         donor.phone_number?.includes(searchQuery) ||
         donor.receipt_id?.toLowerCase().includes(searchQuery.toLowerCase());
 
+      const donorDay = computeEventDay(donor.date, deploymentStartDate) ?? donor.event_day;
+
       const matchesDay =
         dayFilter === 'all' ||
-        (dayFilter === 'day1' && donor.event_day === 1) ||
-        (dayFilter === 'day2' && donor.event_day === 2) ||
-        (dayFilter === `day${donor.event_day}` && donor.event_day === parseInt(dayFilter.replace('day', '')));
+        (dayFilter === 'day1' && donorDay === 1) ||
+        (dayFilter === 'day2' && donorDay === 2) ||
+        (dayFilter === `day${donorDay}` && donorDay === parseInt(dayFilter.replace('day', '')));
 
       return matchesSearch && matchesDay;
     });
-  }, [donorData, searchQuery, dayFilter]);
+  }, [donorData, searchQuery, dayFilter, deploymentStartDate]);
 
   // Pagination
   const totalPages = Math.ceil(filteredData.length / entriesPerPage);
@@ -304,7 +333,7 @@ export default function RegistriesTab() {
                     </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 10px', borderRadius: '9999px', fontSize: '12px', fontWeight: '500', backgroundColor: donor.event_day === 1 ? '#fef3c7' : donor.event_day === 2 ? '#d1fae5' : '#dbeafe', color: donor.event_day === 1 ? '#92400e' : donor.event_day === 2 ? '#065f46' : '#1e40af' }}>
-                        Day {donor.event_day}
+                        Day {computeEventDay(donor.date, deploymentStartDate) ?? donor.event_day}
                       </span>
                     </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
