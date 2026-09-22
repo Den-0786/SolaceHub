@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, FileText, TrendingUp, Users, Utensils, BarChart, Award, Calendar, DollarSign, Info, Loader2, RefreshCw } from 'lucide-react';
+import { Download, FileText, Users, Utensils, BarChart, Award, Calendar, DollarSign, Info, Loader2, RefreshCw, TrendingDown, Wallet } from 'lucide-react';
 import { API_CONFIG, fetchWithAuth } from '../../config/api.js';
 
 const VOUCHER_TYPE_KEYS = [
@@ -190,69 +190,77 @@ export default function ReportsTab() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-6 shadow-lg">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-              <DollarSign size={24} className="text-white" />
+      <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="flex gap-3 pb-1" style={{ minWidth: 'max-content' }}>
+          <div className="w-[210px] sm:w-[230px] shrink-0 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-4 shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                <DollarSign size={20} className="text-white" />
+              </div>
             </div>
-            <div className="flex items-center gap-1 bg-white/20 px-2 py-1 rounded-lg text-xs font-medium text-white">
-              <TrendingUp size={12} />
-              <span>+15%</span>
+            <p className="text-xs text-white/80 mb-1">Total Revenue</p>
+            <p className="text-xl font-bold text-white mb-2">GH₵ {summaryData.totalRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
+            <div className="flex gap-2 text-xs text-white/70">
+              <span>Cash: GH₵ {summaryData.cashRevenue.toLocaleString('en-GH')}</span>
+              <span>-</span>
+              <span>MoMo: GH₵ {summaryData.momoRevenue.toLocaleString('en-GH')}</span>
             </div>
           </div>
-          <p className="text-sm text-white/80 mb-1">Total Revenue</p>
-          <p className="text-2xl font-bold text-white mb-2">GH₵ {summaryData.totalRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
-          <div className="flex gap-2 text-xs text-white/70">
-            <span>Cash: GH₵ {summaryData.cashRevenue.toLocaleString('en-GH')}</span>
-            <span>-</span>
-            <span>MoMo: GH₵ {summaryData.momoRevenue.toLocaleString('en-GH')}</span>
-          </div>
-        </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
-              <Users size={24} className="text-indigo-600" />
+          <div className="w-[210px] sm:w-[230px] shrink-0 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                <TrendingDown size={20} className="text-amber-600" />
+              </div>
             </div>
-            <div className="flex items-center gap-1 bg-indigo-100 px-2 py-1 rounded-lg text-xs font-medium text-indigo-700">
-              <TrendingUp size={12} />
-              <span>+8%</span>
-            </div>
+            <p className="text-xs text-gray-500 mb-1">Total Expenses</p>
+            <p className="text-xl font-bold text-gray-900 mb-2">GH₵ {summaryData.totalExpenses.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
+            <p className="text-xs text-gray-400">{expenseData.length} recorded entries</p>
           </div>
-          <p className="text-sm text-gray-500 mb-1">Total Donors</p>
-          <p className="text-2xl font-bold text-gray-900 mb-2">{summaryData.totalDonors}</p>
-          <p className="text-xs text-gray-400">Recorded contributors</p>
-        </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
-              <Utensils size={24} className="text-amber-600" />
+          <div className="w-[210px] sm:w-[230px] shrink-0 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-4 shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+                <Wallet size={20} className="text-emerald-400" />
+              </div>
             </div>
-            <div className="flex items-center gap-1 bg-amber-100 px-2 py-1 rounded-lg text-xs font-medium text-amber-700">
-              <BarChart size={12} />
-              <span>88%</span>
-            </div>
+            <p className="text-xs text-gray-300 mb-1">Net Proceeds</p>
+            <p className="text-xl font-bold text-emerald-400 mb-2">GH₵ {summaryData.netRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
+            <p className="text-xs text-gray-400">Revenue minus expenses</p>
           </div>
-          <p className="text-sm text-gray-500 mb-1">Refreshment Vouchers</p>
-          <p className="text-2xl font-bold text-gray-900 mb-2">{summaryData.totalChitsIssued}</p>
-          <p className="text-xs text-gray-400">of {summaryData.estimatedGuests} estimated guests</p>
-        </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-              <Award size={24} className="text-purple-600" />
+          <div className="w-[210px] sm:w-[230px] shrink-0 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
+                <Users size={20} className="text-indigo-600" />
+              </div>
             </div>
-            <div className="flex items-center gap-1 bg-purple-100 px-2 py-1 rounded-lg text-xs font-medium text-purple-700">
-              <TrendingUp size={12} />
-              <span>+12%</span>
-            </div>
+            <p className="text-xs text-gray-500 mb-1">Total Donors</p>
+            <p className="text-xl font-bold text-gray-900 mb-2">{summaryData.totalDonors}</p>
+            <p className="text-xs text-gray-400">Recorded contributors</p>
           </div>
-          <p className="text-sm text-gray-500 mb-1">Average Donation</p>
-          <p className="text-2xl font-bold text-gray-900 mb-2">GH₵ {summaryData.averageDonation.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
-          <p className="text-xs text-gray-400">per donor</p>
+
+          <div className="w-[210px] sm:w-[230px] shrink-0 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                <Utensils size={20} className="text-amber-600" />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mb-1">Refreshment Vouchers</p>
+            <p className="text-xl font-bold text-gray-900 mb-2">{summaryData.totalChitsIssued}</p>
+            <p className="text-xs text-gray-400">of {summaryData.estimatedGuests} estimated guests</p>
+          </div>
+
+          <div className="w-[210px] sm:w-[230px] shrink-0 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                <Award size={20} className="text-purple-600" />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mb-1">Average Donation</p>
+            <p className="text-xl font-bold text-gray-900 mb-2">GH₵ {summaryData.averageDonation.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
+            <p className="text-xs text-gray-400">per donor</p>
+          </div>
         </div>
       </div>
 
