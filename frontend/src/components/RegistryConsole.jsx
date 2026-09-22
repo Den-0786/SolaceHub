@@ -353,7 +353,7 @@ function RegistryConsole() {
                   </div>
                   
                   {/* Name - full row */}
-                  <h2 className="text-2xl font-bold text-gray-900 text-center">In Loving Memory of {activeDeployment?.title || activeDeployment?.event_title || 'Event'}</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 text-center">In Loving Memory of {activeDeployment?.deceased_name || activeDeployment?.title || activeDeployment?.event_title || 'Event'}</h2>
                   
                   {/* Date of birth */}
                   <p className="text-gray-600 text-center">{activeDeployment?.dates || 'Dates not set'}</p>
@@ -490,8 +490,9 @@ function RegistryConsole() {
                   <thead>
                     <tr className="border-b border-gray-200">
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Receipt ID</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Donor</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Time & Method</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Donor's Name</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Time</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Method</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Amount</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Issued By</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Status</th>
@@ -509,7 +510,8 @@ function RegistryConsole() {
                             <span className="text-sm font-medium text-gray-900">{transaction.donor_name}</span>
                           </div>
                         </td>
-                        <td className="py-3 px-4 text-sm text-gray-600 whitespace-nowrap">{transaction.time} • {transaction.method}</td>
+                        <td className="py-3 px-4 text-sm text-gray-600 whitespace-nowrap">{transaction.time}</td>
+                        <td className="py-3 px-4 text-sm text-gray-600 whitespace-nowrap">{transaction.method}</td>
                         <td className="py-3 px-4 text-sm font-medium text-gray-900 whitespace-nowrap">GH₵ {(Math.round(transaction.amount * 100) / 100).toFixed(2)}</td>
                         <td className="py-3 px-4 text-sm text-gray-600 whitespace-nowrap">{transaction.operator_name || settings.donationOperatorName || 'Operator'}</td>
                         <td className="py-3 px-4 whitespace-nowrap">
@@ -533,7 +535,7 @@ function RegistryConsole() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Receipt ID</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Donor</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Donor's Name</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
