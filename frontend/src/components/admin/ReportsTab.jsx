@@ -152,6 +152,24 @@ export default function ReportsTab() {
     }
   };
 
+  const handleDonorListPDF = async () => {
+    if (exporting) return;
+    setExporting('donor-list-pdf');
+    try {
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.REPORTS}export/donor-list-pdf/`);
+      if (response.ok) {
+        const blob = await response.blob();
+        triggerDownload(blob, `solacehub-donor-list-${new Date().toISOString().slice(0, 10)}.pdf`);
+      } else {
+        console.error('Donor list PDF export failed:', response.status);
+      }
+    } catch (err) {
+      console.error('Donor list PDF export failed:', err);
+    } finally {
+      setExporting(null);
+    }
+  };
+
   if (loading && !showEmptyState) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -212,6 +230,14 @@ export default function ReportsTab() {
           >
             {exporting === 'donor-list' ? <Loader2 size={16} className="animate-spin" /> : <Users size={16} />}
             {exporting === 'donor-list' ? 'Exporting...' : 'Download Donor List'}
+          </button>
+          <button
+            onClick={handleDonorListPDF}
+            disabled={!!exporting}
+            className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 bg-sky-700 hover:bg-sky-800 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            {exporting === 'donor-list-pdf' ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+            {exporting === 'donor-list-pdf' ? 'Generating...' : 'Download Donor List PDF'}
           </button>
         </div>
       </div>

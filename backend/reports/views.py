@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
@@ -395,5 +395,82 @@ class ReportDonorListExportView(APIView):
         response = HttpResponse(csv_content, content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = (
             f'attachment; filename="solacehub-donor-list-{date.today().isoformat()}.csv"'
+        )
+        return response
+
+
+class ReportDonorListPDFExportView(APIView):
+    """Download the donor book (names, money, date/time) as a standalone,
+    landscape PDF so it never mixes with the financial audit statement."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        event_id = get_event_id(request)
+        donors_list, _, deployment = get_querysets(event_id)
+        event = get_event(event_id)
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=landscape(A4),
+            rightMargin=14 * mm,
+            leftMargin=14 * mm,
+            topMargin=16 * mm,
+            bottomMargin=16 * mm,
+        )
+
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'DonorTitle', parent=styles['Title'], fontSize=16, leading=20, spaceAfter=2
+        )
+        sub_style = ParagraphStyle(
+            'DonorSubtitle', parent=styles['Normal'], fontSize=10, leading=14,
+            textColor=colors.HexColor('#6b7280'),
+        )
+        cell_style = ParagraphStyle(
+            'DonorCell', parent=styles['Normal'], fontSize=8, leading=10
+        )
+
+        story = []
+        story.append(Paragraph('Donor List', title_style))
+        story.append(Paragraph('Names, amounts and timestamps - separate from the financial audit.', sub_style))
+        story.append(Spacer(1, 4))
+        meta_rows = [['Family', event.family_name if event else '—']]
+        meta_rows.append(['Event Type', event.title if event else '—'])
+        meta_rows.append(['Deceased Name', deployment.deceased_name if deployment else '—'])
+        story.append(_table(meta_rows, [45 * mm, 200 * mm]))
+        story.append(Spacer(1, 6))
+
+        header = [
+            'Receipt ID', 'Donor Name', 'Phone', 'Amount (GH¢)', 'Method',
+            'Event Day', 'Date', 'Time', 'Operator',
+        ]
+        rows = [[Paragraph(h, cell_style) for h in header]]
+        for d in donors_list:
+            rows.append([
+                d.receipt_id,
+                Paragraph(d.donor_name or '—', cell_style),
+                d.phone_number or '—',
+                _money(d.amount or 0),
+                d.method or '—',
+                compute_display_day(d.date, deployment.start_date if deployment else None) or d.event_day or 1,
+                d.date.isoformat() if d.date else '—',
+                d.time.isoformat() if d.time else '—',
+                Paragraph(get_operator_name(d), cell_style),
+            ])
+        if len(rows) == 1:
+            rows.append([Paragraph('No donors recorded', cell_style), '—', '—', '—', '—', '—', '—', '—', '—'])
+
+        story.append(_table(
+            rows,
+            [34 * mm, 50 * mm, 24 * mm, 28 * mm, 28 * mm, 22 * mm, 28 * mm, 26 * mm, 29 * mm],
+            alignments=[None, None, None, 'RIGHT', None, 'RIGHT', None, None, None],
+        ))
+
+        doc.build(story)
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = (
+            f'attachment; filename="solacehub-donor-list-{date.today().isoformat()}.pdf"'
         )
         return response
