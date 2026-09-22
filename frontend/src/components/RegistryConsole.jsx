@@ -38,6 +38,7 @@ function RegistryConsole() {
   const [phoneNumber, setPhoneNumber] = useState('+233');
   const [transactions, setTransactions] = useState([]);
   const [previewReceiptId, setPreviewReceiptId] = useState(() => generateReceiptId());
+  const [printReceipt, setPrintReceipt] = useState(null);
   const [totalAmount, setTotalAmount] = useState(0);
   const [entryCount, setEntryCount] = useState(0);
   const [currentView, setCurrentView] = useState('desk');
@@ -140,16 +141,19 @@ function RegistryConsole() {
         setTotalAmount(prev => prev + newAmount);
         setEntryCount(prev => prev + 1);
 
-        // Add onafterprint handler to restore page
-        const handleAfterPrint = () => {
-          setDonorName('');
-          setAmount('');
-          setPhoneNumber('+233');
-          setPreviewReceiptId(generateReceiptId());
-          addToast('Donor registered successfully', 'success');
-          window.removeEventListener('afterprint', handleAfterPrint);
-        };
-        window.addEventListener('afterprint', handleAfterPrint);
+        // Freeze the receipt data used for printing BEFORE clearing the form
+        setPrintReceipt({
+          receiptId: previewReceiptId,
+          donorName: donorName || 'Guest',
+          amount: amount,
+        });
+
+        // Clear the form immediately so the next donor can be entered
+        setDonorName('');
+        setAmount('');
+        setPhoneNumber('+233');
+        setPreviewReceiptId(generateReceiptId());
+        addToast('Donor registered successfully', 'success');
 
         // Small delay before print to ensure DOM is updated
         setTimeout(() => {
@@ -201,6 +205,12 @@ function RegistryConsole() {
     } else {
       addToast('Please enter an operator name', 'error');
     }
+  };
+
+  const printReceiptData = printReceipt || {
+    receiptId: previewReceiptId,
+    donorName: donorName || 'Guest',
+    amount: amount,
   };
 
   return (
@@ -434,9 +444,9 @@ function RegistryConsole() {
                     <div className="printable-receipt bg-white p-4 text-center">
                       <div className="flex justify-center mb-2">
                         {activeDeployment?.deceased_image ? (
-                          <img src={activeDeployment.deceased_image} alt="Deceased" className="h-16 w-16 rounded-full object-cover" />
+                          <img src={activeDeployment.deceased_image} alt="Deceased" className="h-24 w-24 rounded-full object-cover" />
                         ) : (
-                          <img src={logo} alt="SolaceHub" className="h-8 w-8 rounded-full" />
+                          <img src={logo} alt="SolaceHub" className="h-12 w-12 rounded-full" />
                         )}
                       </div>
                       <h4 className="text-sm font-bold text-gray-900">FUNERAL DONATION RECEIPT</h4>
@@ -656,8 +666,8 @@ function RegistryConsole() {
           }
 
           .pc-logo img {
-            width: 50px;
-            height: 50px;
+            width: 80px;
+            height: 80px;
             object-fit: cover;
             border-radius: 50%;
             margin: 0 auto;
@@ -739,7 +749,7 @@ function RegistryConsole() {
 
           <div className="pc-divider"></div>
 
-          <p className="pc-sub">Receipt #: {previewReceiptId}</p>
+          <p className="pc-sub">Receipt #: {printReceiptData.receiptId}</p>
           <p className="pc-sub">
             {currentDate} {currentTime}
           </p>
@@ -747,11 +757,11 @@ function RegistryConsole() {
           <div className="pc-key">
             <div>
               <p className="pc-label">DONOR NAME</p>
-              <strong>{donorName || 'Guest'}</strong>
+              <strong>{printReceiptData.donorName}</strong>
             </div>
             <div>
               <p className="pc-label">AMOUNT RECEIVED</p>
-              <strong>{formatAmountForDisplay(amount)}</strong>
+              <strong>{formatAmountForDisplay(printReceiptData.amount)}</strong>
             </div>
           </div>
 

@@ -48,6 +48,7 @@ function ChitConsole() {
   const [numberOfPeople, setNumberOfPeople] = useState(1);
   const [voucherType, setVoucherType] = useState("full_package");
   const [securityCode, setSecurityCode] = useState(generateSecurityCode);
+  const [printChit, setPrintChit] = useState(null);
   const [issuedToday, setIssuedToday] = useState(0);
   const [currentView, setCurrentView] = useState("desk");
   const [chitHistory, setChitHistory] = useState([]);
@@ -119,16 +120,20 @@ function ChitConsole() {
         setChitHistory((prev) => [newChit, ...prev]);
         setIssuedToday((prev) => prev + 1);
 
-        // Add onafterprint handler to restore page
-        const handleAfterPrint = () => {
-          setRepresentativeName("");
-          setNumberOfPeople(1);
-          setVoucherType("full_package");
-          setSecurityCode(generateSecurityCode());
-          addToast("Chit issued successfully", "success");
-          window.removeEventListener('afterprint', handleAfterPrint);
-        };
-        window.addEventListener('afterprint', handleAfterPrint);
+        // Freeze the chit data used for printing BEFORE clearing the form
+        setPrintChit({
+          securityCode,
+          representativeName: representativeName || "Guest",
+          numberOfPeople,
+          voucherType: formatVoucherType(voucherType),
+        });
+
+        // Clear the form immediately so the next voucher can be issued
+        setRepresentativeName("");
+        setNumberOfPeople(1);
+        setVoucherType("full_package");
+        setSecurityCode(generateSecurityCode());
+        addToast("Chit issued successfully", "success");
 
         // Small delay before print to ensure DOM is updated
         setTimeout(() => {
@@ -260,6 +265,13 @@ function ChitConsole() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [representativeName, numberOfPeople, voucherType, handlePrintVoucher]);
+
+  const printChitData = printChit || {
+    securityCode,
+    representativeName: representativeName || "Guest",
+    numberOfPeople,
+    voucherType: formatVoucherType(voucherType),
+  };
 
   return (
     <div className="min-h-screen bg-indigo-50 flex flex-col">
@@ -883,8 +895,8 @@ function ChitConsole() {
           }
 
           .pc-logo img {
-            width: 50px;
-            height: 50px;
+            width: 80px;
+            height: 80px;
             object-fit: cover;
             border-radius: 50%;
             margin: 0 auto;
@@ -1000,7 +1012,7 @@ function ChitConsole() {
           <div className="pc-ticket">
             <p className="pc-ticket-title">REFRESHMENT CHIT</p>
             <p className="pc-guests-label">GUESTS</p>
-            <p className="pc-guests-count">{numberOfPeople}</p>
+            <p className="pc-guests-count">{printChitData.numberOfPeople}</p>
           </div>
 
           <div className="pc-divider"></div>
@@ -1008,15 +1020,15 @@ function ChitConsole() {
           <div className="pc-meta">
             <div className="pc-row">
               <span>ISSUED TO</span>
-              <span>{representativeName || "-"}</span>
+              <span>{printChitData.representativeName}</span>
             </div>
             <div className="pc-row">
               <span>TYPE</span>
-              <span>{formatVoucherType(voucherType)}</span>
+              <span>{printChitData.voucherType}</span>
             </div>
             <div className="pc-row">
               <span>SECURITY CODE</span>
-              <span>{securityCode}</span>
+              <span>{printChitData.securityCode}</span>
             </div>
             <div className="pc-row">
               <span>ISSUED BY</span>
