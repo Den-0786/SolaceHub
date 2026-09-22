@@ -125,53 +125,52 @@ export default function ExpensesTab() {
       {/* Add Expense Form */}
       <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '16px' }}>
         <h2 style={{ fontSize: '15px', fontWeight: 'bold', color: '#111827', marginBottom: '12px' }}>Add New Expense</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <div className="flex flex-col lg:flex-row lg:items-end gap-3">
+          <div className="flex flex-col gap-1 flex-1">
             <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563' }}>Description</label>
             <input
               type="text"
               placeholder="e.g. Catering ingredients, transport, music band..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '12px', fontSize: '14px', outline: 'none', backgroundColor: '#f9fafb' }}
+              style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '12px', fontSize: '14px', outline: 'none', backgroundColor: '#f9fafb', width: '100%' }}
             />
           </div>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-              <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563' }}>Amount (GH₵)</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '12px', fontSize: '14px', outline: 'none', backgroundColor: '#f9fafb' }}
-              />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-              <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563' }}>Date (optional)</label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '12px', fontSize: '14px', outline: 'none', backgroundColor: '#f9fafb' }}
-              />
-            </div>
+          <div className="flex flex-col gap-1 lg:w-44">
+            <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563' }}>Amount (GH₵)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '12px', fontSize: '14px', outline: 'none', backgroundColor: '#f9fafb', width: '100%' }}
+            />
           </div>
-          {error && (
-            <p style={{ fontSize: '13px', color: '#dc2626', backgroundColor: '#fef2f2', border: '1px solid #fecaca', padding: '8px 12px', borderRadius: '8px', margin: 0 }}>
-              {error}
-            </p>
-          )}
+          <div className="flex flex-col gap-1 lg:w-48">
+            <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563' }}>Date (optional)</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '12px', fontSize: '14px', outline: 'none', backgroundColor: '#f9fafb', width: '100%' }}
+            />
+          </div>
           <button
             onClick={handleAdd}
             disabled={saving}
+            className="whitespace-nowrap"
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '11px 16px', backgroundColor: '#020617', color: 'white', borderRadius: '12px', fontSize: '14px', fontWeight: '500', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
           >
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} {saving ? 'Adding...' : 'Add Expense'}
           </button>
         </div>
+        {error && (
+          <p style={{ fontSize: '13px', color: '#dc2626', backgroundColor: '#fef2f2', border: '1px solid #fecaca', padding: '8px 12px', borderRadius: '8px', margin: 0, marginTop: '12px' }}>
+            {error}
+          </p>
+        )}
       </div>
 
       {/* Expense List */}
