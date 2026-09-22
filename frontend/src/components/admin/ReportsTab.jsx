@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, FileText, Utensils, BarChart, Calendar, Info, Loader2, RefreshCw } from 'lucide-react';
+import { Download, FileText, Utensils, BarChart, Calendar, Info, Loader2, RefreshCw, Users } from 'lucide-react';
 import { API_CONFIG, fetchWithAuth } from '../../config/api.js';
 
 const VOUCHER_TYPE_KEYS = [
@@ -134,6 +134,24 @@ export default function ReportsTab() {
     }
   };
 
+  const handleDonorListExport = async () => {
+    if (exporting) return;
+    setExporting('donor-list');
+    try {
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.REPORTS}export/donor-list/`);
+      if (response.ok) {
+        const blob = await response.blob();
+        triggerDownload(blob, `solacehub-donor-list-${new Date().toISOString().slice(0, 10)}.csv`);
+      } else {
+        console.error('Donor list export failed:', response.status);
+      }
+    } catch (err) {
+      console.error('Donor list export failed:', err);
+    } finally {
+      setExporting(null);
+    }
+  };
+
   if (loading && !showEmptyState) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -186,6 +204,14 @@ export default function ReportsTab() {
           >
             {exporting === 'csv' ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
             {exporting === 'csv' ? 'Exporting...' : 'Export Raw Data (Excel/CSV)'}
+          </button>
+          <button
+            onClick={handleDonorListExport}
+            disabled={!!exporting}
+            className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            {exporting === 'donor-list' ? <Loader2 size={16} className="animate-spin" /> : <Users size={16} />}
+            {exporting === 'donor-list' ? 'Exporting...' : 'Download Donor List'}
           </button>
         </div>
       </div>

@@ -220,7 +220,10 @@ def build_pdf(data):
     story.append(Spacer(1, 6))
 
     daily_header = ['Event Day'] + [VOUCHER_DISPLAY_NAMES[vt] for vt in VOUCHER_TYPES] + ['Daily Total']
-    daily_rows = [daily_header]
+    cell_style = ParagraphStyle(
+        'TableHeaderCell', parent=styles['Normal'], fontSize=8, leading=10, alignment=1
+    )
+    daily_rows = [[Paragraph(h, cell_style) for h in daily_header]]
     for day in refreshment['dailyIssuance']:
         daily_rows.append([
             day['day'],
@@ -232,7 +235,7 @@ def build_pdf(data):
         *[str(sum(d[vt] for d in refreshment['dailyIssuance'])) for vt in VOUCHER_TYPES],
         str(summary['totalChitsIssued']),
     ])
-    daily_col_width = 35 * mm
+    daily_col_width = 22 * mm
     story.append(_table(
         daily_rows,
         [daily_col_width] * len(daily_header),
@@ -338,5 +341,59 @@ class ReportCSVExportView(APIView):
         response = HttpResponse(csv_content, content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = (
             f'attachment; filename="solacehub-raw-data-{date.today().isoformat()}.csv"'
+        )
+        return response
+
+
+class ReportDonorListExportView(APIView):
+    """Download a clean donor list (names, money, date/time) separate from the
+    financial audit so it never mixes with the summary figures."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        event_id = get_event_id(request)
+        donors_list, _, deployment = get_querysets(event_id)
+        event = get_event(event_id)
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['SolaceHub - Donor List'])
+        writer.writerow(['Family'])
+        writer.writerow([event.family_name if event else ''])
+        writer.writerow(['Event Type'])
+        writer.writerow([event.title if event else ''])
+        writer.writerow(['Deceased Name'])
+        writer.writerow([deployment.deceased_name if deployment else ''])
+        writer.writerow([])
+
+        writer.writerow([
+            'Receipt ID',
+            'Donor Name',
+            'Phone Number',
+            'Amount (GH¢)',
+            'Method',
+            'Event Day',
+            'Date',
+            'Time',
+            'Operator',
+        ])
+        for d in donors_list:
+            writer.writerow([
+                d.receipt_id,
+                d.donor_name,
+                d.phone_number,
+                float(d.amount or 0),
+                d.method,
+                compute_display_day(d.date, deployment.start_date if deployment else None) or d.event_day or 1,
+                d.date.isoformat() if d.date else '',
+                d.time.isoformat() if d.time else '',
+                get_operator_name(d),
+            ])
+
+        csv_content = '\ufeff' + output.getvalue()
+        response = HttpResponse(csv_content, content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = (
+            f'attachment; filename="solacehub-donor-list-{date.today().isoformat()}.csv"'
         )
         return response
