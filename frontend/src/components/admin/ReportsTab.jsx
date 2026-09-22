@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Download, FileText, Utensils, BarChart, Calendar, Info, Loader2, RefreshCw, Users, ChevronDown } from 'lucide-react';
 import { API_CONFIG, fetchWithAuth } from '../../config/api.js';
-import { useEvent } from '../../contexts/EventContext.jsx';
 
 const VOUCHER_TYPE_KEYS = [
   'full_package',
@@ -21,23 +20,19 @@ const VOUCHER_TYPE_LABELS = {
   food_drinks: 'Food & Drinks',
 };
 
-const reportCache = {};
-
 export default function ReportsTab() {
-  const { activeEventId } = useEvent();
   const [modalSection, setModalSection] = useState(null);
   const [, setIsMobile] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const cached = reportCache[activeEventId];
   const [exporting, setExporting] = useState(null);
   const [openMenu, setOpenMenu] = useState(null);
   
   // Data state
-  const [summaryData, setSummaryData] = useState(cached ? cached.summary : null);
-  const [financialAuditData, setFinancialAuditData] = useState(cached ? cached.financialAudit : null);
-  const [refreshmentAuditData, setRefreshmentAuditData] = useState(cached ? cached.refreshmentAudit : null);
-  const [expenseData, setExpenseData] = useState(cached ? cached.expenses : []);
+  const [summaryData, setSummaryData] = useState(null);
+  const [financialAuditData, setFinancialAuditData] = useState(null);
+  const [refreshmentAuditData, setRefreshmentAuditData] = useState(null);
+  const [expenseData, setExpenseData] = useState([]);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -50,9 +45,9 @@ export default function ReportsTab() {
 
   useEffect(() => {
     fetchReportData();
-  }, [fetchReportData]);
+  }, []);
 
-  const fetchReportData = useCallback(async () => {
+  const fetchReportData = async () => {
     setLoading(true);
 
     try {
@@ -63,7 +58,6 @@ export default function ReportsTab() {
         setFinancialAuditData(data.financialAudit);
         setRefreshmentAuditData(data.refreshmentAudit);
         setExpenseData(data.expenses || []);
-        reportCache[activeEventId] = data;
       } else {
         console.error('Failed to fetch report data:', response.status);
       }
@@ -72,7 +66,7 @@ export default function ReportsTab() {
     } finally {
       setLoading(false);
     }
-  }, [activeEventId]);
+  };
 
   const triggerDownload = (blob, filename) => {
     const url = window.URL.createObjectURL(blob);
