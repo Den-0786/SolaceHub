@@ -8,6 +8,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from openpyxl import Workbook
+from openpyxl.styles import Font
+
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -346,8 +349,8 @@ class ReportCSVExportView(APIView):
 
 
 class ReportDonorListExportView(APIView):
-    """Download a clean donor list (names, money, date/time) separate from the
-    financial audit so it never mixes with the summary figures."""
+    """Download the donor book (names, money, date/time) as a standalone Excel
+    sheet so it never mixes with the financial audit statement."""
 
     permission_classes = [IsAuthenticated]
 
@@ -356,18 +359,20 @@ class ReportDonorListExportView(APIView):
         donors_list, _, deployment = get_querysets(event_id)
         event = get_event(event_id)
 
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow(['SolaceHub - Donor List'])
-        writer.writerow(['Family'])
-        writer.writerow([event.family_name if event else ''])
-        writer.writerow(['Event Type'])
-        writer.writerow([event.title if event else ''])
-        writer.writerow(['Deceased Name'])
-        writer.writerow([deployment.deceased_name if deployment else ''])
-        writer.writerow([])
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = 'Donor List'
 
-        writer.writerow([
+        sheet.append(['SolaceHub - Donor List'])
+        sheet.append(['Family'])
+        sheet.append([event.family_name if event else ''])
+        sheet.append(['Event Type'])
+        sheet.append([event.title if event else ''])
+        sheet.append(['Deceased Name'])
+        sheet.append([deployment.deceased_name if deployment else ''])
+        sheet.append([])
+
+        sheet.append([
             'Receipt ID',
             'Donor Name',
             'Phone Number',
@@ -379,7 +384,7 @@ class ReportDonorListExportView(APIView):
             'Operator',
         ])
         for d in donors_list:
-            writer.writerow([
+            sheet.append([
                 d.receipt_id,
                 d.donor_name,
                 d.phone_number,
@@ -391,10 +396,23 @@ class ReportDonorListExportView(APIView):
                 get_operator_name(d),
             ])
 
-        csv_content = '\ufeff' + output.getvalue()
-        response = HttpResponse(csv_content, content_type='text/csv; charset=utf-8')
+        header_cells = sheet[9]
+        for cell in header_cells:
+            cell.font = Font(bold=True)
+        for column in sheet.columns:
+            width = max(len(str(c.value or '')) for c in column)
+            sheet.column_dimensions[column[0].column_letter].width = min(width + 3, 40)
+
+        buffer = io.BytesIO()
+        workbook.save(buffer)
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type=(
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            ),
+        )
         response['Content-Disposition'] = (
-            f'attachment; filename="solacehub-donor-list-{date.today().isoformat()}.csv"'
+            f'attachment; filename="solacehub-donor-list-{date.today().isoformat()}.xlsx"'
         )
         return response
 

@@ -141,7 +141,7 @@ export default function ReportsTab() {
       const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.REPORTS}export/donor-list/`);
       if (response.ok) {
         const blob = await response.blob();
-        triggerDownload(blob, `solacehub-donor-list-${new Date().toISOString().slice(0, 10)}.csv`);
+        triggerDownload(blob, `solacehub-donor-list-${new Date().toISOString().slice(0, 10)}.xlsx`);
       } else {
         console.error('Donor list export failed:', response.status);
       }
@@ -229,7 +229,7 @@ export default function ReportsTab() {
             className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
           >
             {exporting === 'donor-list' ? <Loader2 size={16} className="animate-spin" /> : <Users size={16} />}
-            {exporting === 'donor-list' ? 'Exporting...' : 'Download Donor List'}
+            {exporting === 'donor-list' ? 'Exporting...' : 'Download Donor List (Excel)'}
           </button>
           <button
             onClick={handleDonorListPDF}
