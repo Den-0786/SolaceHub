@@ -191,35 +191,35 @@ export default function ReportsTab() {
       </div>
 
       <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-        <div className="flex gap-2 pb-1" style={{ minWidth: 'max-content' }}>
-          <div className="shrink-0 rounded-xl px-4 py-3 bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-sm">
+        <div className="flex gap-4 pb-1" style={{ minWidth: 'max-content' }}>
+          <div className="w-64 shrink-0 rounded-xl px-4 py-3 bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-sm">
             <p className="text-[11px] font-medium text-white/80 mb-0.5">Total Revenue</p>
-            <p className="text-sm font-bold text-white">GH₵ {summaryData.totalRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
+            <p className="text-sm font-bold text-white whitespace-nowrap">GH₵ {summaryData.totalRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
           </div>
 
-          <div className="shrink-0 rounded-xl px-4 py-3 bg-amber-50 border border-amber-200 shadow-sm">
+          <div className="w-64 shrink-0 rounded-xl px-4 py-3 bg-amber-50 border border-amber-200 shadow-sm">
             <p className="text-[11px] font-medium text-amber-700 mb-0.5">Total Expenses</p>
-            <p className="text-sm font-bold text-amber-600">GH₵ {summaryData.totalExpenses.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
+            <p className="text-sm font-bold text-amber-600 whitespace-nowrap">GH₵ {summaryData.totalExpenses.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
           </div>
 
-          <div className="shrink-0 rounded-xl px-4 py-3 bg-gradient-to-br from-slate-800 to-slate-900 shadow-sm">
+          <div className="w-64 shrink-0 rounded-xl px-4 py-3 bg-gradient-to-br from-slate-800 to-slate-900 shadow-sm">
             <p className="text-[11px] font-medium text-gray-400 mb-0.5">Net Proceeds</p>
-            <p className="text-sm font-bold text-emerald-400">GH₵ {summaryData.netRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
+            <p className="text-sm font-bold text-emerald-400 whitespace-nowrap">GH₵ {summaryData.netRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
           </div>
 
-          <div className="shrink-0 rounded-xl px-4 py-3 bg-indigo-50 border border-indigo-100 shadow-sm">
+          <div className="w-64 shrink-0 rounded-xl px-4 py-3 bg-indigo-50 border border-indigo-100 shadow-sm">
             <p className="text-[11px] font-medium text-indigo-500 mb-0.5">Total Donors</p>
-            <p className="text-sm font-bold text-indigo-600">{summaryData.totalDonors}</p>
+            <p className="text-sm font-bold text-indigo-600 whitespace-nowrap">{summaryData.totalDonors}</p>
           </div>
 
-          <div className="shrink-0 rounded-xl px-4 py-3 bg-emerald-50 border border-emerald-100 shadow-sm">
+          <div className="w-64 shrink-0 rounded-xl px-4 py-3 bg-emerald-50 border border-emerald-100 shadow-sm">
             <p className="text-[11px] font-medium text-emerald-600 mb-0.5">Refreshment Vouchers</p>
-            <p className="text-sm font-bold text-emerald-700">{summaryData.totalChitsIssued}</p>
+            <p className="text-sm font-bold text-emerald-700 whitespace-nowrap">{summaryData.totalChitsIssued}</p>
           </div>
 
-          <div className="shrink-0 rounded-xl px-4 py-3 bg-purple-50 border border-purple-100 shadow-sm">
+          <div className="w-64 shrink-0 rounded-xl px-4 py-3 bg-purple-50 border border-purple-100 shadow-sm">
             <p className="text-[11px] font-medium text-purple-500 mb-0.5">Average Donation</p>
-            <p className="text-sm font-bold text-purple-600">GH₵ {summaryData.averageDonation.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
+            <p className="text-sm font-bold text-purple-600 whitespace-nowrap">GH₵ {summaryData.averageDonation.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
           </div>
         </div>
       </div>
