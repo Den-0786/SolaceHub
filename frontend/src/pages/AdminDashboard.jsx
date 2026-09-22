@@ -27,6 +27,7 @@ function AdminDashboard() {
   const [notifications, setNotifications] = useState([]);
   const [donationLedger, setDonationLedger] = useState([]);
   const [chitLedger, setChitLedger] = useState([]);
+  const [expenseLedger, setExpenseLedger] = useState([]);
   const [activeOperators, setActiveOperators] = useState([]);
   const [recentPulse] = useState([]);
   const [, setLoading] = useState(false);
@@ -65,6 +66,13 @@ function AdminDashboard() {
       if (chitsResponse.ok) {
         const chitsData = await chitsResponse.json();
         setChitLedger(chitsData.results || chitsData || []);
+      }
+
+      // Fetch expenses for the overview card
+      const expensesResponse = await fetchWithAuth(API_CONFIG.ENDPOINTS.EXPENSES);
+      if (expensesResponse.ok) {
+        const expensesData = await expensesResponse.json();
+        setExpenseLedger(expensesData.results || expensesData || []);
       }
 
       // Fetch desk operator credentials for the Active Operators panel
@@ -324,37 +332,49 @@ function AdminDashboard() {
           ) : (
             <>
               {/* Analytics Overview Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-              <p className="text-sm text-gray-500 mb-2">Total Donations</p>
-              <div className="flex items-center gap-2 flex-nowrap">
-                <p className="text-xl font-bold text-gray-900">
-                  {formatAmount(donationLedger.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0))}
-                </p>
+              <div className="overflow-x-auto mb-6" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <div className="flex gap-4 pb-1" style={{ minWidth: 'max-content' }}>
+                  <div className="w-60 sm:w-72 shrink-0 bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+                    <p className="text-sm text-gray-500 mb-2">Total Donations</p>
+                    <div className="flex items-center gap-2 flex-nowrap">
+                      <p className="text-xl font-bold text-gray-900 whitespace-nowrap">
+                        {formatAmount(donationLedger.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0))}
+                      </p>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">{donationLedger.length} transactions</p>
+                  </div>
+
+                  <div className="w-60 sm:w-72 shrink-0 bg-white rounded-2xl p-6 border border-amber-200 shadow-sm">
+                    <p className="text-sm text-gray-500 mb-2">Total Expenses</p>
+                    <div className="flex items-center gap-2 flex-nowrap">
+                      <p className="text-xl font-bold text-amber-600 whitespace-nowrap">
+                        {formatAmount(expenseLedger.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0))}
+                      </p>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">{expenseLedger.length} recorded expenses</p>
+                  </div>
+
+                  <div className="w-48 shrink-0 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
+                    <p className="text-xs text-gray-500 mb-2">Total Donors</p>
+                    <p className="text-lg font-bold text-gray-900">{donationLedger.length}</p>
+                    <p className="text-[11px] text-gray-400 mt-2">Confirmed contributions</p>
+                  </div>
+
+                  <div className="w-48 shrink-0 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
+                    <p className="text-xs text-gray-500 mb-2">Food Chits Issued</p>
+                    <p className="text-lg font-bold text-gray-900">{chitLedger.length}</p>
+                    <p className="text-[11px] text-gray-400 mt-2">Active vouchers</p>
+                  </div>
+
+                  <div className="w-48 shrink-0 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
+                    <p className="text-xs text-gray-500 mb-2">Guests Catered For</p>
+                    <p className="text-lg font-bold text-gray-900">
+                      {chitLedger.reduce((sum, chit) => sum + (chit.number_of_people || 0), 0)}
+                    </p>
+                    <p className="text-[11px] text-gray-400 mt-2">Cumulative guest count</p>
+                  </div>
+                </div>
               </div>
-              <p className="text-xs text-gray-400 mt-2">{donationLedger.length} transactions</p>
-            </div>
-
-            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-              <p className="text-sm text-gray-500 mb-2">Total Donors</p>
-              <p className="text-3xl font-bold text-gray-900">{donationLedger.length}</p>
-              <p className="text-xs text-gray-400 mt-2">Confirmed contributions</p>
-            </div>
-
-            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-              <p className="text-sm text-gray-500 mb-2">Food Chits Issued</p>
-              <p className="text-3xl font-bold text-gray-900">{chitLedger.length}</p>
-              <p className="text-xs text-gray-400 mt-2">Active vouchers</p>
-            </div>
-
-            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-              <p className="text-sm text-gray-500 mb-2">Guests Catered For</p>
-              <p className="text-3xl font-bold text-gray-900">
-                {chitLedger.reduce((sum, chit) => sum + (chit.number_of_people || 0), 0)}
-              </p>
-              <p className="text-xs text-gray-400 mt-2">Cumulative guest count</p>
-            </div>
-          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Unified Ledger */}
