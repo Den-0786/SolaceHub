@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, FileText, Utensils, BarChart, Calendar, Info, Loader2, RefreshCw, Users } from 'lucide-react';
+import { Download, FileText, Utensils, BarChart, Calendar, Info, Loader2, RefreshCw, Users, ChevronDown } from 'lucide-react';
 import { API_CONFIG, fetchWithAuth } from '../../config/api.js';
 
 const VOUCHER_TYPE_KEYS = [
@@ -26,6 +26,7 @@ export default function ReportsTab() {
   const [loading, setLoading] = useState(false);
   const [showEmptyState, setShowEmptyState] = useState(false);
   const [exporting, setExporting] = useState(null);
+  const [openMenu, setOpenMenu] = useState(null);
   
   // Data state
   const [summaryData, setSummaryData] = useState(null);
@@ -200,78 +201,101 @@ export default function ReportsTab() {
           <h1 className="text-2xl font-bold text-gray-900">Financial & Operational Reports</h1>
           <p className="text-sm text-gray-500">Export official financial audit statements, donor books, and refreshment summaries for family review.</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex items-end sm:items-center gap-2 flex-wrap">
           <button
             onClick={handleRefresh}
-            className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 rounded-xl text-sm font-medium transition-colors"
+            title="Refresh report data"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-500 rounded-lg text-xs font-medium transition-colors"
           >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
-          <button
-            onClick={handleDownloadPDF}
-            disabled={!!exporting}
-            className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 bg-indigo-950 hover:bg-indigo-900 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
-          >
-            {exporting === 'pdf' ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
-            {exporting === 'pdf' ? 'Generating PDF...' : 'Download Complete Family Audit PDF'}
-          </button>
-          <button
-            onClick={handleExportExcel}
-            disabled={!!exporting}
-            className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
-          >
-            {exporting === 'csv' ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-            {exporting === 'csv' ? 'Exporting...' : 'Export Raw Data (Excel/CSV)'}
-          </button>
-          <button
-            onClick={handleDonorListExport}
-            disabled={!!exporting}
-            className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
-          >
-            {exporting === 'donor-list' ? <Loader2 size={16} className="animate-spin" /> : <Users size={16} />}
-            {exporting === 'donor-list' ? 'Exporting...' : 'Download Donor List (Excel)'}
-          </button>
-          <button
-            onClick={handleDonorListPDF}
-            disabled={!!exporting}
-            className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 bg-sky-700 hover:bg-sky-800 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
-          >
-            {exporting === 'donor-list-pdf' ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
-            {exporting === 'donor-list-pdf' ? 'Generating...' : 'Download Donor List PDF'}
-          </button>
+
+          <div className="relative">
+            <button
+              onClick={() => setOpenMenu(openMenu === 'audit' ? null : 'audit')}
+              disabled={!!exporting}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-950 hover:bg-indigo-900 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+            >
+              {exporting === 'pdf' || exporting === 'csv' ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />}
+              Family Audit <ChevronDown size={13} />
+            </button>
+            {openMenu === 'audit' && (
+              <div className="absolute right-0 mt-1.5 w-52 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1">
+                <button
+                  onClick={() => { setOpenMenu(null); handleDownloadPDF(); }}
+                  className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <FileText size={13} /> Complete Family Audit (PDF)
+                </button>
+                <button
+                  onClick={() => { setOpenMenu(null); handleExportExcel(); }}
+                  className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <Download size={13} /> Raw Data - Donors & Chits (Excel)
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <button
+              onClick={() => setOpenMenu(openMenu === 'donor' ? null : 'donor')}
+              disabled={!!exporting}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+            >
+              {exporting === 'donor-list' || exporting === 'donor-list-pdf' ? <Loader2 size={13} className="animate-spin" /> : <Users size={13} />}
+              Donor List <ChevronDown size={13} />
+            </button>
+            {openMenu === 'donor' && (
+              <div className="absolute right-0 mt-1.5 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1">
+                <button
+                  onClick={() => { setOpenMenu(null); handleDonorListExport(); }}
+                  className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <Download size={13} /> Donor List (Excel)
+                </button>
+                <button
+                  onClick={() => { setOpenMenu(null); handleDonorListPDF(); }}
+                  className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <FileText size={13} /> Donor List (PDF)
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-        <div className="flex gap-4 pb-1" style={{ minWidth: 'max-content' }}>
-          <div className="w-64 shrink-0 rounded-xl px-4 py-3 bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-sm">
-            <p className="text-[11px] font-medium text-white/80 mb-0.5">Total Revenue</p>
-            <p className="text-sm font-bold text-white whitespace-nowrap">GH₵ {summaryData.totalRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
+        <div className="flex gap-2 pb-1" style={{ minWidth: 'max-content' }}>
+          <div className="w-40 shrink-0 rounded-lg px-3 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-sm">
+            <p className="text-[10px] font-medium text-white/80 mb-0.5">Total Revenue</p>
+            <p className="text-[13px] font-bold text-white whitespace-nowrap">GH₵ {summaryData.totalRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
           </div>
 
-          <div className="w-64 shrink-0 rounded-xl px-4 py-3 bg-amber-50 border border-amber-200 shadow-sm">
-            <p className="text-[11px] font-medium text-amber-700 mb-0.5">Total Expenses</p>
-            <p className="text-sm font-bold text-amber-600 whitespace-nowrap">GH₵ {summaryData.totalExpenses.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
+          <div className="w-40 shrink-0 rounded-lg px-3 py-2 bg-amber-50 border border-amber-200 shadow-sm">
+            <p className="text-[10px] font-medium text-amber-700 mb-0.5">Total Expenses</p>
+            <p className="text-[13px] font-bold text-amber-600 whitespace-nowrap">GH₵ {summaryData.totalExpenses.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
           </div>
 
-          <div className="w-64 shrink-0 rounded-xl px-4 py-3 bg-gradient-to-br from-slate-800 to-slate-900 shadow-sm">
-            <p className="text-[11px] font-medium text-gray-400 mb-0.5">Net Proceeds</p>
-            <p className="text-sm font-bold text-emerald-400 whitespace-nowrap">GH₵ {summaryData.netRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
+          <div className="w-40 shrink-0 rounded-lg px-3 py-2 bg-gradient-to-r from-slate-800 to-slate-900 shadow-sm">
+            <p className="text-[10px] font-medium text-gray-400 mb-0.5">Net Proceeds</p>
+            <p className="text-[13px] font-bold text-emerald-400 whitespace-nowrap">GH₵ {summaryData.netRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
           </div>
 
-          <div className="w-64 shrink-0 rounded-xl px-4 py-3 bg-indigo-50 border border-indigo-100 shadow-sm">
-            <p className="text-[11px] font-medium text-indigo-500 mb-0.5">Total Donors</p>
-            <p className="text-sm font-bold text-indigo-600 whitespace-nowrap">{summaryData.totalDonors}</p>
+          <div className="w-40 shrink-0 rounded-lg px-3 py-2 bg-indigo-50 border border-indigo-100 shadow-sm">
+            <p className="text-[10px] font-medium text-indigo-500 mb-0.5">Total Donors</p>
+            <p className="text-[13px] font-bold text-indigo-600 whitespace-nowrap">{summaryData.totalDonors}</p>
           </div>
 
-          <div className="w-64 shrink-0 rounded-xl px-4 py-3 bg-emerald-50 border border-emerald-100 shadow-sm">
-            <p className="text-[11px] font-medium text-emerald-600 mb-0.5">Refreshment Vouchers</p>
-            <p className="text-sm font-bold text-emerald-700 whitespace-nowrap">{summaryData.totalChitsIssued}</p>
+          <div className="w-40 shrink-0 rounded-lg px-3 py-2 bg-emerald-50 border border-emerald-100 shadow-sm">
+            <p className="text-[10px] font-medium text-emerald-600 mb-0.5">Refreshment Vouchers</p>
+            <p className="text-[13px] font-bold text-emerald-700 whitespace-nowrap">{summaryData.totalChitsIssued}</p>
           </div>
 
-          <div className="w-64 shrink-0 rounded-xl px-4 py-3 bg-purple-50 border border-purple-100 shadow-sm">
-            <p className="text-[11px] font-medium text-purple-500 mb-0.5">Average Donation</p>
-            <p className="text-sm font-bold text-purple-600 whitespace-nowrap">GH₵ {summaryData.averageDonation.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
+          <div className="w-40 shrink-0 rounded-lg px-3 py-2 bg-purple-50 border border-purple-100 shadow-sm">
+            <p className="text-[10px] font-medium text-purple-500 mb-0.5">Average Donation</p>
+            <p className="text-[13px] font-bold text-purple-600 whitespace-nowrap">GH₵ {summaryData.averageDonation.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
           </div>
         </div>
       </div>
