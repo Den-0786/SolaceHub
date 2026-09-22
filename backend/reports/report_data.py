@@ -66,6 +66,17 @@ def _operator_name(value):
     return value
 
 
+def compute_display_day(record_date, start_date):
+    """Compute the event day from a record date relative to the deployment
+    start date. Returns None when it cannot be determined so callers fall back
+    to the stored event_day value."""
+    if start_date and record_date:
+        delta = record_date - start_date
+        if delta.days >= 0:
+            return delta.days + 1
+    return None
+
+
 def load_archived_records(event_id):
     """Rebuild donor/chit records from the latest non-empty archived backup.
 
@@ -161,6 +172,8 @@ def get_operator_name(record):
 def compute_report(event_id):
     """Compute the full live report payload for an optional event id."""
     donors_list, chits_list, deployment = get_querysets(event_id)
+    event = get_event(event_id)
+    deployment_start = deployment.start_date if deployment else None
 
     total_revenue = sum(float(d.amount or 0) for d in donors_list)
     cash_revenue = sum(
@@ -175,7 +188,11 @@ def compute_report(event_id):
 
     by_day = {}
     for d in donors_list:
-        day = d.event_day or 1
+        day = (
+            compute_display_day(d.date, deployment_start)
+            or d.event_day
+            or 1
+        )
         entry = by_day.setdefault(day, {'total': 0, 'donors': 0, 'date': ''})
         entry['total'] += float(d.amount or 0)
         entry['donors'] += 1
@@ -202,18 +219,6 @@ def compute_report(event_id):
         for name, att in attendants.items()
     ]
 
-    sorted_donors = sorted(donors_list, key=lambda d: float(d.amount or 0), reverse=True)[:10]
-    top_donors = [
-        {
-            'rank': i + 1,
-            'name': d.donor_name,
-            'amount': round(float(d.amount or 0), 2),
-            'phone': d.phone_number,
-            'type': 'VIP' if float(d.amount or 0) >= 1000 else 'Regular',
-        }
-        for i, d in enumerate(sorted_donors)
-    ]
-
     chit_type_counts = {}
     for c in chits_list:
         vt = c.voucher_type or ''
@@ -229,7 +234,11 @@ def compute_report(event_id):
 
     daily = {}
     for c in chits_list:
-        day = c.event_day or 1
+        day = (
+            compute_display_day(c.date, deployment_start)
+            or c.event_day
+            or 1
+        )
         row = daily.setdefault(day, {vt: 0 for vt in VOUCHER_TYPES})
         vt = c.voucher_type or ''
         if vt in row:
@@ -250,6 +259,8 @@ def compute_report(event_id):
             'averageDonation': average_donation,
         },
         'financialAudit': {
+            'familyName': event.family_name if event else '',
+            'eventType': event.title if event else '',
             'deceasedName': deployment.deceased_name if deployment else 'Deceased',
             'memorialDates': (
                 f"{deployment.start_date} - {deployment.end_date}" if deployment else ''
@@ -257,11 +268,10 @@ def compute_report(event_id):
             'dayBreakdown': day_breakdown,
             'deskAttendants': desk_attendants,
         },
-        'topDonors': top_donors,
         'refreshmentAudit': {
             'chitBreakdown': chit_breakdown,
             'dailyIssuance': daily_issuance,
         },
         'deployment': deployment,
-        'event': get_event(event_id),
+        'event': event,
     }

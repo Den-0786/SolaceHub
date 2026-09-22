@@ -30,7 +30,6 @@ export default function ReportsTab() {
   // Data state
   const [summaryData, setSummaryData] = useState(null);
   const [financialAuditData, setFinancialAuditData] = useState(null);
-  const [topDonors, setTopDonors] = useState([]);
   const [refreshmentAuditData, setRefreshmentAuditData] = useState(null);
 
   useEffect(() => {
@@ -70,7 +69,6 @@ export default function ReportsTab() {
         const data = await response.json();
         setSummaryData(data.summary);
         setFinancialAuditData(data.financialAudit);
-        setTopDonors(data.topDonors);
         setRefreshmentAuditData(data.refreshmentAudit);
       } else {
         console.error('Failed to fetch report data:', response.status);
@@ -290,13 +288,6 @@ export default function ReportsTab() {
               <FileText size={16} className="inline mr-2" /> Financial Audit
             </button>
             <button
-              onClick={() => setModalSection(modalSection === 'donors' ? null : 'donors')}
-              className="py-2.5 px-4 rounded-xl text-sm font-medium transition-colors"
-              style={{ backgroundColor: modalSection === 'donors' ? '#020617' : 'white', color: modalSection === 'donors' ? 'white' : '#374151', border: modalSection === 'donors' ? 'none' : '1px solid #e5e7eb', whiteSpace: 'nowrap', flexShrink: 0 }}
-            >
-              <Award size={16} className="inline mr-2" /> Top Donors
-            </button>
-            <button
               onClick={() => setModalSection(modalSection === 'refreshment' ? null : 'refreshment')}
               className="py-2.5 px-4 rounded-xl text-sm font-medium transition-colors"
               style={{ backgroundColor: modalSection === 'refreshment' ? '#020617' : 'white', color: modalSection === 'refreshment' ? 'white' : '#374151', border: modalSection === 'refreshment' ? 'none' : '1px solid #e5e7eb', whiteSpace: 'nowrap', flexShrink: 0 }}
@@ -316,10 +307,17 @@ export default function ReportsTab() {
             </div>
               <div className="p-6 space-y-6">
                 <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl p-6 text-white">
-                  <h3 className="text-xl font-bold mb-1">{financialAuditData.deceasedName}</h3>
-                  <p className="text-sm text-gray-300 flex items-center gap-2">
-                    <Calendar size={14} /> {financialAuditData.memorialDates}
-                  </p>
+                  <h3 className="text-lg font-bold mb-4">Audit Details</h3>
+                  <div className="space-y-1.5 text-sm">
+                    <p className="text-gray-300">Family: <span className="font-semibold text-white">{financialAuditData.familyName || '—'}</span></p>
+                    <p className="text-gray-300">Event Type: <span className="font-semibold text-white">{financialAuditData.eventType || '—'}</span></p>
+                    <p className="text-gray-300">Deceased Name: <span className="font-semibold text-white">{financialAuditData.deceasedName || '—'}</span></p>
+                    {financialAuditData.memorialDates && (
+                      <p className="text-gray-300 flex items-center gap-2">
+                        <Calendar size={14} /> Memorial Dates: <span className="font-semibold text-white">{financialAuditData.memorialDates}</span>
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -421,70 +419,6 @@ export default function ReportsTab() {
                       </tbody>
                     </table>
                   </div>
-                </div>
-              </div>
-          </div>
-        )}
-
-        {/* Module B: Top Donors & VIP Acknowledgment List */}
-        {modalSection === 'donors' && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm" style={{ overflow: 'hidden' }}>
-            <div className="p-6 border-b border-gray-200">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">Top Donors & VIP Acknowledgment List</h2>
-                <p className="text-sm text-gray-500">Highlight major contributors for personalized thank you notes</p>
-              </div>
-            </div>
-              <div style={{ padding: '16px' }}>
-                <style>
-                  {`@media (min-width: 640px) {
-                    .donors-table-scroll {
-                      margin-left: 0 !important;
-                      margin-right: 0 !important;
-                      padding-left: 0 !important;
-                      padding-right: 0 !important;
-                    }
-                  }
-                  @media (max-width: 639px) {
-                    .donors-table-scroll {
-                      overflow-x: auto !important;
-                      -webkit-overflow-scrolling: touch !important;
-                      max-width: 100vw !important;
-                      width: 100% !important;
-                      margin-left: -16px !important;
-                      margin-right: -16px !important;
-                      padding-left: 16px !important;
-                      padding-right: 16px !important;
-                    }
-                  }`}
-                </style>
-                <div className="donors-table-scroll" style={{ width: '100%', overflowX: 'auto' }}>
-                  <table style={{ width: '100%', minWidth: '600px', textAlign: 'left', fontSize: '14px' }}>
-                    <thead style={{ backgroundColor: '#f9fafb' }}>
-                      <tr>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Rank</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Donor Name</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Amount (GH₵)</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Phone Number</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Type</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {topDonors.map((donor, index) => (
-                        <tr key={index} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                          <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 'bold', color: '#4f46e5' }}>#{donor.rank}</td>
-                          <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: '500', color: '#111827' }}>{donor.name}</td>
-                          <td style={{ padding: '12px 16px', fontSize: '14px', textAlign: 'right', fontWeight: 'bold', color: '#111827' }}>GH₵ {donor.amount.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</td>
-                          <td style={{ padding: '12px 16px', fontSize: '14px', color: '#4b5563' }}>{donor.phone}</td>
-                          <td style={{ padding: '12px 16px' }}>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 10px', borderRadius: '9999px', fontSize: '12px', fontWeight: '500', backgroundColor: donor.type === 'VIP' ? '#f3e8ff' : '#f3f4f6', color: donor.type === 'VIP' ? '#6b21a8' : '#374151' }}>
-                              {donor.type}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
                 </div>
               </div>
           </div>

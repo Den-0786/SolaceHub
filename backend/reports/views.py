@@ -17,6 +17,7 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from .models import Report
 from .serializers import ReportSerializer
 from .report_data import (
+    compute_display_day,
     compute_report,
     get_event,
     get_operator_name,
@@ -75,7 +76,6 @@ class ReportSummaryView(APIView):
         return Response({
             'summary': data['summary'],
             'financialAudit': data['financialAudit'],
-            'topDonors': data['topDonors'],
             'refreshmentAudit': data['refreshmentAudit'],
         })
 
@@ -138,21 +138,18 @@ def build_pdf(data):
 
     summary = data['summary']
     audit = data['financialAudit']
-    top_donors = data['topDonors']
     refreshment = data['refreshmentAudit']
 
     story = []
     story.append(Paragraph('Complete Family Audit Report', title_style))
-    event = data.get('event')
-    if event:
-        if event.family_name:
-            story.append(Paragraph(event.family_name, sub_style))
-        if event.title and event.title != event.family_name:
-            story.append(Paragraph(event.title, sub_style))
-    story.append(Paragraph(audit['deceasedName'], sub_style))
+    meta_rows = [['Family', audit['familyName'] or '—']]
+    meta_rows.append(['Event Type', audit['eventType'] or '—'])
+    meta_rows.append(['Deceased Name', audit['deceasedName']])
     if audit['memorialDates']:
-        story.append(Paragraph(f"Memorial dates: {audit['memorialDates']}", sub_style))
-    story.append(Paragraph(f"Generated on {date.today().strftime('%B %d, %Y')}", sub_style))
+        meta_rows.append(['Memorial Dates', audit['memorialDates']])
+    meta_rows.append(['Generated On', date.today().strftime('%B %d, %Y')])
+    story.append(_table(meta_rows, [45 * mm, 135 * mm]))
+    story.append(Spacer(1, 6))
 
     # Summary
     story.append(Paragraph('Executive Summary', heading_style))
@@ -192,19 +189,6 @@ def build_pdf(data):
     for att in audit['deskAttendants']:
         attendant_rows.append([att['name'], str(att['entries']), _money(att['amount'])])
     story.append(_table(attendant_rows, [90 * mm, 45 * mm, 45 * mm], alignments=[None, 'RIGHT', 'RIGHT']))
-
-    # Top donors
-    story.append(Paragraph('Top Donors & VIP Acknowledgment List', heading_style))
-    donor_rows = [['Rank', 'Donor Name', 'Amount (GH¢)', 'Phone Number', 'Type']]
-    for donor in top_donors:
-        donor_rows.append([
-            f"#{donor['rank']}",
-            donor['name'],
-            _money(donor['amount']),
-            donor['phone'],
-            donor['type'],
-        ])
-    story.append(_table(donor_rows, [20 * mm, 50 * mm, 40 * mm, 45 * mm, 25 * mm], alignments=[None, None, 'RIGHT', None, None]))
 
     # Refreshment audit
     story.append(Paragraph('Refreshment & Catering Audit', heading_style))
@@ -266,14 +250,11 @@ class ReportCSVExportView(APIView):
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow(['SolaceHub - Raw Data Export'])
-        if event:
-            if event.family_name:
-                writer.writerow(['Family'])
-                writer.writerow([event.family_name])
-            if event.title and event.title != event.family_name:
-                writer.writerow(['Event'])
-                writer.writerow([event.title])
-        writer.writerow(['Deceased'])
+        writer.writerow(['Family'])
+        writer.writerow([event.family_name if event else ''])
+        writer.writerow(['Event Type'])
+        writer.writerow([event.title if event else ''])
+        writer.writerow(['Deceased Name'])
         writer.writerow([deployment.deceased_name if deployment else ''])
         if deployment:
             writer.writerow(['Memorial dates'])
@@ -301,7 +282,7 @@ class ReportCSVExportView(APIView):
                 d.phone_number,
                 float(d.amount or 0),
                 d.method,
-                d.event_day,
+                compute_display_day(d.date, deployment.start_date if deployment else None) or d.event_day or 1,
                 d.date.isoformat() if d.date else '',
                 d.time.isoformat() if d.time else '',
                 get_operator_name(d),
@@ -325,7 +306,7 @@ class ReportCSVExportView(APIView):
                 c.representative_name,
                 VOUCHER_DISPLAY_NAMES.get(c.voucher_type, c.voucher_type or ''),
                 c.number_of_people,
-                c.event_day,
+                compute_display_day(c.date, deployment.start_date if deployment else None) or c.event_day or 1,
                 c.date.isoformat() if c.date else '',
                 c.time.isoformat() if c.time else '',
                 get_operator_name(c),

@@ -23,6 +23,7 @@ export default function RegistriesTab() {
   const [, setShowEmptyState] = useState(false);
   const [donorData, setDonorData] = useState([]);
   const [deploymentStartDate, setDeploymentStartDate] = useState(null);
+  const [exporting, setExporting] = useState(false);
   const entriesPerPage = 15;
 
   useEffect(() => {
@@ -158,9 +159,33 @@ export default function RegistriesTab() {
     );
   }
 
-  const handleExport = () => {
-    // Placeholder for export functionality
-    console.log('Exporting data...');
+  const triggerDownload = (blob, filename) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.REPORTS}export/csv/`);
+      if (response.ok) {
+        const blob = await response.blob();
+        triggerDownload(blob, `solacehub-raw-data-${new Date().toISOString().slice(0, 10)}.csv`);
+      } else {
+        console.error('Export failed:', response.status);
+      }
+    } catch (err) {
+      console.error('Export failed:', err);
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -198,9 +223,10 @@ export default function RegistriesTab() {
           </select>
           <button
             onClick={handleExport}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px 16px', backgroundColor: '#020617', color: 'white', borderRadius: '12px', fontSize: '14px', fontWeight: '500', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', width: isMobile ? '100%' : 'auto' }}
+            disabled={exporting}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px 16px', backgroundColor: '#020617', color: 'white', borderRadius: '12px', fontSize: '14px', fontWeight: '500', border: 'none', cursor: exporting ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', width: isMobile ? '100%' : 'auto', opacity: exporting ? 0.7 : 1 }}
           >
-            <Download size={16} /> Export PDF / Excel
+            {exporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} {exporting ? 'Exporting...' : 'Export PDF / Excel'}
           </button>
         </div>
       </div>
