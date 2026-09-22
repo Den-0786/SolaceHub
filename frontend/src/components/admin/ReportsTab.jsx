@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, FileText, Users, Utensils, BarChart, Award, Calendar, DollarSign, Info, Loader2, RefreshCw, TrendingDown, Wallet } from 'lucide-react';
+import { Download, FileText, Utensils, BarChart, Calendar, Info, Loader2, RefreshCw } from 'lucide-react';
 import { API_CONFIG, fetchWithAuth } from '../../config/api.js';
 
 const VOUCHER_TYPE_KEYS = [
@@ -191,75 +191,35 @@ export default function ReportsTab() {
       </div>
 
       <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-        <div className="flex gap-3 pb-1" style={{ minWidth: 'max-content' }}>
-          <div className="w-[210px] sm:w-[230px] shrink-0 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-4 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                <DollarSign size={20} className="text-white" />
-              </div>
-            </div>
-            <p className="text-xs text-white/80 mb-1">Total Revenue</p>
-            <p className="text-xl font-bold text-white mb-2">GH₵ {summaryData.totalRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
-            <div className="flex gap-2 text-xs text-white/70">
-              <span>Cash: GH₵ {summaryData.cashRevenue.toLocaleString('en-GH')}</span>
-              <span>-</span>
-              <span>MoMo: GH₵ {summaryData.momoRevenue.toLocaleString('en-GH')}</span>
-            </div>
+        <div className="flex gap-2 pb-1" style={{ minWidth: 'max-content' }}>
+          <div className="shrink-0 rounded-xl px-4 py-3 bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-sm">
+            <p className="text-[11px] font-medium text-white/80 mb-0.5">Total Revenue</p>
+            <p className="text-sm font-bold text-white">GH₵ {summaryData.totalRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
           </div>
 
-          <div className="w-[210px] sm:w-[230px] shrink-0 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
-                <TrendingDown size={20} className="text-amber-600" />
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 mb-1">Total Expenses</p>
-            <p className="text-xl font-bold text-gray-900 mb-2">GH₵ {summaryData.totalExpenses.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
-            <p className="text-xs text-gray-400">{expenseData.length} recorded entries</p>
+          <div className="shrink-0 rounded-xl px-4 py-3 bg-amber-50 border border-amber-200 shadow-sm">
+            <p className="text-[11px] font-medium text-amber-700 mb-0.5">Total Expenses</p>
+            <p className="text-sm font-bold text-amber-600">GH₵ {summaryData.totalExpenses.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
           </div>
 
-          <div className="w-[210px] sm:w-[230px] shrink-0 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-4 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center">
-                <Wallet size={20} className="text-emerald-400" />
-              </div>
-            </div>
-            <p className="text-xs text-gray-300 mb-1">Net Proceeds</p>
-            <p className="text-xl font-bold text-emerald-400 mb-2">GH₵ {summaryData.netRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
-            <p className="text-xs text-gray-400">Revenue minus expenses</p>
+          <div className="shrink-0 rounded-xl px-4 py-3 bg-gradient-to-br from-slate-800 to-slate-900 shadow-sm">
+            <p className="text-[11px] font-medium text-gray-400 mb-0.5">Net Proceeds</p>
+            <p className="text-sm font-bold text-emerald-400">GH₵ {summaryData.netRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
           </div>
 
-          <div className="w-[210px] sm:w-[230px] shrink-0 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
-                <Users size={20} className="text-indigo-600" />
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 mb-1">Total Donors</p>
-            <p className="text-xl font-bold text-gray-900 mb-2">{summaryData.totalDonors}</p>
-            <p className="text-xs text-gray-400">Recorded contributors</p>
+          <div className="shrink-0 rounded-xl px-4 py-3 bg-indigo-50 border border-indigo-100 shadow-sm">
+            <p className="text-[11px] font-medium text-indigo-500 mb-0.5">Total Donors</p>
+            <p className="text-sm font-bold text-indigo-600">{summaryData.totalDonors}</p>
           </div>
 
-          <div className="w-[210px] sm:w-[230px] shrink-0 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
-                <Utensils size={20} className="text-amber-600" />
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 mb-1">Refreshment Vouchers</p>
-            <p className="text-xl font-bold text-gray-900 mb-2">{summaryData.totalChitsIssued}</p>
-            <p className="text-xs text-gray-400">of {summaryData.estimatedGuests} estimated guests</p>
+          <div className="shrink-0 rounded-xl px-4 py-3 bg-emerald-50 border border-emerald-100 shadow-sm">
+            <p className="text-[11px] font-medium text-emerald-600 mb-0.5">Refreshment Vouchers</p>
+            <p className="text-sm font-bold text-emerald-700">{summaryData.totalChitsIssued}</p>
           </div>
 
-          <div className="w-[210px] sm:w-[230px] shrink-0 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-                <Award size={20} className="text-purple-600" />
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 mb-1">Average Donation</p>
-            <p className="text-xl font-bold text-gray-900 mb-2">GH₵ {summaryData.averageDonation.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
-            <p className="text-xs text-gray-400">per donor</p>
+          <div className="shrink-0 rounded-xl px-4 py-3 bg-purple-50 border border-purple-100 shadow-sm">
+            <p className="text-[11px] font-medium text-purple-500 mb-0.5">Average Donation</p>
+            <p className="text-sm font-bold text-purple-600">GH₵ {summaryData.averageDonation.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
           </div>
         </div>
       </div>
