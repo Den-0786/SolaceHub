@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Download, FileText, Utensils, BarChart, Calendar, Info, Loader2, RefreshCw, Users, ChevronDown } from 'lucide-react';
 import { API_CONFIG, fetchWithAuth } from '../../config/api.js';
+import { useEvent } from '../../contexts/EventContext.jsx';
 
 const VOUCHER_TYPE_KEYS = [
   'full_package',
@@ -20,19 +21,23 @@ const VOUCHER_TYPE_LABELS = {
   food_drinks: 'Food & Drinks',
 };
 
+const reportCache = {};
+
 export default function ReportsTab() {
+  const { activeEventId } = useEvent();
   const [modalSection, setModalSection] = useState(null);
   const [, setIsMobile] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showEmptyState, setShowEmptyState] = useState(false);
+
+  const cached = reportCache[activeEventId];
   const [exporting, setExporting] = useState(null);
   const [openMenu, setOpenMenu] = useState(null);
   
   // Data state
-  const [summaryData, setSummaryData] = useState(null);
-  const [financialAuditData, setFinancialAuditData] = useState(null);
-  const [refreshmentAuditData, setRefreshmentAuditData] = useState(null);
-  const [expenseData, setExpenseData] = useState([]);
+  const [summaryData, setSummaryData] = useState(cached ? cached.summary : null);
+  const [financialAuditData, setFinancialAuditData] = useState(cached ? cached.financialAudit : null);
+  const [refreshmentAuditData, setRefreshmentAuditData] = useState(cached ? cached.refreshmentAudit : null);
+  const [expenseData, setExpenseData] = useState(cached ? cached.expenses : []);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -45,26 +50,11 @@ export default function ReportsTab() {
 
   useEffect(() => {
     fetchReportData();
-  }, []);
+  }, [fetchReportData]);
 
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        fetchReportData();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, []);
-
-  const fetchReportData = async () => {
+  const fetchReportData = useCallback(async () => {
     setLoading(true);
-    setShowEmptyState(false);
 
-    const timeoutId = setTimeout(() => {
-      setShowEmptyState(true);
-    }, 5000);
-    
     try {
       const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.REPORTS}summary/`);
       if (response.ok) {
@@ -73,16 +63,16 @@ export default function ReportsTab() {
         setFinancialAuditData(data.financialAudit);
         setRefreshmentAuditData(data.refreshmentAudit);
         setExpenseData(data.expenses || []);
+        reportCache[activeEventId] = data;
       } else {
         console.error('Failed to fetch report data:', response.status);
       }
     } catch (err) {
       console.error('Failed to fetch report data:', err);
     } finally {
-      clearTimeout(timeoutId);
       setLoading(false);
     }
-  };
+  }, [activeEventId]);
 
   const triggerDownload = (blob, filename) => {
     const url = window.URL.createObjectURL(blob);
@@ -171,7 +161,7 @@ export default function ReportsTab() {
     }
   };
 
-  if (loading && !showEmptyState) {
+  if (loading && !summaryData) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex flex-col items-center gap-3">
@@ -201,7 +191,7 @@ export default function ReportsTab() {
           <h1 className="text-2xl font-bold text-gray-900">Financial & Operational Reports</h1>
           <p className="text-sm text-gray-500">Export official financial audit statements, donor books, and refreshment summaries for family review.</p>
         </div>
-        <div className="flex items-end sm:items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-nowrap shrink-0">
           <button
             onClick={handleRefresh}
             title="Refresh report data"
