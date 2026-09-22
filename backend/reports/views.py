@@ -77,6 +77,7 @@ class ReportSummaryView(APIView):
             'summary': data['summary'],
             'financialAudit': data['financialAudit'],
             'refreshmentAudit': data['refreshmentAudit'],
+            'expenses': data['expenses'],
         })
 
 
@@ -139,6 +140,7 @@ def build_pdf(data):
     summary = data['summary']
     audit = data['financialAudit']
     refreshment = data['refreshmentAudit']
+    expenses = data['expenses']
 
     story = []
     story.append(Paragraph('Complete Family Audit Report', title_style))
@@ -189,6 +191,25 @@ def build_pdf(data):
     for att in audit['deskAttendants']:
         attendant_rows.append([att['name'], str(att['entries']), _money(att['amount'])])
     story.append(_table(attendant_rows, [90 * mm, 45 * mm, 45 * mm], alignments=[None, 'RIGHT', 'RIGHT']))
+    story.append(Spacer(1, 6))
+
+    # Expenses
+    expense_rows = [['Description', 'Date', 'Amount (GH¢)']]
+    for exp in expenses:
+        expense_rows.append([exp['description'], exp['date'] or '—', _money(exp['amount'])])
+    if len(expense_rows) == 1:
+        expense_rows.append(['No expenses recorded', '—', '—'])
+    expense_rows.append(['Total Expenses', '', _money(summary['totalExpenses'])])
+    story.append(_table(expense_rows, [100 * mm, 40 * mm, 40 * mm], alignments=[None, None, 'RIGHT']))
+    story.append(Spacer(1, 6))
+
+    # Net position
+    net_rows = [
+        ['Total Revenue', _money(summary['totalRevenue'])],
+        ['Total Expenses', _money(summary['totalExpenses'])],
+        ['Net Proceeds', _money(summary['netRevenue'])],
+    ]
+    story.append(_table(net_rows, [90 * mm, 90 * mm], alignments=[None, 'RIGHT']))
 
     # Refreshment audit
     story.append(Paragraph('Refreshment & Catering Audit', heading_style))

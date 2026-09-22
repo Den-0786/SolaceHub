@@ -8,6 +8,7 @@ from donors.models import Donor
 from chits.models import Chit
 from deployments.models import Backup, Deployment
 from events.models import Event
+from expenses.models import Expense
 
 VOUCHER_DISPLAY_NAMES = {
     'full_package': 'Full Package',
@@ -186,6 +187,23 @@ def compute_report(event_id):
     average_donation = round(total_revenue / total_donors, 2) if total_donors else 0
     estimated_guests = max(total_chits, 1)
 
+    expenses_list = (
+        list(Expense.objects.filter(event_id=event_id))
+        if event_id
+        else list(Expense.objects.all())
+    )
+    total_expenses = sum(float(e.amount or 0) for e in expenses_list)
+    net_position = round(total_revenue - total_expenses, 2)
+    expense_rows = [
+        {
+            'id': e.id,
+            'description': e.description,
+            'amount': round(float(e.amount or 0), 2),
+            'date': e.date.isoformat() if e.date else '',
+        }
+        for e in expenses_list
+    ]
+
     by_day = {}
     for d in donors_list:
         day = (
@@ -257,6 +275,8 @@ def compute_report(event_id):
             'totalChitsIssued': total_chits,
             'estimatedGuests': estimated_guests,
             'averageDonation': average_donation,
+            'totalExpenses': round(total_expenses, 2),
+            'netRevenue': net_position,
         },
         'financialAudit': {
             'familyName': event.family_name if event else '',
@@ -272,6 +292,7 @@ def compute_report(event_id):
             'chitBreakdown': chit_breakdown,
             'dailyIssuance': daily_issuance,
         },
+        'expenses': expense_rows,
         'deployment': deployment,
         'event': event,
     }

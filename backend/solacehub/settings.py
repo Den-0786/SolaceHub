@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'donors',
     'chits',
     'deployments',
+    'expenses',
     'reports',
 ]
 

@@ -17,6 +17,7 @@ export const API_CONFIG = {
     EVENTS: `${API_BASE_URL}/events/`,
     DEPLOYMENTS: `${API_BASE_URL}/deployments/`,
     HARDWARE: `${API_BASE_URL}/deployments/hardware/`,
+    EXPENSES: `${API_BASE_URL}/expenses/`,
     REPORTS: `${API_BASE_URL}/reports/`,
   },
 };

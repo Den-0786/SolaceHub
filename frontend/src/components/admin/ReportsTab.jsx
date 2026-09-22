@@ -31,6 +31,7 @@ export default function ReportsTab() {
   const [summaryData, setSummaryData] = useState(null);
   const [financialAuditData, setFinancialAuditData] = useState(null);
   const [refreshmentAuditData, setRefreshmentAuditData] = useState(null);
+  const [expenseData, setExpenseData] = useState([]);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -70,6 +71,7 @@ export default function ReportsTab() {
         setSummaryData(data.summary);
         setFinancialAuditData(data.financialAudit);
         setRefreshmentAuditData(data.refreshmentAudit);
+        setExpenseData(data.expenses || []);
       } else {
         console.error('Failed to fetch report data:', response.status);
       }
@@ -420,11 +422,84 @@ export default function ReportsTab() {
                     </table>
                   </div>
                 </div>
+
+                <div>
+                  <h4 className="text-base font-semibold text-gray-900 mb-4">Expense Audit Log</h4>
+                  <style>
+                    {`@media (min-width: 640px) {
+                      .financial-expense-table-scroll {
+                        margin-left: 0 !important;
+                        margin-right: 0 !important;
+                        padding-left: 0 !important;
+                        padding-right: 0 !important;
+                      }
+                    }
+                    @media (max-width: 639px) {
+                      .financial-expense-table-scroll {
+                        overflow-x: auto !important;
+                        -webkit-overflow-scrolling: touch !important;
+                        max-width: 100vw !important;
+                        width: 100% !important;
+                        margin-left: -16px !important;
+                        margin-right: -16px !important;
+                        padding-left: 16px !important;
+                        padding-right: 16px !important;
+                      }
+                    }`}
+                  </style>
+                  <div className="financial-expense-table-scroll" style={{ width: '100%', overflowX: 'auto' }}>
+                    {expenseData.length === 0 ? (
+                      <p className="text-sm text-gray-500">No expenses recorded yet.</p>
+                    ) : (
+                      <table style={{ width: '100%', minWidth: '500px', textAlign: 'left', fontSize: '14px' }}>
+                        <thead style={{ backgroundColor: '#f9fafb' }}>
+                          <tr>
+                            <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Description</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Date</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Amount (GH₵)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {expenseData.map((expense, index) => (
+                            <tr key={expense.id ?? index} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                              <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: '500', color: '#111827', whiteSpace: 'nowrap' }}>{expense.description}</td>
+                              <td style={{ padding: '12px 16px', fontSize: '14px', color: '#4b5563', whiteSpace: 'nowrap' }}>{expense.date || '—'}</td>
+                              <td style={{ padding: '12px 16px', fontSize: '14px', textAlign: 'right', fontWeight: 'bold', color: '#b45309', whiteSpace: 'nowrap' }}>GH₵ {expense.amount.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                          ))}
+                          <tr style={{ backgroundColor: '#fffbeb', fontWeight: 'bold' }}>
+                            <td style={{ padding: '12px 16px', fontSize: '14px', color: '#92400e' }}>Total Expenses</td>
+                            <td style={{ padding: '12px 16px', fontSize: '14px', color: '#92400e' }}></td>
+                            <td style={{ padding: '12px 16px', fontSize: '14px', textAlign: 'right', color: '#92400e' }}>GH₵ {summaryData.totalExpenses.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-base font-semibold text-gray-900 mb-4">Net Position</h4>
+                  <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl p-6 text-white">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center sm:text-left">
+                      <div>
+                        <p className="text-sm text-gray-300 mb-1">Total Revenue</p>
+                        <p className="text-xl font-bold">GH₵ {summaryData.totalRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-300 mb-1">Total Expenses</p>
+                        <p className="text-xl font-bold">GH₵ {summaryData.totalExpenses.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-300 mb-1">Net Proceeds</p>
+                        <p className="text-xl font-bold text-emerald-400">GH₵ {summaryData.netRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
           </div>
         )}
-
-        {/* Module C: Refreshment & Catering Audit */}
         {modalSection === 'refreshment' && (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm" style={{ overflow: 'hidden' }}>
             <div className="p-6 border-b border-gray-200">

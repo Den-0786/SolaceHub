@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, User, LayoutDashboard, ClipboardList, Ticket, BarChart, Settings, LogOut, Plus, Filter, MoreHorizontal, Activity, Circle, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, User, LayoutDashboard, ClipboardList, Ticket, Wallet, BarChart, Settings, LogOut, Plus, Filter, MoreHorizontal, Activity, Circle, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import logo from '/SolaceHubLogo.jpeg';
 import { useToast } from '../hooks/useToast.js';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { useEvent } from '../contexts/EventContext.jsx';
 import DeceasedEntryForm from '../components/admin/DeceasedEntryForm.jsx';
 import RegistriesTab from '../components/admin/RegistriesTab.jsx';
 import ChitManagementTab from '../components/admin/ChitManagementTab.jsx';
+import ExpensesTab from '../components/admin/ExpensesTab.jsx';
 import ReportsTab from '../components/admin/ReportsTab.jsx';
 import ClientSettings from './ClientSettings.jsx';
 import NotificationBell from '../components/NotificationBell.jsx';
@@ -93,6 +94,7 @@ function AdminDashboard() {
     { name: 'New Entry', icon: Plus },
     { name: 'Registries', icon: ClipboardList },
     { name: 'Chit Management', icon: Ticket },
+    { name: 'Expenses', icon: Wallet },
     { name: 'Reports', icon: BarChart },
     { name: 'divider' },
     { name: 'Settings', icon: Settings },
@@ -315,6 +317,8 @@ function AdminDashboard() {
             <RegistriesTab key={activeEventId} />
           ) : activeSidebarLink === 'Chit Management' ? (
             <ChitManagementTab key={activeEventId} />
+          ) : activeSidebarLink === 'Expenses' ? (
+            <ExpensesTab key={activeEventId} />
           ) : activeSidebarLink === 'Reports' ? (
             <ReportsTab key={activeEventId} />
           ) : (
