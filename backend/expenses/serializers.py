@@ -5,6 +5,7 @@ from .models import Expense
 
 class ExpenseSerializer(serializers.ModelSerializer):
     recorded_by_name = serializers.SerializerMethodField()
+    spent_by = serializers.CharField(max_length=150, required=False, allow_blank=True)
     deployment = serializers.PrimaryKeyRelatedField(
         queryset=Deployment.objects.all(),
         required=False,
@@ -19,7 +20,7 @@ class ExpenseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Expense
         fields = [
-            'id', 'description', 'amount', 'date', 'deployment',
+            'id', 'description', 'spent_by', 'amount', 'date', 'deployment',
             'recorded_by', 'recorded_by_name', 'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']

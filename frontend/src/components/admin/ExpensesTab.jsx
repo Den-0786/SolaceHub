@@ -7,6 +7,7 @@ const formatAmount = (value) =>
 
 export default function ExpensesTab() {
   const [description, setDescription] = useState('');
+  const [spentBy, setSpentBy] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [expenses, setExpenses] = useState([]);
@@ -53,6 +54,7 @@ export default function ExpensesTab() {
         method: 'POST',
         body: JSON.stringify({
           description: description.trim(),
+          spent_by: spentBy.trim(),
           amount: parsedAmount,
           date: date || null,
         }),
@@ -61,6 +63,7 @@ export default function ExpensesTab() {
         const newExpense = await response.json();
         setExpenses((prev) => [newExpense, ...prev]);
         setDescription('');
+        setSpentBy('');
         setAmount('');
         setDate('');
       } else {
@@ -137,6 +140,16 @@ export default function ExpensesTab() {
             />
           </div>
           <div className="flex flex-col gap-1 lg:w-44">
+            <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563' }}>Spent by</label>
+            <input
+              type="text"
+              placeholder="Who paid for it"
+              value={spentBy}
+              onChange={(e) => setSpentBy(e.target.value)}
+              style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '12px', fontSize: '14px', outline: 'none', backgroundColor: '#f9fafb', width: '100%' }}
+            />
+          </div>
+          <div className="flex flex-col gap-1 lg:w-36">
             <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563' }}>Amount (GH₵)</label>
             <input
               type="number"
@@ -191,9 +204,9 @@ export default function ExpensesTab() {
               <thead style={{ backgroundColor: '#f9fafb' }}>
                 <tr>
                   <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Description</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Spent By</th>
                   <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Amount (GH₵)</th>
                   <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Date</th>
-                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Recorded By</th>
                   <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Action</th>
                 </tr>
               </thead>
@@ -204,13 +217,13 @@ export default function ExpensesTab() {
                       <span style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>{expense.description}</span>
                     </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: '14px', color: '#4b5563' }}>{expense.spent_by || '—'}</span>
+                    </td>
+                    <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                       <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#b45309' }}>{formatAmount(expense.amount)}</span>
                     </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                       <span style={{ fontSize: '14px', color: '#4b5563' }}>{expense.date || '—'}</span>
-                    </td>
-                    <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontSize: '14px', color: '#4b5563' }}>{expense.recorded_by_name || 'System'}</span>
                     </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                       <button
@@ -223,13 +236,6 @@ export default function ExpensesTab() {
                     </td>
                   </tr>
                 ))}
-                <tr style={{ backgroundColor: '#fffbeb', fontWeight: 'bold' }}>
-                  <td style={{ padding: '12px 16px', fontSize: '14px', color: '#92400e' }}>Total</td>
-                  <td style={{ padding: '12px 16px', fontSize: '14px', color: '#92400e' }}>{formatAmount(total)}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '14px', color: '#92400e' }}></td>
-                  <td style={{ padding: '12px 16px', fontSize: '14px', color: '#92400e' }}></td>
-                  <td style={{ padding: '12px 16px' }}></td>
-                </tr>
               </tbody>
             </table>
           )}
