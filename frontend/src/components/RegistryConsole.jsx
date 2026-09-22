@@ -137,7 +137,7 @@ function RegistryConsole() {
 
       if (response.ok) {
         const newDonor = await response.json();
-        setTransactions([newDonor, ...transactions].slice(0, 5));
+        setTransactions([newDonor, ...transactions]);
         setTotalAmount(prev => prev + newAmount);
         setEntryCount(prev => prev + 1);
 
@@ -178,10 +178,6 @@ function RegistryConsole() {
   const handleDigitalSend = () => {
     // Handle WhatsApp/SMS sending logic
     addToast('Digital receipt sent to ' + phoneNumber, 'success');
-  };
-
-  const handleManualReprint = () => {
-    window.print();
   };
 
   const formatAmountForDisplay = (value) => {
@@ -476,12 +472,6 @@ function RegistryConsole() {
                   
                   <div className="flex gap-3">
                     <button
-                      onClick={handleManualReprint}
-                      className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg text-sm font-medium hover:bg-gray-200 flex items-center justify-center gap-2"
-                    >
-                      <Printer size={16} /> Ctrl+P Manual Reprint
-                    </button>
-                    <button
                       onClick={handleDigitalSend}
                       className="flex-1 bg-indigo-950 text-white py-3 rounded-lg text-sm font-medium hover:bg-indigo-900 flex items-center justify-center gap-2"
                     >
@@ -510,8 +500,8 @@ function RegistryConsole() {
                   <tbody>
                     {transactions.map((transaction) => (
                       <tr key={transaction.id} className="border-b border-gray-100">
-                        <td className="py-3 px-4 text-sm font-medium text-gray-900">{transaction.receipt_id}</td>
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-4 text-sm font-medium text-gray-900 whitespace-nowrap">{transaction.receipt_id}</td>
+                        <td className="py-3 px-4 whitespace-nowrap">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
                               <User size={16} className="text-indigo-950" />
@@ -519,10 +509,10 @@ function RegistryConsole() {
                             <span className="text-sm font-medium text-gray-900">{transaction.donor_name}</span>
                           </div>
                         </td>
-                        <td className="py-3 px-4 text-sm text-gray-600">{transaction.time} • {transaction.method}</td>
-                        <td className="py-3 px-4 text-sm font-medium text-gray-900">GH₵ {(Math.round(transaction.amount * 100) / 100).toFixed(2)}</td>
-                        <td className="py-3 px-4 text-sm text-gray-600">{transaction.operator_name || settings.donationOperatorName || 'Operator'}</td>
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-4 text-sm text-gray-600 whitespace-nowrap">{transaction.time} • {transaction.method}</td>
+                        <td className="py-3 px-4 text-sm font-medium text-gray-900 whitespace-nowrap">GH₵ {(Math.round(transaction.amount * 100) / 100).toFixed(2)}</td>
+                        <td className="py-3 px-4 text-sm text-gray-600 whitespace-nowrap">{transaction.operator_name || settings.donationOperatorName || 'Operator'}</td>
+                        <td className="py-3 px-4 whitespace-nowrap">
                           <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">{transaction.status}</span>
                         </td>
                       </tr>
@@ -554,13 +544,13 @@ function RegistryConsole() {
                   <tbody className="divide-y divide-gray-200">
                     {transactions.map((transaction) => (
                       <tr key={transaction.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{transaction.receipt_id}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900">{transaction.donor_name}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{transaction.time}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{transaction.method}</td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">GH₵ {(Math.round(transaction.amount * 100) / 100).toFixed(2)}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{transaction.operator_name || settings.donationOperatorName || 'Operator'}</td>
-                        <td className="px-4 py-3 text-sm"><span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">{transaction.status}</span></td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">{transaction.receipt_id}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">{transaction.donor_name}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{transaction.time}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{transaction.method}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">GH₵ {(Math.round(transaction.amount * 100) / 100).toFixed(2)}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{transaction.operator_name || settings.donationOperatorName || 'Operator'}</td>
+                        <td className="px-4 py-3 text-sm whitespace-nowrap"><span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">{transaction.status}</span></td>
                       </tr>
                     ))}
                   </tbody>
