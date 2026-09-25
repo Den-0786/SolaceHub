@@ -139,6 +139,9 @@ def build_pdf(data):
         'SectionHeading', parent=styles['Heading2'], fontSize=13, leading=16,
         spaceBefore=14, spaceAfter=6, textColor=colors.HexColor('#111827'),
     )
+    wrap_style = ParagraphStyle(
+        'WrapCell', parent=styles['Normal'], fontSize=8.5, leading=11
+    )
 
     summary = data['summary']
     audit = data['financialAudit']
@@ -147,11 +150,11 @@ def build_pdf(data):
 
     story = []
     story.append(Paragraph('Complete Family Audit Report', title_style))
-    meta_rows = [['Family', audit['familyName'] or '—']]
-    meta_rows.append(['Event Type', audit['eventType'] or '—'])
-    meta_rows.append(['Deceased Name', audit['deceasedName']])
+    meta_rows = [['Family', Paragraph(audit['familyName'] or '—', wrap_style)]]
+    meta_rows.append(['Event Type', Paragraph(audit['eventType'] or '—', wrap_style)])
+    meta_rows.append(['Deceased Name', Paragraph(audit['deceasedName'], wrap_style)])
     if audit['memorialDates']:
-        meta_rows.append(['Memorial Dates', audit['memorialDates']])
+        meta_rows.append(['Memorial Dates', Paragraph(audit['memorialDates'], wrap_style)])
     meta_rows.append(['Generated On', date.today().strftime('%B %d, %Y')])
     story.append(_table(meta_rows, [45 * mm, 135 * mm]))
     story.append(Spacer(1, 6))
@@ -192,14 +195,14 @@ def build_pdf(data):
 
     attendant_rows = [['Operator Name', 'Total Entries', 'Total Amount (GH¢)']]
     for att in audit['deskAttendants']:
-        attendant_rows.append([att['name'], str(att['entries']), _money(att['amount'])])
+        attendant_rows.append([Paragraph(att['name'] or '—', wrap_style), str(att['entries']), _money(att['amount'])])
     story.append(_table(attendant_rows, [90 * mm, 45 * mm, 45 * mm], alignments=[None, 'RIGHT', 'RIGHT']))
     story.append(Spacer(1, 6))
 
     # Expenses
     expense_rows = [['Description', 'Date', 'Amount (GH¢)']]
     for exp in expenses:
-        expense_rows.append([exp['description'], exp['date'] or '—', _money(exp['amount'])])
+        expense_rows.append([Paragraph(exp['description'] or '—', wrap_style), exp['date'] or '—', _money(exp['amount'])])
     if len(expense_rows) == 1:
         expense_rows.append(['No expenses recorded', '—', '—'])
     expense_rows.append(['Total Expenses', '', _money(summary['totalExpenses'])])
@@ -218,7 +221,7 @@ def build_pdf(data):
     story.append(Paragraph('Refreshment & Catering Audit', heading_style))
     chit_rows = [['Voucher Type', 'Count', 'Percentage']]
     for item in refreshment['chitBreakdown']:
-        chit_rows.append([item['type'], str(item['count']), f"{item['percentage']}%"])
+        chit_rows.append([Paragraph(item['type'] or '—', wrap_style), str(item['count']), f"{item['percentage']}%"])
     story.append(_table(chit_rows, [80 * mm, 50 * mm, 50 * mm], alignments=[None, 'RIGHT', 'RIGHT']))
     story.append(Spacer(1, 6))
 
@@ -449,14 +452,17 @@ class ReportDonorListPDFExportView(APIView):
         cell_style = ParagraphStyle(
             'DonorCell', parent=styles['Normal'], fontSize=8, leading=10
         )
+        split_style = ParagraphStyle(
+            'DonorSplit', parent=styles['Normal'], fontSize=8, leading=10, wordWrap='CJK'
+        )
 
         story = []
         story.append(Paragraph('Donor List', title_style))
         story.append(Paragraph('Names, amounts and timestamps - separate from the financial audit.', sub_style))
         story.append(Spacer(1, 4))
-        meta_rows = [['Family', event.family_name if event else '—']]
-        meta_rows.append(['Event Type', event.title if event else '—'])
-        meta_rows.append(['Deceased Name', deployment.deceased_name if deployment else '—'])
+        meta_rows = [['Family', Paragraph(event.family_name if event else '—', cell_style)]]
+        meta_rows.append(['Event Type', Paragraph(event.title if event else '—', cell_style)])
+        meta_rows.append(['Deceased Name', Paragraph(deployment.deceased_name if deployment else '—', cell_style)])
         story.append(_table(meta_rows, [45 * mm, 200 * mm]))
         story.append(Spacer(1, 6))
 
@@ -464,17 +470,17 @@ class ReportDonorListPDFExportView(APIView):
             'Receipt ID', 'Donor Name', 'Phone', 'Amount (GH¢)', 'Method',
             'Event Day', 'Date', 'Time', 'Operator',
         ]
-        rows = [[Paragraph(h, cell_style) for h in header]]
+        rows = [[Paragraph(h, split_style) for h in header]]
         for d in donors_list:
             rows.append([
-                d.receipt_id,
+                Paragraph(d.receipt_id or '—', split_style),
                 Paragraph(d.donor_name or '—', cell_style),
-                d.phone_number or '—',
+                Paragraph(d.phone_number or '—', cell_style),
                 _money(d.amount or 0),
-                d.method or '—',
-                compute_display_day(d.date, deployment.start_date if deployment else None) or d.event_day or 1,
-                d.date.isoformat() if d.date else '—',
-                d.time.isoformat() if d.time else '—',
+                Paragraph(d.method or '—', cell_style),
+                str(compute_display_day(d.date, deployment.start_date if deployment else None) or d.event_day or 1),
+                Paragraph(d.date.isoformat() if d.date else '—', cell_style),
+                Paragraph(d.time.isoformat() if d.time else '—', cell_style),
                 Paragraph(get_operator_name(d), cell_style),
             ])
         if len(rows) == 1:
@@ -482,7 +488,7 @@ class ReportDonorListPDFExportView(APIView):
 
         story.append(_table(
             rows,
-            [34 * mm, 50 * mm, 24 * mm, 28 * mm, 28 * mm, 22 * mm, 28 * mm, 26 * mm, 29 * mm],
+            [40 * mm, 48 * mm, 22 * mm, 26 * mm, 24 * mm, 20 * mm, 26 * mm, 24 * mm, 39 * mm],
             alignments=[None, None, None, 'RIGHT', None, 'RIGHT', None, None, None],
         ))
 

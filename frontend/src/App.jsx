@@ -1,9 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { lazy, Suspense, useEffect, useState } from 'react';
 
-const LandingPage = lazy(() => import('./components/LandingPage'));
-const Login = lazy(() => import('./components/Login'));
-const ForgotPassword = lazy(() => import('./components/ForgotPassword'));
+import LandingPage from './components/LandingPage';
+import Login from './components/Login';
+import ForgotPassword from './components/ForgotPassword';
 const RegistryConsole = lazy(() => import('./components/RegistryConsole'));
 const ChitConsole = lazy(() => import('./pages/ChitConsole'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));

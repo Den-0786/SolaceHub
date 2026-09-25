@@ -475,8 +475,6 @@ function RegistryConsole() {
                       <div className="border-t border-dashed border-gray-300 my-2"></div>
                       <p className="text-xs text-gray-600 italic">Thank you for your kind donation & support during this time of mourning. Your generosity is deeply appreciated by the bereaved family.</p>
                       <p className="text-xs text-gray-400 mt-2">Issued by: {settings.donationOperatorName || 'Operator'}</p>
-                      <div className="border-t border-dashed border-gray-300 my-2"></div>
-                      <p className="text-xs text-gray-400">System-Generated Document</p>
                     </div>
                   </div>
                   
@@ -774,10 +772,6 @@ function RegistryConsole() {
             mourning. Your generosity is deeply appreciated by the bereaved family.
           </p>
           <p className="pc-foot">Issued by: {settings.donationOperatorName || 'Operator'}</p>
-
-          <div className="pc-divider"></div>
-
-          <p className="pc-foot">System-Generated Document</p>
         </div>
       </div>
 
