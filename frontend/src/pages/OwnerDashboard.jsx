@@ -146,13 +146,15 @@ function OwnerDashboard() {
       } catch (err) {
         console.error('Failed to persist session timer:', err);
       }
-    }, 800);
+    }, 300);
 
     return () => clearTimeout(timeout);
   }, [activeDeploymentData?.id, startTimestamp, durationDays, durationHours, isLocked]);
 
   // Live countdown for the Active Deployment card, driven by the same
-  // session-timer state used by the Session Timer tab.
+  // session-timer state used by the Session Timer tab. This is the single
+  // ticker for the whole page; the Session Timer tab only displays/edits the
+  // shared state so there is never a competing interval fighting the format.
   useEffect(() => {
     const tick = () => {
       if (!startTimestamp || (durationDays === 0 && durationHours === 0) || isLocked) {
@@ -168,6 +170,10 @@ function OwnerDashboard() {
       const diff = (start + durationMs) - Date.now();
       if (diff <= 0) {
         setTimeRemaining('00d 00h 00m 00s');
+        if (!isLocked) {
+          setIsLocked(true);
+          handleExpirationLock();
+        }
         return;
       }
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -494,7 +500,6 @@ function OwnerDashboard() {
           durationHours={durationHours}
           setDurationHours={setDurationHours}
           timeRemaining={timeRemaining}
-          setTimeRemaining={setTimeRemaining}
           isLocked={isLocked}
           setIsLocked={setIsLocked}
           onExpire={handleExpirationLock}
@@ -614,7 +619,7 @@ function OwnerDashboard() {
 
             <div className="bg-indigo-900 rounded-2xl p-6 mb-6 text-center">
               <p className="text-xs text-indigo-200 uppercase tracking-wide mb-2">Time Remaining</p>
-              <p className="text-3xl font-mono font-bold text-white">{timeRemaining}</p>
+              <p className="text-3xl font-mono font-bold text-white tabular-nums tracking-tight">{timeRemaining}</p>
             </div>
           </div>
 

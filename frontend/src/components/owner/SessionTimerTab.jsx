@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Clock, Plus, Lock, RotateCcw, Download, Timer, Calendar, CheckCircle, AlertTriangle } from 'lucide-react';
 
 export default function SessionTimerTab({
@@ -10,54 +9,12 @@ export default function SessionTimerTab({
   durationHours,
   setDurationHours,
   timeRemaining,
-  setTimeRemaining,
   isLocked,
   setIsLocked,
   onExpire,
   onReset,
   onExportCSV
 }) {
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Check if we have valid timer data
-      if (!startTimestamp || (durationDays === 0 && durationHours === 0)) {
-        setTimeRemaining('00:00:00:00');
-        return;
-      }
-
-      const start = new Date(startTimestamp).getTime();
-      if (isNaN(start)) {
-        setTimeRemaining('00:00:00:00');
-        return;
-      }
-
-      const durationMs = ((durationDays * 24) + durationHours) * 60 * 60 * 1000;
-      const end = start + durationMs;
-      const now = Date.now();
-      const diff = end - now;
-
-      if (isLocked || diff <= 0) {
-        setTimeRemaining('00:00:00:00');
-        if (diff <= 0 && !isLocked && onExpire) {
-          setIsLocked(true);
-          onExpire();
-        }
-        return;
-      }
-
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-      setTimeRemaining(
-        `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`
-      );
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [startTimestamp, durationDays, durationHours, isLocked, onExpire, setIsLocked, setTimeRemaining]);
 
   const handleExtend24Hours = () => {
     setDurationHours((prev) => prev + 24);
@@ -127,7 +84,7 @@ export default function SessionTimerTab({
         {/* Countdown Clock */}
         <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 mb-6">
           <p className="text-indigo-200 text-sm mb-3 text-center">Time Remaining</p>
-          <p className="text-5xl font-bold text-center tracking-wider font-mono">{timeRemaining}</p>
+          <p className="text-5xl font-bold text-center tracking-wider font-mono tabular-nums">{timeRemaining}</p>
         </div>
 
         {/* Progress Bar */}
