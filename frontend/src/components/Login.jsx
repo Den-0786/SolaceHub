@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { User, Lock, KeyRound, LogIn, Eye, EyeOff, X } from 'lucide-react';
 import logo from '/SolaceHubLogo.jpeg';
 import { useToast } from '../hooks/useToast.js';
 import { API_CONFIG } from '../config/api.js';
 
 function Login() {
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [accessCode] = useState('');
@@ -61,7 +62,7 @@ function Login() {
         const displayName = data.user.display_name || data.user.username;
         addToast(`Welcome back, ${data.user.role} (${displayName})`, 'success', 2500);
         setTimeout(() => {
-          window.location.href = route;
+          navigate(route, { replace: true });
         }, 800);
         setLoading(false);
         return;
@@ -69,12 +70,14 @@ function Login() {
 
       if (data.error === 'Session expired') {
         addToast('Session expired. Contact the system administrator.', 'error', 5000);
+      } else if (data.error === 'Too many failed attempts') {
+        addToast(data.message || 'Login locked after 3 failed attempts. Try again later.', 'error', 8000);
       } else if (data.error === 'Multiple events matched') {
         addToast(data.message || 'This username exists for more than one event. Enter the access code.', 'error', 5000);
       } else if (data.error === 'Session still active' || data.error === 'Access code required') {
         addToast(data.message || data.error, 'error', 5000);
       } else {
-        addToast(data.error || 'Invalid username or password.', 'error');
+        addToast(data.message || data.error || 'Invalid username or password.', 'error');
       }
     } catch (err) {
       console.error('Backend login error:', err);

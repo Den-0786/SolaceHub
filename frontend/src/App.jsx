@@ -1,5 +1,5 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { lazy, Suspense } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useState } from 'react';
 
 const LandingPage = lazy(() => import('./components/LandingPage'));
 const Login = lazy(() => import('./components/Login'));
@@ -12,12 +12,44 @@ const OwnerDashboard = lazy(() => import('./pages/OwnerDashboard'));
 import { DeploymentProvider } from './contexts/DeploymentContext';
 import { EventProvider } from './contexts/EventContext';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import { useAutoLogout } from './hooks/useAutoLogout.js';
+
+const PUBLIC_PATHS = ['/', '/login', '/forgot-password'];
+
+// Force every full page load to start at the homepage. Deep links directly to
+// dashboards/consoles (e.g. /owner-dashboard) are bounced to the homepage so the
+// login page is always part of the journey. Client-side navigation performed
+// after login is unaffected because App mounts only once on load.
+function HomepageFirst() {
+  const navigate = useNavigate();
+  const [redirectToHome] = useState(() => {
+    const path = window.location.pathname;
+    return !PUBLIC_PATHS.includes(path);
+  });
+
+  useEffect(() => {
+    if (redirectToHome) {
+      navigate('/', { replace: true });
+    }
+  }, [redirectToHome, navigate]);
+
+  return null;
+}
+
+// Signs the user out after 5 minutes without any interaction (mounted while
+// authenticated). Runs inside <Router> so it can navigate back to the homepage.
+function AutoLogout() {
+  useAutoLogout();
+  return null;
+}
 
 function App() {
   return (
     <EventProvider>
       <DeploymentProvider>
         <Router>
+          <HomepageFirst />
+          <AutoLogout />
           <Suspense fallback={<div className="min-h-screen bg-indigo-50 flex items-center justify-center">Loading...</div>}>
             <Routes>
             <Route path="/" element={<LandingPage />} />

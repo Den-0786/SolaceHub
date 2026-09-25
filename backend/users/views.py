@@ -6,9 +6,11 @@ from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate, update_session_auth_hash
 from django.contrib.auth.hashers import make_password, check_password
 from django.db.models import Q
+from django.utils import timezone
+from datetime import timedelta
 import logging
 import uuid
-from .models import User, Credential
+from .models import User, Credential, LoginAttempt
 from .serializers import (
     UserSerializer,
     LoginSerializer,
@@ -20,6 +22,44 @@ from events.models import Event
 from deployments.utils import event_session_expired
 
 logger = logging.getLogger(__name__)
+
+MAX_FAILED_LOGIN_ATTEMPTS = 3
+LOGIN_LOCKOUT_MINUTES = 15
+
+
+def _is_login_locked(username):
+    """Return (locked, locked_until) for the given username."""
+    try:
+        attempt = LoginAttempt.objects.get(username=username)
+    except LoginAttempt.DoesNotExist:
+        return False, None
+    if attempt.locked_until and attempt.locked_until > timezone.now():
+        return True, attempt.locked_until
+    return False, None
+
+
+def _record_failed_login(username):
+    """Increment the failed-attempt counter and lock once the limit is reached."""
+    attempt, _ = LoginAttempt.objects.get_or_create(username=username)
+    if attempt.locked_until and attempt.locked_until <= timezone.now():
+        attempt.failed_attempts = 0
+        attempt.locked_until = None
+    attempt.failed_attempts += 1
+    attempt.last_attempt_at = timezone.now()
+    if attempt.failed_attempts >= MAX_FAILED_LOGIN_ATTEMPTS:
+        attempt.locked_until = timezone.now() + timedelta(minutes=LOGIN_LOCKOUT_MINUTES)
+        attempt.failed_attempts = MAX_FAILED_LOGIN_ATTEMPTS
+    attempt.save()
+    return attempt
+
+
+def _clear_login_attempts(username):
+    LoginAttempt.objects.filter(username=username).delete()
+
+
+def _minutes_remaining(locked_until):
+    remaining = locked_until - timezone.now()
+    return max(1, int(remaining.total_seconds() // 60) + 1)
 
 
 def resolve_event_id(data, request):
@@ -48,10 +88,23 @@ def login_view(request):
 
     serializer = LoginSerializer(data=request.data)
     if serializer.is_valid():
-        username = serializer.validated_data['username']
+        username = serializer.validated_data['username'].strip()
         password = serializer.validated_data['password']
         role = serializer.validated_data.get('role')
         event_id = resolve_event_id(serializer.validated_data, request)
+
+        # Lockout check: deny logins for usernames with too many failed attempts.
+        locked, locked_until = _is_login_locked(username)
+        if locked:
+            minutes = _minutes_remaining(locked_until)
+            logger.warning(f"Login blocked for locked username: {username}")
+            return Response(
+                {
+                    'error': 'Too many failed attempts',
+                    'message': f'Login locked after {MAX_FAILED_LOGIN_ATTEMPTS} failed attempts. Try again in about {minutes} minute(s).'
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
 
         logger.info(f"Attempting authentication for username: {username} (event: {event_id})")
 
@@ -68,6 +121,7 @@ def login_view(request):
                 logger.warning(f"Role mismatch. Expected: {role}, Actual: {user.role}")
                 return Response({'error': 'Invalid role for this user'}, status=status.HTTP_403_FORBIDDEN)
 
+            _clear_login_attempts(username)
             token, created = Token.objects.get_or_create(user=user)
             logger.info(f"Token {'created' if created else 'retrieved'} for user: {username}")
 
@@ -128,8 +182,16 @@ def login_view(request):
                 # and only when the client session for that event has already expired.
                 credential = fallback[0] if fallback else None
                 if credential is None:
+                    attempt = _record_failed_login(username)
+                    remaining = max(0, MAX_FAILED_LOGIN_ATTEMPTS - attempt.failed_attempts)
                     logger.warning(f"Authentication failed for username: {username}")
-                    return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+                    return Response(
+                        {
+                            'error': 'Invalid credentials',
+                            'message': f'Invalid username or password. {remaining} attempt(s) remaining.' if remaining else 'Invalid username or password.'
+                        },
+                        status=status.HTTP_401_UNAUTHORIZED
+                    )
 
                 event_context = credential.event_id or event_id
                 if not event_context:
@@ -208,6 +270,7 @@ def login_view(request):
             user.set_password(password)
             user.save()
 
+            _clear_login_attempts(username)
             token, created = Token.objects.get_or_create(user=user)
             user_data = UserSerializer(user).data
             user_data['role'] = user_role
@@ -220,8 +283,27 @@ def login_view(request):
                 'event_id': assigned_event_id
             })
 
+        attempt = _record_failed_login(username)
+        remaining = max(0, MAX_FAILED_LOGIN_ATTEMPTS - attempt.failed_attempts)
+        if remaining == 0:
+            locked, locked_until = _is_login_locked(username)
+            minutes = _minutes_remaining(locked_until) if locked_until else LOGIN_LOCKOUT_MINUTES
+            logger.warning(f"Login locked for username: {username} after {MAX_FAILED_LOGIN_ATTEMPTS} failed attempts")
+            return Response(
+                {
+                    'error': 'Too many failed attempts',
+                    'message': f'Login locked after {MAX_FAILED_LOGIN_ATTEMPTS} failed attempts. Try again in about {minutes} minute(s).'
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
         logger.warning(f"Authentication failed for username: {username}")
-        return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(
+            {
+                'error': 'Invalid credentials',
+                'message': f'Invalid username or password. {remaining} attempt(s) remaining.'
+            },
+            status=status.HTTP_401_UNAUTHORIZED
+        )
 
     logger.error(f"Serializer validation errors: {serializer.errors}")
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

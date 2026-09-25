@@ -25,6 +25,21 @@ class User(AbstractUser):
         verbose_name_plural = 'Users'
 
 
+class LoginAttempt(models.Model):
+    """Tracks failed login attempts to lock out credentials after repeated failures."""
+    username = models.CharField(max_length=150, unique=True)
+    failed_attempts = models.IntegerField(default=0)
+    locked_until = models.DateTimeField(null=True, blank=True)
+    last_attempt_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Login Attempt'
+        verbose_name_plural = 'Login Attempts'
+
+    def __str__(self):
+        return f"{self.username} ({self.failed_attempts} failed)"
+
+
 class Credential(models.Model):
     CREDENTIAL_TYPE_CHOICES = [
         ('client', 'Client'),
