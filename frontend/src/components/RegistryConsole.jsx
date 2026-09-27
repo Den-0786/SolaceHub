@@ -421,11 +421,25 @@ function RegistryConsole() {
     );
   }, [transactions, listDay, activeDeployment?.start_date]);
 
-  const visibleTotal = useMemo(
-    () =>
-      visibleTransactions.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0),
-    [visibleTransactions]
-  );
+  // The table numbers each event day from 1, so a day always reads 1..N no
+  // matter where its entries sit in the event-wide receipt sequence. Receipts
+  // are unaffected: entry_number is only ever shown in these tables.
+  const dayPositionById = useMemo(() => {
+    const byNumber = new Map();
+    for (const t of transactions) {
+      const dayNumber = t.date ? computeEventDayFrom(t.date, activeDeployment?.start_date) : 1;
+      if (!byNumber.has(dayNumber)) byNumber.set(dayNumber, []);
+      byNumber.get(dayNumber).push(t);
+    }
+    const positions = new Map();
+    for (const list of byNumber.values()) {
+      list
+        .slice()
+        .sort((a, b) => (a.entry_number ?? 0) - (b.entry_number ?? 0) || (a.id < b.id ? -1 : 1))
+        .forEach((t, index) => positions.set(t.id, index + 1));
+    }
+    return positions;
+  }, [transactions, activeDeployment?.start_date]);
 
   // A day can disappear from the list if its entries are deleted or a date is
   // corrected, which would otherwise leave a tab pointing at nothing.
@@ -769,15 +783,7 @@ function RegistryConsole() {
 
               {/* Recent Transactions Table */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
-                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                  <h3 className="text-lg font-bold text-gray-900">Recent Transactions</h3>
-                  <p className="text-sm text-gray-500">
-                    {listDay === 'all' ? 'All days' : `Day ${listDay} only`} ·{' '}
-                    <span className="font-semibold text-gray-900 tabular-nums">
-                      GH₵ {formatCedis(visibleTotal)}
-                    </span>
-                  </p>
-                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Recent Transactions</h3>
 
                 {/* Day tabs: every donor first, then one per event day */}
                 <div className="flex flex-wrap gap-2 mb-4 border-b border-gray-200 pb-3">
@@ -805,9 +811,7 @@ function RegistryConsole() {
                       }`}
                     >
                       Day {day.dayNumber}
-                      <span className="ml-2 text-xs opacity-75 tabular-nums">
-                        {day.entries} · GH₵ {formatCedis(day.total)}
-                      </span>
+                      <span className="ml-2 text-xs opacity-75 tabular-nums">{day.entries}</span>
                     </button>
                   ))}
                 </div>
@@ -838,7 +842,7 @@ function RegistryConsole() {
                     visibleTransactions.map((transaction) => (
 
                       <tr key={transaction.id} className="border-b border-gray-100">
-                        <td className="py-3 px-4 text-sm text-gray-500 whitespace-nowrap">{transaction.entry_number ?? '—'}</td>
+                        <td className="py-3 px-4 text-sm text-gray-500 whitespace-nowrap">{dayPositionById.get(transaction.id) ?? '—'}</td>
                         <td className="py-3 px-4 text-sm font-medium text-gray-900 whitespace-nowrap">{transaction.receipt_id}</td>
                         <td className="py-3 px-4 whitespace-nowrap">
                           <div className="flex items-center gap-3">
@@ -914,17 +918,9 @@ function RegistryConsole() {
                     }`}
                   >
                     Day {day.dayNumber}
-                    <span className="ml-2 text-xs opacity-75 tabular-nums">
-                      {day.entries} · GH₵ {formatCedis(day.total)}
-                    </span>
+                    <span className="ml-2 text-xs opacity-75 tabular-nums">{day.entries}</span>
                   </button>
                 ))}
-                <span className="ml-auto text-sm text-gray-500">
-                  {visibleTransactions.length} shown ·{' '}
-                  <span className="font-semibold text-gray-900 tabular-nums">
-                    GH₵ {formatCedis(visibleTotal)}
-                  </span>
-                </span>
               </div>
 
               <div className="w-full overflow-x-auto rounded-lg border border-slate-200 shadow-sm">
@@ -952,7 +948,7 @@ function RegistryConsole() {
                     ) : (
                     visibleTransactions.map((transaction) => (
                       <tr key={transaction.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{transaction.entry_number ?? '—'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{dayPositionById.get(transaction.id) ?? '—'}</td>
                         <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">{transaction.receipt_id}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">{transaction.donor_name}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{transaction.time}</td>
