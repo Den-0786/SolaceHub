@@ -107,6 +107,8 @@ function RegistryConsole() {
   const [deleteError, setDeleteError] = useState('');
   const [savingEntry, setSavingEntry] = useState(false);
   const [lastPrinted, setLastPrinted] = useState(null);
+  // 'all' shows every donation; a number shows only that event day.
+  const [listDay, setListDay] = useState('all');
 
   useEffect(() => {
     const updateTime = () => {
@@ -387,6 +389,53 @@ function RegistryConsole() {
   const todayKey = new Date().toISOString().slice(0, 10);
   const todayTotal = dayTotals.find((d) => d.date === todayKey);
 
+  // Day cards are grouped by recorded date, but the day *number* comes from the
+  // deployment start. Group by that number instead, so a day never shows two
+  // cards and the tab labels always line up with the card totals.
+  const daySummaries = useMemo(() => {
+    const byNumber = new Map();
+    for (const t of transactions) {
+      if (!t.date) continue;
+      const dayNumber = computeEventDayFrom(t.date, activeDeployment?.start_date);
+      const key = dayNumber;
+      const existing = byNumber.get(key) || {
+        dayNumber,
+        date: t.date,
+        total: 0,
+        entries: 0,
+      };
+      existing.total += parseFloat(t.amount) || 0;
+      existing.entries += 1;
+      // Keep the earliest date in the group for the label.
+      if (t.date < existing.date) existing.date = t.date;
+      byNumber.set(key, existing);
+    }
+    return [...byNumber.values()].sort((a, b) => a.dayNumber - b.dayNumber);
+  }, [transactions, activeDeployment?.start_date]);
+
+  const visibleTransactions = useMemo(() => {
+    if (listDay === 'all') return transactions;
+    const start = activeDeployment?.start_date;
+    return transactions.filter(
+      (t) => t.date && computeEventDayFrom(t.date, start) === listDay
+    );
+  }, [transactions, listDay, activeDeployment?.start_date]);
+
+  const visibleTotal = useMemo(
+    () =>
+      visibleTransactions.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0),
+    [visibleTransactions]
+  );
+
+  // A day can disappear from the list if its entries are deleted or a date is
+  // corrected, which would otherwise leave a tab pointing at nothing.
+  useEffect(() => {
+    if (listDay === 'all') return;
+    if (!daySummaries.some((d) => d.dayNumber === listDay)) {
+      setListDay('all');
+    }
+  }, [daySummaries, listDay]);
+
   return (
     <div className="min-h-screen bg-brand-50 flex flex-col">
       {/* Top Header Bar */}
@@ -548,45 +597,61 @@ function RegistryConsole() {
                 </div>
               </div>
 
-              {/* Summary row: total on the left, per calendar day to its right */}
+              {/* Total first, then one card per event day underneath */}
               <div className="flex flex-col gap-4">
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-                  <div className="lg:col-span-2 bg-gradient-to-r from-indigo-950 to-indigo-900 rounded-xl p-6 text-white flex flex-col justify-center">
-                    <h4 className="text-sm font-medium opacity-80 mb-2">Total Received</h4>
-                    <p className="text-4xl font-bold">GH₵ {formatCedis(totalAmount)}</p>
-                    <p className="text-sm opacity-80 mt-1">{entryCount} Entries processed</p>
-                    <div className="flex items-center gap-1 mt-2 text-green-400">
+                <div className="rounded-xl p-6 text-white bg-gradient-to-r from-indigo-950 to-indigo-900">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-medium opacity-80 mb-1">Total Received</h4>
+                      <p className="text-3xl sm:text-4xl font-bold tabular-nums break-words">
+                        GH₵ {formatCedis(totalAmount)}
+                      </p>
+                      <p className="text-sm opacity-80 mt-1">{entryCount} Entries processed</p>
+                    </div>
+                    <div className="flex items-center gap-1 text-green-400 shrink-0">
                       <ArrowUp size={16} />
                       <span className="text-sm">Live tracking active</span>
                     </div>
                   </div>
-
-                  {dayTotals.map((day) => {
-                    const isToday = day.date === todayKey;
-                    return (
-                      <div
-                        key={day.date}
-                        className={`lg:col-span-1 rounded-xl p-4 border flex flex-col justify-center ${
-                          isToday
-                            ? 'bg-indigo-50 border-indigo-300'
-                            : 'bg-white border-gray-200 shadow-sm'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                            isToday ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-800'
-                          }`}>
-                            Day {day.dayNumber}
-                          </span>
-                          {isToday && <span className="text-[10px] font-semibold text-indigo-600 uppercase">Today</span>}
-                        </div>
-                        <p className="text-xs text-gray-500">{formatDayLabel(day.date)}</p>
-                        <p className="text-xl font-bold text-gray-900 mt-1">GH₵ {formatCedis(day.total)}</p>
-                        <p className="text-xs text-gray-400 mt-1">{day.entries} entries</p>
-                      </div>
-                    );
-                  })}
                 </div>
+
+                {daySummaries.length > 0 && (
+                  <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}>
+                    {daySummaries.map((day) => {
+                      const isToday = day.date === todayKey;
+                      const isSelected = listDay === day.dayNumber;
+                      return (
+                        <button
+                          key={day.dayNumber}
+                          type="button"
+                          onClick={() => setListDay(isSelected ? 'all' : day.dayNumber)}
+                          title={isSelected ? 'Showing all days' : `Show only day ${day.dayNumber}`}
+                          className={`text-left rounded-xl p-4 border flex flex-col justify-center min-w-0 transition-colors ${
+                            isSelected
+                              ? 'bg-indigo-50 border-indigo-400 ring-1 ring-indigo-300'
+                              : isToday
+                                ? 'bg-indigo-50 border-indigo-300'
+                                : 'bg-white border-gray-200 shadow-sm hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                              isSelected || isToday ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-800'
+                            }`}>
+                              Day {day.dayNumber}
+                            </span>
+                            {isToday && <span className="text-[10px] font-semibold text-indigo-600 uppercase">Today</span>}
+                          </div>
+                          <p className="text-xs text-gray-500 truncate">{formatDayLabel(day.date)}</p>
+                          <p className="text-xl font-bold text-gray-900 mt-1 tabular-nums break-words">
+                            GH₵ {formatCedis(day.total)}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">{day.entries} entries</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               </div>
 
@@ -704,25 +769,74 @@ function RegistryConsole() {
 
               {/* Recent Transactions Table */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Recent Transactions</h3>
-                
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                  <h3 className="text-lg font-bold text-gray-900">Recent Transactions</h3>
+                  <p className="text-sm text-gray-500">
+                    {listDay === 'all' ? 'All days' : `Day ${listDay} only`} ·{' '}
+                    <span className="font-semibold text-gray-900 tabular-nums">
+                      GH₵ {formatCedis(visibleTotal)}
+                    </span>
+                  </p>
+                </div>
+
+                {/* Day tabs: every donor first, then one per event day */}
+                <div className="flex flex-wrap gap-2 mb-4 border-b border-gray-200 pb-3">
+                  <button
+                    type="button"
+                    onClick={() => setListDay('all')}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      listDay === 'all'
+                        ? 'bg-indigo-950 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    All Donors
+                    <span className="ml-2 text-xs opacity-75 tabular-nums">{transactions.length}</span>
+                  </button>
+                  {daySummaries.map((day) => (
+                    <button
+                      key={day.dayNumber}
+                      type="button"
+                      onClick={() => setListDay(day.dayNumber)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${
+                        listDay === day.dayNumber
+                          ? 'bg-indigo-950 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Day {day.dayNumber}
+                      <span className="ml-2 text-xs opacity-75 tabular-nums">
+                        {day.entries} · GH₵ {formatCedis(day.total)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
                 <div className="w-full overflow-x-auto">
-                <table className="w-full min-w-[175px]">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">#</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Receipt ID</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Donor's Name</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Time</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Method</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Amount</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Issued By</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Status</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transactions.map((transaction) => (
+                  <table className="w-full min-w-[175px]">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">#</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Receipt ID</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Donor's Name</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Time</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Method</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Amount</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Issued By</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Status</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                    {visibleTransactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="py-8 px-4 text-center text-sm text-gray-500">
+                          No donations recorded{listDay === 'all' ? ' yet' : ` for day ${listDay}`}.
+                        </td>
+                      </tr>
+                    ) : (
+                    visibleTransactions.map((transaction) => (
+
                       <tr key={transaction.id} className="border-b border-gray-100">
                         <td className="py-3 px-4 text-sm text-gray-500 whitespace-nowrap">{transaction.entry_number ?? '—'}</td>
                         <td className="py-3 px-4 text-sm font-medium text-gray-900 whitespace-nowrap">{transaction.receipt_id}</td>
@@ -760,7 +874,8 @@ function RegistryConsole() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    ))
+                    )}
                   </tbody>
                 </table>
                 </div>
@@ -771,7 +886,47 @@ function RegistryConsole() {
           {currentView === 'logs' && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Historical Logs</h2>
-              <p className="text-gray-600 mb-6">Complete history of donations and contributions recorded at this registry desk.</p>
+              <p className="text-gray-600 mb-4">Complete history of donations and contributions recorded at this registry desk.</p>
+
+              {/* Same day tabs as the desk list, so both views agree */}
+              <div className="flex flex-wrap items-center gap-2 mb-4 border-b border-gray-200 pb-3">
+                <button
+                  type="button"
+                  onClick={() => setListDay('all')}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    listDay === 'all'
+                      ? 'bg-indigo-950 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  All Donors
+                  <span className="ml-2 text-xs opacity-75 tabular-nums">{transactions.length}</span>
+                </button>
+                {daySummaries.map((day) => (
+                  <button
+                    key={day.dayNumber}
+                    type="button"
+                    onClick={() => setListDay(day.dayNumber)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${
+                      listDay === day.dayNumber
+                        ? 'bg-indigo-950 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Day {day.dayNumber}
+                    <span className="ml-2 text-xs opacity-75 tabular-nums">
+                      {day.entries} · GH₵ {formatCedis(day.total)}
+                    </span>
+                  </button>
+                ))}
+                <span className="ml-auto text-sm text-gray-500">
+                  {visibleTransactions.length} shown ·{' '}
+                  <span className="font-semibold text-gray-900 tabular-nums">
+                    GH₵ {formatCedis(visibleTotal)}
+                  </span>
+                </span>
+              </div>
+
               <div className="w-full overflow-x-auto rounded-lg border border-slate-200 shadow-sm">
                 <table className="w-full min-w-[150px] text-left text-sm">
                   <thead className="bg-gray-50">
@@ -788,7 +943,14 @@ function RegistryConsole() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {transactions.map((transaction) => (
+                    {visibleTransactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="px-4 py-8 text-center text-sm text-gray-500">
+                          No donations recorded{listDay === 'all' ? ' yet' : ` for day ${listDay}`}.
+                        </td>
+                      </tr>
+                    ) : (
+                    visibleTransactions.map((transaction) => (
                       <tr key={transaction.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{transaction.entry_number ?? '—'}</td>
                         <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">{transaction.receipt_id}</td>
@@ -817,7 +979,8 @@ function RegistryConsole() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    ))
+                    )}
                   </tbody>
                 </table>
               </div>
