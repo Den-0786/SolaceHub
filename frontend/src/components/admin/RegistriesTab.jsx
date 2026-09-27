@@ -1,7 +1,20 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Search, Download, Wallet, Calendar, FileText, TrendingUp, Loader2 } from 'lucide-react';
+import { Search, Download, Wallet, Calendar, FileText, TrendingUp, Loader2, Pencil, Trash2, X } from 'lucide-react';
 import { useOwnerSettings } from '../../hooks/useOwnerSettings.js';
 import { API_CONFIG, fetchWithAuth } from '../../config/api.js';
+
+const formatAmount = (value) =>
+  `GH₵ ${parseFloat(value || 0).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const firstError = (detail) => {
+  if (!detail) return '';
+  if (typeof detail === 'string') return detail;
+  for (const value of Object.values(detail)) {
+    if (Array.isArray(value) && value.length) return String(value[0]);
+    if (typeof value === 'string') return value;
+  }
+  return '';
+};
 
 const computeEventDay = (recordDate, startDate) => {
   if (!startDate) return null;
@@ -25,6 +38,18 @@ export default function RegistriesTab() {
   const [deploymentStartDate, setDeploymentStartDate] = useState(null);
   const [exporting, setExporting] = useState(false);
   const entriesPerPage = 15;
+
+  const [editingDonor, setEditingDonor] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editMethod, setEditMethod] = useState('Cash');
+  const [updating, setUpdating] = useState(false);
+  const [editError, setEditError] = useState('');
+
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     const checkMobile = () => {
@@ -188,7 +213,79 @@ export default function RegistriesTab() {
     }
   };
 
+  const openEdit = (donor) => {
+    setEditingDonor(donor);
+    setEditName(donor.donor_name || '');
+    setEditPhone(donor.phone_number || '');
+    setEditAmount(donor.amount != null ? String(donor.amount) : '');
+    setEditMethod(donor.method || 'Cash');
+    setEditError('');
+  };
+
+  const handleUpdate = async () => {
+    setEditError('');
+    const parsedAmount = parseFloat(editAmount);
+    if (!editName.trim()) {
+      setEditError('Please enter a donor name.');
+      return;
+    }
+    if (!parsedAmount || parsedAmount <= 0) {
+      setEditError('Please enter a valid amount greater than zero.');
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.DONORS}${editingDonor.id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          donor_name: editName.trim(),
+          phone_number: editPhone.trim(),
+          amount: parsedAmount,
+          method: editMethod,
+        }),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        setDonorData((prev) => prev.map((d) => (d.id === updated.id ? { ...d, ...updated } : d)));
+        setEditingDonor(null);
+      } else {
+        const detail = await response.json().catch(() => ({}));
+        setEditError(firstError(detail) || 'Failed to update entry. Please try again.');
+      }
+    } catch (err) {
+      console.error('Failed to update donor:', err);
+      setEditError('Network error. Please try again.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleteError('');
+    setDeleting(true);
+    try {
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.DONORS}${pendingDelete.id}/`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        setDonorData((prev) => prev.filter((d) => d.id !== pendingDelete.id));
+        setPendingDelete(null);
+      } else {
+        setDeleteError('Failed to delete entry. Please try again.');
+        console.error('Failed to delete donor:', response.status);
+      }
+    } catch (err) {
+      console.error('Failed to delete donor:', err);
+      setDeleteError('Network error. Please try again.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
+
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Header */}
       <div>
@@ -339,6 +436,7 @@ export default function RegistriesTab() {
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Event Day</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Time & Date</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Logged By</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -368,11 +466,29 @@ export default function RegistriesTab() {
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                       <span style={{ fontSize: '14px', color: '#4b5563' }}>{donor.logged_by_name || 'System'}</span>
                     </td>
+                    <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <button
+                          onClick={() => openEdit(donor)}
+                          title="Edit entry"
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px', border: '1px solid #dbeafe', borderRadius: '8px', backgroundColor: '#eff6ff', color: '#2563eb', cursor: 'pointer' }}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={() => { setDeleteError(''); setPendingDelete(donor); }}
+                          title="Delete entry"
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px', border: '1px solid #fecaca', borderRadius: '8px', backgroundColor: '#fef2f2', color: '#dc2626', cursor: 'pointer' }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} style={{ padding: '32px 16px', textAlign: 'center' }}>
+                  <td colSpan={8} style={{ padding: '32px 16px', textAlign: 'center' }}>
                     <FileText size={48} style={{ margin: '0 auto', color: '#d1d5db', marginBottom: '16px' }} />
                     <p style={{ fontSize: '14px', color: '#6b7280' }}>No donor records found matching your search</p>
                   </td>
@@ -416,6 +532,148 @@ export default function RegistriesTab() {
           </div>
         )}
       </div>
+
+      {/* Edit Entry Modal */}
+      {editingDonor && (
+        <div
+          onClick={() => !updating && setEditingDonor(null)}
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(2,6,23,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px' }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ backgroundColor: 'white', borderRadius: '16px', width: '100%', maxWidth: '440px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)', overflow: 'hidden' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #e5e7eb' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 'bold', color: '#111827', margin: 0 }}>Edit Entry</h2>
+              <button
+                onClick={() => !updating && setEditingDonor(null)}
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px', border: 'none', borderRadius: '8px', backgroundColor: '#f3f4f6', color: '#6b7280', cursor: 'pointer' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '20px' }}>
+              <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>
+                Receipt <strong style={{ color: '#111827' }}>{editingDonor.receipt_id}</strong> stays the same so printed receipts still match the ledger.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563' }}>Donor Name</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '12px', fontSize: '14px', outline: 'none', backgroundColor: '#f9fafb', width: '100%' }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563' }}>Phone Number</label>
+                <input
+                  type="text"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '12px', fontSize: '14px', outline: 'none', backgroundColor: '#f9fafb', width: '100%' }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                  <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563' }}>Amount (GH₵)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(e.target.value)}
+                    style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '12px', fontSize: '14px', outline: 'none', backgroundColor: '#f9fafb', width: '100%' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                  <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563' }}>Method</label>
+                  <select
+                    value={editMethod}
+                    onChange={(e) => setEditMethod(e.target.value)}
+                    style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '12px', fontSize: '14px', outline: 'none', backgroundColor: '#f9fafb', width: '100%' }}
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="Momo">Momo</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                  </select>
+                </div>
+              </div>
+              {editError && (
+                <p style={{ fontSize: '13px', color: '#dc2626', backgroundColor: '#fef2f2', border: '1px solid #fecaca', padding: '8px 12px', borderRadius: '8px', margin: 0 }}>
+                  {editError}
+                </p>
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '16px 20px', borderTop: '1px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
+              <button
+                onClick={() => setEditingDonor(null)}
+                disabled={updating}
+                style={{ padding: '10px 18px', border: '1px solid #e5e7eb', borderRadius: '12px', backgroundColor: 'white', color: '#374151', fontSize: '14px', fontWeight: '500', cursor: updating ? 'not-allowed' : 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdate}
+                disabled={updating}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px 18px', border: 'none', borderRadius: '12px', backgroundColor: '#020617', color: 'white', fontSize: '14px', fontWeight: '500', cursor: updating ? 'not-allowed' : 'pointer', opacity: updating ? 0.7 : 1 }}
+              >
+                {updating ? <Loader2 size={16} className="animate-spin" /> : null} {updating ? 'Updating...' : 'Update Entry'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {pendingDelete && (
+        <div
+          onClick={() => !deleting && setPendingDelete(null)}
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(2,6,23,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px' }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ backgroundColor: 'white', borderRadius: '16px', width: '100%', maxWidth: '400px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)', overflow: 'hidden' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #e5e7eb' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 'bold', color: '#111827', margin: 0 }}>Delete Entry?</h2>
+              <button
+                onClick={() => !deleting && setPendingDelete(null)}
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px', border: 'none', borderRadius: '8px', backgroundColor: '#f3f4f6', color: '#6b7280', cursor: 'pointer' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div style={{ padding: '20px' }}>
+              <p style={{ fontSize: '14px', color: '#4b5563', margin: 0 }}>
+                Are you sure you want to delete{' '}
+                <strong style={{ color: '#111827' }}>{pendingDelete.donor_name}</strong> ({formatAmount(pendingDelete.amount)})? This removes it from every total and from the printed audit.
+              </p>
+              {deleteError && (
+                <p style={{ fontSize: '13px', color: '#dc2626', backgroundColor: '#fef2f2', border: '1px solid #fecaca', padding: '8px 12px', borderRadius: '8px', margin: '12px 0 0 0' }}>
+                  {deleteError}
+                </p>
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '16px 20px', borderTop: '1px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
+              <button
+                onClick={() => setPendingDelete(null)}
+                disabled={deleting}
+                style={{ padding: '10px 18px', border: '1px solid #e5e7eb', borderRadius: '12px', backgroundColor: 'white', color: '#374151', fontSize: '14px', fontWeight: '500', cursor: deleting ? 'not-allowed' : 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px 18px', border: 'none', borderRadius: '12px', backgroundColor: '#dc2626', color: 'white', fontSize: '14px', fontWeight: '500', cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.7 : 1 }}
+              >
+                {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />} {deleting ? 'Deleting...' : 'Yes, Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

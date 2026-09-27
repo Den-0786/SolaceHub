@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Printer, Share2, User, Plus, ArrowUp, LogOut, ChevronLeft, ChevronRight, History, BarChart, LayoutDashboard, X, Menu } from 'lucide-react';
+import { Printer, Share2, User, Plus, ArrowUp, LogOut, ChevronLeft, ChevronRight, History, BarChart, LayoutDashboard, X, Menu, Pencil, Trash2, Loader2 } from 'lucide-react';
 import logo from '/SolaceHubLogo.jpeg';
 import { useToast } from '../hooks/useToast.js';
 import { useDeployment } from '../contexts/DeploymentContext';
@@ -22,6 +22,16 @@ const generateReceiptId = () => {
 
 const formatCedis = (value) =>
   new Intl.NumberFormat('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value || 0);
+
+const firstError = (detail) => {
+  if (!detail) return '';
+  if (typeof detail === 'string') return detail;
+  for (const value of Object.values(detail)) {
+    if (Array.isArray(value) && value.length) return String(value[0]);
+    if (typeof value === 'string') return value;
+  }
+  return '';
+};
 
 const computeEventDay = (startDate) => {
   if (!startDate) return 1;
@@ -54,6 +64,16 @@ function RegistryConsole() {
   const [currentView, setCurrentView] = useState('desk');
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
+
+  const [editingTransaction, setEditingTransaction] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [updatingEntry, setUpdatingEntry] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     const updateTime = () => {
@@ -119,6 +139,76 @@ function RegistryConsole() {
       }
     } catch (err) {
       console.error('Failed to fetch donors:', err);
+    }
+  };
+
+  const openEdit = (transaction) => {
+    setEditingTransaction(transaction);
+    setEditName(transaction.donor_name || '');
+    setEditPhone(transaction.phone_number || '');
+    setEditAmount(transaction.amount != null ? String(transaction.amount) : '');
+    setEditError('');
+  };
+
+  const handleUpdateEntry = async () => {
+    setEditError('');
+    const parsedAmount = parseFloat(editAmount);
+    if (!editName.trim()) {
+      setEditError('Please enter a donor name.');
+      return;
+    }
+    if (!parsedAmount || parsedAmount <= 0) {
+      setEditError('Please enter a valid amount greater than zero.');
+      return;
+    }
+
+    setUpdatingEntry(true);
+    try {
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.DONORS}${editingTransaction.id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          donor_name: editName.trim(),
+          phone_number: editPhone.trim(),
+          amount: parsedAmount,
+        }),
+      });
+      if (response.ok) {
+        setEditingTransaction(null);
+        addToast('Entry updated', 'success');
+        await fetchDonors();
+      } else {
+        const detail = await response.json().catch(() => ({}));
+        setEditError(firstError(detail) || 'Failed to update entry. Please try again.');
+      }
+    } catch (err) {
+      console.error('Failed to update donor:', err);
+      setEditError('Network error. Please try again.');
+    } finally {
+      setUpdatingEntry(false);
+    }
+  };
+
+  const handleDeleteEntry = async () => {
+    if (!pendingDelete) return;
+    setDeleteError('');
+    setDeleting(true);
+    try {
+      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.DONORS}${pendingDelete.id}/`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        setPendingDelete(null);
+        addToast('Entry deleted', 'success');
+        await fetchDonors();
+      } else {
+        setDeleteError('Failed to delete entry. Please try again.');
+        console.error('Failed to delete donor:', response.status);
+      }
+    } catch (err) {
+      console.error('Failed to delete donor:', err);
+      setDeleteError('Network error. Please try again.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -504,6 +594,7 @@ function RegistryConsole() {
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Amount</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Issued By</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Status</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -524,6 +615,24 @@ function RegistryConsole() {
                         <td className="py-3 px-4 text-sm text-gray-600 whitespace-nowrap">{transaction.operator_name || settings.donationOperatorName || 'Operator'}</td>
                         <td className="py-3 px-4 whitespace-nowrap">
                           <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">{transaction.status}</span>
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              onClick={() => openEdit(transaction)}
+                              title="Edit entry"
+                              className="inline-flex items-center justify-center p-1.5 border border-blue-200 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              onClick={() => { setDeleteError(''); setPendingDelete(transaction); }}
+                              title="Delete entry"
+                              className="inline-flex items-center justify-center p-1.5 border border-red-200 rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -549,6 +658,7 @@ function RegistryConsole() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Issued By</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -561,6 +671,24 @@ function RegistryConsole() {
                         <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">GH₵ {(Math.round(transaction.amount * 100) / 100).toFixed(2)}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{transaction.operator_name || settings.donationOperatorName || 'Operator'}</td>
                         <td className="px-4 py-3 text-sm whitespace-nowrap"><span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">{transaction.status}</span></td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              onClick={() => openEdit(transaction)}
+                              title="Edit entry"
+                              className="inline-flex items-center justify-center p-1.5 border border-blue-200 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              onClick={() => { setDeleteError(''); setPendingDelete(transaction); }}
+                              title="Delete entry"
+                              className="inline-flex items-center justify-center p-1.5 border border-red-200 rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -813,6 +941,121 @@ function RegistryConsole() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Edit Entry Modal */}
+      {editingTransaction && (
+        <div
+          onClick={() => !updatingEntry && setEditingTransaction(null)}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        >
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="flex justify-between items-center px-5 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900">Edit Entry</h3>
+              <button onClick={() => !updatingEntry && setEditingTransaction(null)} className="p-1 rounded-lg bg-gray-100 text-gray-500 hover:text-gray-700">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <p className="text-xs text-gray-500 m-0">
+                Receipt <span className="font-semibold text-gray-900">{editingTransaction.receipt_id}</span> stays the same so printed receipts still match the ledger.
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Donor Name</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-950"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                <input
+                  type="text"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-950"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (GH₵)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-950"
+                />
+              </div>
+              {editError && (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 m-0">
+                  {editError}
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 px-5 py-4 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setEditingTransaction(null)}
+                disabled={updatingEntry}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateEntry}
+                disabled={updatingEntry}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-950 text-white rounded-lg font-medium hover:bg-indigo-900 disabled:opacity-50"
+              >
+                {updatingEntry && <Loader2 size={16} className="animate-spin" />} {updatingEntry ? 'Updating...' : 'Update Entry'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Entry Confirmation */}
+      {pendingDelete && (
+        <div
+          onClick={() => !deleting && setPendingDelete(null)}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        >
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
+            <div className="flex justify-between items-center px-5 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900">Delete Entry?</h3>
+              <button onClick={() => !deleting && setPendingDelete(null)} className="p-1 rounded-lg bg-gray-100 text-gray-500 hover:text-gray-700">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm text-gray-600 m-0">
+                Are you sure you want to delete{' '}
+                <span className="font-semibold text-gray-900">{pendingDelete.donor_name}</span> ({formatAmountForDisplay(pendingDelete.amount)})? This removes it from every total and from the printed audit.
+              </p>
+              {deleteError && (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-3 mb-0">
+                  {deleteError}
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 px-5 py-4 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setPendingDelete(null)}
+                disabled={deleting}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteEntry}
+                disabled={deleting}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />} {deleting ? 'Deleting...' : 'Yes, Delete'}
+              </button>
+            </div>
           </div>
         </div>
       )}
