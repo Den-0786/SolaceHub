@@ -2,6 +2,7 @@ from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 import uuid
+from solacehub.ledger import next_entry_number
 from .models import Donor
 from .serializers import DonorSerializer
 
@@ -36,7 +37,15 @@ class DonorListCreateView(generics.ListCreateAPIView):
         receipt_id = serializer.validated_data.get('receipt_id') or generate_receipt_id()
         while Donor.objects.filter(receipt_id=receipt_id).exists():
             receipt_id = generate_receipt_id()
-        serializer.save(receipt_id=receipt_id, event_id=event_id, logged_by=self.request.user)
+        # The recorded date is always the day the money was collected. Only the
+        # update path may move an existing entry to a different day.
+        serializer.validated_data.pop('date', None)
+        serializer.save(
+            receipt_id=receipt_id,
+            event_id=event_id,
+            logged_by=self.request.user,
+            entry_number=next_entry_number(Donor, event_id),
+        )
 
 
 class DonorDetailView(generics.RetrieveUpdateDestroyAPIView):

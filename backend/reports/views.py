@@ -92,6 +92,68 @@ def _money(value):
     return f"GH¢ {value:,.2f}"
 
 
+def resolve_day_filter(request, deployment):
+    """Resolve an optional per-day export scope from the query string.
+
+    Supports ``?day=N`` (event day, counted from the deployment start date)
+    and ``?date=YYYY-MM-DD`` (a literal calendar date). ``day`` wins when both
+    are supplied. Returns ``(day, exact_date, label)``; when the family wants
+    the whole event, all three are ``None``.
+    """
+    raw_day = request.query_params.get('day')
+    if raw_day:
+        try:
+            day = int(raw_day)
+        except (TypeError, ValueError):
+            return None, None, None
+        if day < 1:
+            return None, None, None
+        return day, None, f'Day {day}'
+
+    raw_date = request.query_params.get('date')
+    if raw_date:
+        try:
+            exact = date.fromisoformat(raw_date)
+        except (TypeError, ValueError):
+            return None, None, None
+        return None, exact, exact.strftime('%B %d, %Y')
+
+    return None, None, None
+
+
+def _event_day_of(donor, deployment):
+    start = deployment.start_date if deployment else None
+    return compute_display_day(donor.date, start) or donor.event_day or 1
+
+
+def filter_donors_by_day(donors_list, deployment, day, exact_date):
+    if day is not None:
+        return [d for d in donors_list if _event_day_of(d, deployment) == day]
+    if exact_date is not None:
+        return [d for d in donors_list if d.date == exact_date]
+    return donors_list
+
+
+def filter_chits_by_day(chits_list, deployment, day, exact_date):
+    if day is not None:
+        return [c for c in chits_list if _event_day_of(c, deployment) == day]
+    if exact_date is not None:
+        return [c for c in chits_list if c.date == exact_date]
+    return chits_list
+
+
+def scope_suffix(label):
+    """Filename fragment so a downloaded file says which day it covers."""
+    if not label:
+        return ''
+    slug = label.lower().replace(' ', '-').replace(',', '')
+    return f'-{slug}'
+
+
+def scope_title(label):
+    return f' ({label})' if label else ''
+
+
 def _table(data, col_widths, alignments=None):
     """Build a reportlab table with a clean audit-style look."""
     table = Table(data, colWidths=col_widths, hAlign='LEFT')
@@ -276,10 +338,14 @@ class ReportCSVExportView(APIView):
         event_id = get_event_id(request)
         donors_list, chits_list, deployment = get_querysets(event_id)
         event = get_event(event_id)
+        day, exact_date, label = resolve_day_filter(request, deployment)
+        if day is not None or exact_date is not None:
+            donors_list = filter_donors_by_day(donors_list, deployment, day, exact_date)
+            chits_list = filter_chits_by_day(chits_list, deployment, day, exact_date)
 
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['SolaceHub - Raw Data Export'])
+        writer.writerow([f"SolaceHub - Raw Data Export{scope_title(label)}"])
         writer.writerow(['Family'])
         writer.writerow([event.family_name if event else ''])
         writer.writerow(['Event Type'])
@@ -289,12 +355,16 @@ class ReportCSVExportView(APIView):
         if deployment:
             writer.writerow(['Memorial dates'])
             writer.writerow([f"{deployment.start_date} - {deployment.end_date}"])
+        if label:
+            writer.writerow(['Covering'])
+            writer.writerow([label])
         writer.writerow(['Generated on'])
         writer.writerow([date.today().isoformat()])
         writer.writerow([])
 
         writer.writerow(['SECTION: DONORS'])
         writer.writerow([
+            '#',
             'Receipt ID',
             'Donor Name',
             'Phone Number',
@@ -307,6 +377,7 @@ class ReportCSVExportView(APIView):
         ])
         for d in donors_list:
             writer.writerow([
+                d.entry_number or '',
                 d.receipt_id,
                 d.donor_name,
                 d.phone_number,
@@ -317,10 +388,20 @@ class ReportCSVExportView(APIView):
                 d.time.isoformat() if d.time else '',
                 get_operator_name(d),
             ])
+        if donors_list:
+            writer.writerow([])
+            writer.writerow([
+                '',
+                f'DAY TOTAL ({len(donors_list)} entries)',
+                '',
+                '',
+                float(sum((d.amount or 0) for d in donors_list)),
+            ])
         writer.writerow([])
 
         writer.writerow(['SECTION: CHITS'])
         writer.writerow([
+            '#',
             'Security Code',
             'Representative Name',
             'Voucher Type',
@@ -332,6 +413,7 @@ class ReportCSVExportView(APIView):
         ])
         for c in chits_list:
             writer.writerow([
+                c.entry_number or '',
                 c.security_code,
                 c.representative_name,
                 VOUCHER_DISPLAY_NAMES.get(c.voucher_type, c.voucher_type or ''),
@@ -346,7 +428,8 @@ class ReportCSVExportView(APIView):
         csv_content = '\ufeff' + output.getvalue()
         response = HttpResponse(csv_content, content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = (
-            f'attachment; filename="solacehub-raw-data-{date.today().isoformat()}.csv"'
+            f'attachment; filename="solacehub-raw-data{scope_suffix(label)}'
+            f'-{date.today().isoformat()}.csv"'
         )
         return response
 
@@ -361,21 +444,28 @@ class ReportDonorListExportView(APIView):
         event_id = get_event_id(request)
         donors_list, _, deployment = get_querysets(event_id)
         event = get_event(event_id)
+        day, exact_date, label = resolve_day_filter(request, deployment)
+        if day is not None or exact_date is not None:
+            donors_list = filter_donors_by_day(donors_list, deployment, day, exact_date)
 
         workbook = Workbook()
         sheet = workbook.active
-        sheet.title = 'Donor List'
+        sheet.title = 'Donor List' if not label else label
 
-        sheet.append(['SolaceHub - Donor List'])
+        sheet.append([f"SolaceHub - Donor List{scope_title(label)}"])
         sheet.append(['Family'])
         sheet.append([event.family_name if event else ''])
         sheet.append(['Event Type'])
         sheet.append([event.title if event else ''])
         sheet.append(['Deceased Name'])
         sheet.append([deployment.deceased_name if deployment else ''])
+        if label:
+            sheet.append(['Covering'])
+            sheet.append([label])
         sheet.append([])
 
         sheet.append([
+            '#',
             'Receipt ID',
             'Donor Name',
             'Phone Number',
@@ -388,6 +478,7 @@ class ReportDonorListExportView(APIView):
         ])
         for d in donors_list:
             sheet.append([
+                d.entry_number or '',
                 d.receipt_id,
                 d.donor_name,
                 d.phone_number,
@@ -399,8 +490,20 @@ class ReportDonorListExportView(APIView):
                 get_operator_name(d),
             ])
 
-        header_cells = sheet[9]
-        for cell in header_cells:
+        if donors_list:
+            sheet.append([])
+            sheet.append([
+                '',
+                f'TOTAL ({len(donors_list)} entries)',
+                '', '',
+                float(sum((d.amount or 0) for d in donors_list)),
+            ])
+
+        header_row = next(
+            i for i, row in enumerate(sheet.iter_rows(values_only=True), start=1)
+            if row and row[0] == '#'
+        )
+        for cell in sheet[header_row]:
             cell.font = Font(bold=True)
         for column in sheet.columns:
             width = max(len(str(c.value or '')) for c in column)
@@ -415,7 +518,8 @@ class ReportDonorListExportView(APIView):
             ),
         )
         response['Content-Disposition'] = (
-            f'attachment; filename="solacehub-donor-list-{date.today().isoformat()}.xlsx"'
+            f'attachment; filename="solacehub-donor-list{scope_suffix(label)}'
+            f'-{date.today().isoformat()}.xlsx"'
         )
         return response
 
@@ -430,6 +534,9 @@ class ReportDonorListPDFExportView(APIView):
         event_id = get_event_id(request)
         donors_list, _, deployment = get_querysets(event_id)
         event = get_event(event_id)
+        day, exact_date, label = resolve_day_filter(request, deployment)
+        if day is not None or exact_date is not None:
+            donors_list = filter_donors_by_day(donors_list, deployment, day, exact_date)
 
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
@@ -457,22 +564,33 @@ class ReportDonorListPDFExportView(APIView):
         )
 
         story = []
-        story.append(Paragraph('Donor List', title_style))
-        story.append(Paragraph('Names, amounts and timestamps - separate from the financial audit.', sub_style))
+        story.append(Paragraph(f'Donor List{scope_title(label)}', title_style))
+        story.append(Paragraph(
+            'Names, amounts and timestamps - separate from the financial audit.',
+            sub_style,
+        ))
         story.append(Spacer(1, 4))
         meta_rows = [['Family', Paragraph(event.family_name if event else '—', cell_style)]]
         meta_rows.append(['Event Type', Paragraph(event.title if event else '—', cell_style)])
         meta_rows.append(['Deceased Name', Paragraph(deployment.deceased_name if deployment else '—', cell_style)])
+        if label:
+            meta_rows.append(['Covering', Paragraph(label, cell_style)])
+        meta_rows.append(['Entries', Paragraph(str(len(donors_list)), cell_style)])
+        meta_rows.append([
+            'Total',
+            Paragraph(_money(sum((d.amount or 0) for d in donors_list)), cell_style),
+        ])
         story.append(_table(meta_rows, [45 * mm, 200 * mm]))
         story.append(Spacer(1, 6))
 
         header = [
-            'Receipt ID', 'Donor Name', 'Phone', 'Amount (GH¢)', 'Method',
+            '#', 'Receipt ID', 'Donor Name', 'Phone', 'Amount (GH¢)', 'Method',
             'Event Day', 'Date', 'Time', 'Operator',
         ]
         rows = [[Paragraph(h, split_style) for h in header]]
         for d in donors_list:
             rows.append([
+                Paragraph(str(d.entry_number or ''), split_style),
                 Paragraph(d.receipt_id or '—', split_style),
                 Paragraph(d.donor_name or '—', cell_style),
                 Paragraph(d.phone_number or '—', cell_style),
@@ -484,17 +602,21 @@ class ReportDonorListPDFExportView(APIView):
                 Paragraph(get_operator_name(d), cell_style),
             ])
         if len(rows) == 1:
-            rows.append([Paragraph('No donors recorded', cell_style), '—', '—', '—', '—', '—', '—', '—', '—'])
+            rows.append(
+                [Paragraph('No donors recorded', cell_style)]
+                + ['—'] * 9
+            )
 
         story.append(_table(
             rows,
-            [40 * mm, 48 * mm, 22 * mm, 26 * mm, 24 * mm, 20 * mm, 26 * mm, 24 * mm, 39 * mm],
-            alignments=[None, None, None, 'RIGHT', None, 'RIGHT', None, None, None],
+            [10 * mm, 40 * mm, 46 * mm, 21 * mm, 25 * mm, 22 * mm, 18 * mm, 24 * mm, 22 * mm, 37 * mm],
+            alignments=['RIGHT', None, None, None, 'RIGHT', None, 'RIGHT', None, None, None],
         ))
 
         doc.build(story)
         response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
         response['Content-Disposition'] = (
-            f'attachment; filename="solacehub-donor-list-{date.today().isoformat()}.pdf"'
+            f'attachment; filename="solacehub-donor-list{scope_suffix(label)}'
+            f'-{date.today().isoformat()}.pdf"'
         )
         return response

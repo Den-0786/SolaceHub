@@ -5,6 +5,10 @@ from .models import Donor
 
 class DonorSerializer(serializers.ModelSerializer):
     receipt_id = serializers.CharField(required=False, allow_blank=True)
+    # Writable so a misdated entry can be moved to the right event day. New
+    # entries are still stamped by auto_now_add - DonorListCreateView discards
+    # any client-supplied value - so nothing can be backdated at collection time.
+    date = serializers.DateField(required=False)
     logged_by_name = serializers.SerializerMethodField()
     deployment = serializers.PrimaryKeyRelatedField(
         queryset=Deployment.objects.all(),
@@ -26,6 +30,6 @@ class DonorSerializer(serializers.ModelSerializer):
             'id', 'donor_name', 'phone_number', 'amount', 'receipt_id', 'time',
             'date', 'method', 'status', 'event_day', 'operator_name', 'deployment',
             'deceased_name', 'deceased_age', 'deceased_image',
-            'logged_by', 'logged_by_name', 'created_at', 'updated_at',
+            'logged_by', 'logged_by_name', 'created_at', 'updated_at', 'entry_number',
         ]
-        read_only_fields = ['id', 'date', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'entry_number']

@@ -340,6 +340,7 @@ export default function ChitManagementTab() {
           <table style={{ width: '100%', minWidth: '600px', textAlign: 'left', fontSize: '14px' }}>
             <thead style={{ backgroundColor: '#f9fafb' }}>
               <tr>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>#</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Security Code</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Representative Name</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Guest Count</th>
@@ -353,6 +354,9 @@ export default function ChitManagementTab() {
               {paginatedData.length > 0 ? (
                 paginatedData.map((chit) => (
                   <tr key={chit.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                    <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: '14px', color: '#6b7280' }}>{chit.entry_number ?? '—'}</span>
+                    </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                       <span style={{ fontSize: '14px', fontWeight: '500', color: '#020617' }}>{chit.security_code}</span>
                     </td>
@@ -382,7 +386,7 @@ export default function ChitManagementTab() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} style={{ padding: '48px 16px', textAlign: 'center' }}>
+                  <td colSpan={8} style={{ padding: '48px 16px', textAlign: 'center' }}>
                     <FileText size={48} style={{ margin: '0 auto 16px auto', color: '#d1d5db' }} />
                     <p style={{ fontSize: '14px', color: '#6b7280' }}>No chit records found matching your search</p>
                   </td>

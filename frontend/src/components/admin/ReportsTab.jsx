@@ -27,6 +27,8 @@ export default function ReportsTab() {
 
   const [exporting, setExporting] = useState(null);
   const [openMenu, setOpenMenu] = useState(null);
+  // Which day the donor list exports should cover. 'all' = the whole event.
+  const [exportDay, setExportDay] = useState('all');
   
   // Data state
   const [summaryData, setSummaryData] = useState(null);
@@ -119,14 +121,29 @@ export default function ReportsTab() {
     }
   };
 
+  const dayScope = () =>
+    exportDay && exportDay !== 'all' ? `?day=${exportDay}` : '';
+
+  const daySuffix = () =>
+    exportDay && exportDay !== 'all' ? `-day-${exportDay}` : '';
+
+  // Only offer days the event actually has money recorded against, so the
+  // family never downloads a blank sheet for a day that never happened.
+  const exportableDays = (financialAuditData?.dayBreakdown || [])
+    .map((row) => parseInt(String(row.day).replace(/\D+/g, ''), 10))
+    .filter((n) => Number.isFinite(n) && n > 0)
+    .sort((a, b) => a - b);
+
   const handleDonorListExport = async () => {
     if (exporting) return;
     setExporting('donor-list');
     try {
-      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.REPORTS}export/donor-list/`);
+      const response = await fetchWithAuth(
+        `${API_CONFIG.ENDPOINTS.REPORTS}export/donor-list/${dayScope()}`
+      );
       if (response.ok) {
         const blob = await response.blob();
-        triggerDownload(blob, `solacehub-donor-list-${new Date().toISOString().slice(0, 10)}.xlsx`);
+        triggerDownload(blob, `solacehub-donor-list${daySuffix()}-${new Date().toISOString().slice(0, 10)}.xlsx`);
       } else {
         console.error('Donor list export failed:', response.status);
       }
@@ -141,10 +158,12 @@ export default function ReportsTab() {
     if (exporting) return;
     setExporting('donor-list-pdf');
     try {
-      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.REPORTS}export/donor-list-pdf/`);
+      const response = await fetchWithAuth(
+        `${API_CONFIG.ENDPOINTS.REPORTS}export/donor-list-pdf/${dayScope()}`
+      );
       if (response.ok) {
         const blob = await response.blob();
-        triggerDownload(blob, `solacehub-donor-list-${new Date().toISOString().slice(0, 10)}.pdf`);
+        triggerDownload(blob, `solacehub-donor-list${daySuffix()}-${new Date().toISOString().slice(0, 10)}.pdf`);
       } else {
         console.error('Donor list PDF export failed:', response.status);
       }
@@ -231,19 +250,36 @@ export default function ReportsTab() {
               Donor List <ChevronDown size={13} />
             </button>
             {openMenu === 'donor' && (
-              <div className="absolute right-0 mt-1.5 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1">
-                <button
-                  onClick={() => { setOpenMenu(null); handleDonorListExport(); }}
-                  className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                >
-                  <Download size={13} /> Donor List (Excel)
-                </button>
-                <button
-                  onClick={() => { setOpenMenu(null); handleDonorListPDF(); }}
-                  className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                >
-                  <FileText size={13} /> Donor List (PDF)
-                </button>
+              <div className="absolute right-0 mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1">
+                <div className="px-4 pt-2 pb-1.5">
+                  <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">
+                    Print which day?
+                  </label>
+                  <select
+                    value={exportDay}
+                    onChange={(e) => setExportDay(e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-lg outline-none focus:border-sky-500"
+                  >
+                    <option value="all">All days (whole event)</option>
+                    {exportableDays.map((n) => (
+                      <option key={n} value={n}>Day {n} only</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="border-t border-gray-100 mt-1 pt-1">
+                  <button
+                    onClick={() => { setOpenMenu(null); handleDonorListExport(); }}
+                    className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <Download size={13} /> Donor List (Excel)
+                  </button>
+                  <button
+                    onClick={() => { setOpenMenu(null); handleDonorListPDF(); }}
+                    className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <FileText size={13} /> Donor List (PDF)
+                  </button>
+                </div>
               </div>
             )}
           </div>

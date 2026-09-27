@@ -22,6 +22,18 @@ class Chit(models.Model):
     deployment = models.ForeignKey('deployments.Deployment', on_delete=models.CASCADE, null=True, blank=True, related_name='chits')
     event = models.ForeignKey('events.Event', on_delete=models.CASCADE, null=True, blank=True, related_name='chits')
     created_at = models.DateTimeField(auto_now_add=True)
+    entry_number = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='Permanent per-event position in the ledger, assigned on create.',
+    )
 
     class Meta:
-        ordering = ['-date', '-time']
+        ordering = ['entry_number', 'id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['event', 'entry_number'],
+                name='unique_chit_entry_number_per_event',
+            ),
+        ]

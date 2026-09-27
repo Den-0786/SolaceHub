@@ -1,5 +1,6 @@
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
+from solacehub.ledger import next_entry_number
 from .models import Chit
 from .serializers import ChitSerializer
 
@@ -24,7 +25,11 @@ class ChitListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         event_id = get_event_id(self.request)
-        serializer.save(event_id=event_id, issued_by=self.request.user)
+        serializer.save(
+            event_id=event_id,
+            issued_by=self.request.user,
+            entry_number=next_entry_number(Chit, event_id),
+        )
 
 
 class ChitDetailView(generics.RetrieveUpdateDestroyAPIView):

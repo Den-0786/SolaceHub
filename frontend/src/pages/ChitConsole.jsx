@@ -127,7 +127,7 @@ function ChitConsole() {
 
       if (response.ok) {
         const newChit = await response.json();
-        setChitHistory((prev) => [newChit, ...prev]);
+        setChitHistory((prev) => [...prev, newChit]);
         setIssuedToday((prev) => prev + 1);
 
         // Freeze the chit data used for printing BEFORE clearing the form
@@ -690,6 +690,9 @@ function ChitConsole() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        #
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Security Code
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -712,13 +715,14 @@ function ChitConsole() {
                   <tbody className="divide-y divide-gray-200">
                     {chitHistory.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
+                        <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">
                           No chits issued yet for this event.
                         </td>
                       </tr>
                     ) : (
                       chitHistory.map((chit) => (
                         <tr key={chit.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm text-gray-500">{chit.entry_number ?? '—'}</td>
                           <td className="px-4 py-3 text-sm font-medium text-gray-900">
                             {chit.security_code}
                           </td>

@@ -44,6 +44,7 @@ export default function RegistriesTab() {
   const [editPhone, setEditPhone] = useState('');
   const [editAmount, setEditAmount] = useState('');
   const [editMethod, setEditMethod] = useState('Cash');
+  const [editDate, setEditDate] = useState('');
   const [updating, setUpdating] = useState(false);
   const [editError, setEditError] = useState('');
 
@@ -72,7 +73,12 @@ export default function RegistriesTab() {
         const data = await response.json();
         const list = data.results || data || [];
         if (list.length > 0) {
-          setDeploymentStartDate(list[0].start_date);
+          // Day numbering counts from the earliest deployment start, so pick it
+          // deterministically rather than relying on API ordering.
+          const earliest = [...list]
+            .filter((d) => d.start_date)
+            .sort((a, b) => a.start_date.localeCompare(b.start_date))[0];
+          setDeploymentStartDate(earliest?.start_date || list[0].start_date);
         }
       }
     } catch (err) {
@@ -199,15 +205,55 @@ export default function RegistriesTab() {
     if (exporting) return;
     setExporting(true);
     try {
-      const response = await fetchWithAuth(`${API_CONFIG.ENDPOINTS.REPORTS}export/csv/`);
+      // Reuse the on-screen day filter so what the family sees is exactly
+      // what lands in the file. "All Active Days" sends no scope.
+      const scope =
+        dayFilter && dayFilter !== 'all'
+          ? `?day=${dayFilter.replace('day', '')}`
+          : '';
+      const suffix = dayFilter && dayFilter !== 'all' ? `-day-${dayFilter.replace('day', '')}` : '';
+      const response = await fetchWithAuth(
+        `${API_CONFIG.ENDPOINTS.REPORTS}export/donor-list/${scope}`
+      );
       if (response.ok) {
         const blob = await response.blob();
-        triggerDownload(blob, `solacehub-raw-data-${new Date().toISOString().slice(0, 10)}.csv`);
+        triggerDownload(
+          blob,
+          `solacehub-donor-list${suffix}-${new Date().toISOString().slice(0, 10)}.xlsx`
+        );
       } else {
         console.error('Export failed:', response.status);
       }
     } catch (err) {
       console.error('Export failed:', err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const scope =
+        dayFilter && dayFilter !== 'all'
+          ? `?day=${dayFilter.replace('day', '')}`
+          : '';
+      const suffix = dayFilter && dayFilter !== 'all' ? `-day-${dayFilter.replace('day', '')}` : '';
+      const response = await fetchWithAuth(
+        `${API_CONFIG.ENDPOINTS.REPORTS}export/donor-list-pdf/${scope}`
+      );
+      if (response.ok) {
+        const blob = await response.blob();
+        triggerDownload(
+          blob,
+          `solacehub-donor-list${suffix}-${new Date().toISOString().slice(0, 10)}.pdf`
+        );
+      } else {
+        console.error('PDF export failed:', response.status);
+      }
+    } catch (err) {
+      console.error('PDF export failed:', err);
     } finally {
       setExporting(false);
     }
@@ -219,6 +265,7 @@ export default function RegistriesTab() {
     setEditPhone(donor.phone_number || '');
     setEditAmount(donor.amount != null ? String(donor.amount) : '');
     setEditMethod(donor.method || 'Cash');
+    setEditDate(donor.date || '');
     setEditError('');
   };
 
@@ -243,6 +290,7 @@ export default function RegistriesTab() {
           phone_number: editPhone.trim(),
           amount: parsedAmount,
           method: editMethod,
+          ...(editDate ? { date: editDate } : {}),
         }),
       });
       if (response.ok) {
@@ -270,7 +318,9 @@ export default function RegistriesTab() {
         method: 'DELETE',
       });
       if (response.ok) {
-        setDonorData((prev) => prev.filter((d) => d.id !== pendingDelete.id));
+        // Deleting an entry refills the numbering, so the numbers on every
+        // later row change. Refetch instead of filtering locally.
+        await fetchDonorData();
         setPendingDelete(null);
       } else {
         setDeleteError('Failed to delete entry. Please try again.');
@@ -323,7 +373,15 @@ export default function RegistriesTab() {
             disabled={exporting}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px 16px', backgroundColor: '#020617', color: 'white', borderRadius: '12px', fontSize: '14px', fontWeight: '500', border: 'none', cursor: exporting ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', width: isMobile ? '100%' : 'auto', opacity: exporting ? 0.7 : 1 }}
           >
-            {exporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} {exporting ? 'Exporting...' : 'Export PDF / Excel'}
+            {exporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} {exporting ? 'Exporting...' : dayFilter === 'all' ? 'Export Excel' : `Export Day ${dayFilter.replace('day', '')}`}
+          </button>
+          <button
+            onClick={handleExportPDF}
+            disabled={exporting}
+            title="Download this selection as a printable PDF"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px 16px', backgroundColor: 'white', color: '#020617', borderRadius: '12px', fontSize: '14px', fontWeight: '500', border: '1px solid #e5e7eb', cursor: exporting ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', width: isMobile ? '100%' : 'auto', opacity: exporting ? 0.7 : 1 }}
+          >
+            {exporting ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />} {exporting ? 'Preparing...' : 'PDF'}
           </button>
         </div>
       </div>
@@ -429,6 +487,7 @@ export default function RegistriesTab() {
           <table style={{ width: '100%', minWidth: '600px', textAlign: 'left', fontSize: '14px' }}>
             <thead style={{ backgroundColor: '#f9fafb' }}>
               <tr>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>#</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Receipt / Donor ID</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Donor Name</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Phone Number</th>
@@ -443,6 +502,9 @@ export default function RegistriesTab() {
               {paginatedData.length > 0 ? (
                 paginatedData.map((donor) => (
                   <tr key={donor.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                    <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: '14px', color: '#6b7280' }}>{donor.entry_number ?? '—'}</span>
+                    </td>
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                       <span style={{ fontSize: '14px', fontWeight: '500', color: '#020617' }}>{donor.receipt_id}</span>
                     </td>
@@ -488,7 +550,7 @@ export default function RegistriesTab() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} style={{ padding: '32px 16px', textAlign: 'center' }}>
+                  <td colSpan={9} style={{ padding: '32px 16px', textAlign: 'center' }}>
                     <FileText size={48} style={{ margin: '0 auto', color: '#d1d5db', marginBottom: '16px' }} />
                     <p style={{ fontSize: '14px', color: '#6b7280' }}>No donor records found matching your search</p>
                   </td>
@@ -598,6 +660,16 @@ export default function RegistriesTab() {
                     <option value="Bank Transfer">Bank Transfer</option>
                   </select>
                 </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563' }}>Date recorded</label>
+                <input
+                  type="date"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '12px', fontSize: '14px', outline: 'none', backgroundColor: '#f9fafb', width: '100%' }}
+                />
+                <span style={{ fontSize: '11px', color: '#6b7280' }}>Change this only if the entry was logged on the wrong day. It moves the money between day cards.</span>
               </div>
               {editError && (
                 <p style={{ fontSize: '13px', color: '#dc2626', backgroundColor: '#fef2f2', border: '1px solid #fecaca', padding: '8px 12px', borderRadius: '8px', margin: 0 }}>

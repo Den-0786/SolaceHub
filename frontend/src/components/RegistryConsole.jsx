@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Printer, Share2, User, Plus, ArrowUp, LogOut, ChevronLeft, ChevronRight, History, BarChart, LayoutDashboard, X, Menu, Pencil, Trash2, Loader2 } from 'lucide-react';
 import logo from '/SolaceHubLogo.jpeg';
@@ -33,6 +33,17 @@ const firstError = (detail) => {
   return '';
 };
 
+const statusBadgeClass = (status) => {
+  const value = (status || '').toUpperCase();
+  if (value === 'VOID' || value === 'VOIDED' || value === 'CANCELLED') {
+    return 'bg-red-100 text-red-800';
+  }
+  if (value === 'RECORDED') {
+    return 'bg-indigo-100 text-indigo-800';
+  }
+  return 'bg-green-100 text-green-800';
+};
+
 const computeEventDay = (startDate) => {
   if (!startDate) return 1;
   const dayMs = 24 * 60 * 60 * 1000;
@@ -41,6 +52,25 @@ const computeEventDay = (startDate) => {
   const startUtc = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
   const nowUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
   return Math.max(1, Math.floor((nowUtc - startUtc) / dayMs) + 1);
+};
+
+// Event day for an arbitrary recorded date, counting from the deployment start.
+const computeEventDayFrom = (dateStr, startDate) => {
+  if (!dateStr) return 1;
+  if (!startDate) return 1;
+  const dayMs = 24 * 60 * 60 * 1000;
+  const start = new Date(startDate);
+  const rec = new Date(dateStr);
+  const startUtc = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+  const recUtc = Date.UTC(rec.getFullYear(), rec.getMonth(), rec.getDate());
+  return Math.max(1, Math.floor((recUtc - startUtc) / dayMs) + 1);
+};
+
+const formatDayLabel = (dateStr) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d)) return dateStr;
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' });
 };
 
 function RegistryConsole() {
@@ -69,11 +99,14 @@ function RegistryConsole() {
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editAmount, setEditAmount] = useState('');
+  const [editDate, setEditDate] = useState('');
   const [updatingEntry, setUpdatingEntry] = useState(false);
   const [editError, setEditError] = useState('');
   const [pendingDelete, setPendingDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [savingEntry, setSavingEntry] = useState(false);
+  const [lastPrinted, setLastPrinted] = useState(null);
 
   useEffect(() => {
     const updateTime = () => {
@@ -147,6 +180,7 @@ function RegistryConsole() {
     setEditName(transaction.donor_name || '');
     setEditPhone(transaction.phone_number || '');
     setEditAmount(transaction.amount != null ? String(transaction.amount) : '');
+    setEditDate(transaction.date || '');
     setEditError('');
   };
 
@@ -170,6 +204,7 @@ function RegistryConsole() {
           donor_name: editName.trim(),
           phone_number: editPhone.trim(),
           amount: parsedAmount,
+          ...(editDate ? { date: editDate } : {}),
         }),
       });
       if (response.ok) {
@@ -213,6 +248,7 @@ function RegistryConsole() {
   };
 
   const handlePrint = async () => {
+    if (savingEntry) return;
     const newAmount = parseFloat(amount) || 0;
     
     if (newAmount <= 0) {
@@ -220,6 +256,7 @@ function RegistryConsole() {
       return;
     }
     
+    setSavingEntry(true);
     try {
       const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.DONORS, {
         method: 'POST',
@@ -237,23 +274,25 @@ function RegistryConsole() {
 
       if (response.ok) {
         const newDonor = await response.json();
-        setTransactions([newDonor, ...transactions]);
+        setTransactions((prev) => [...prev, newDonor]);
         setTotalAmount(prev => prev + newAmount);
         setEntryCount(prev => prev + 1);
 
         // Freeze the receipt data used for printing BEFORE clearing the form
-        setPrintReceipt({
+        const receipt = {
           receiptId: previewReceiptId,
           donorName: donorName || 'Guest',
           amount: amount,
-        });
+        };
+        setPrintReceipt(receipt);
+        setLastPrinted({ ...receipt, at: Date.now() });
 
         // Clear the form immediately so the next donor can be entered
         setDonorName('');
         setAmount('');
         setPhoneNumber('+233');
         setPreviewReceiptId(generateReceiptId());
-        addToast('Donor registered successfully', 'success');
+        addToast('Donor recorded', 'success');
 
         // Small delay before print to ensure DOM is updated
         setTimeout(() => {
@@ -272,7 +311,23 @@ function RegistryConsole() {
       } else {
         addToast('Connection error. Please check your network.', 'error');
       }
+    } finally {
+      setSavingEntry(false);
     }
+  };
+
+  // Re-prints the most recent receipt only. This deliberately does not post a
+  // new donor row, so retrying a jammed printer cannot inflate the total.
+  const handleRetryPrint = () => {
+    if (!lastPrinted) return;
+    setPrintReceipt({
+      receiptId: lastPrinted.receiptId,
+      donorName: lastPrinted.donorName,
+      amount: lastPrinted.amount,
+    });
+    setTimeout(() => {
+      window.print();
+    }, 100);
   };
 
   const handleDigitalSend = () => {
@@ -308,6 +363,29 @@ function RegistryConsole() {
     donorName: donorName || 'Guest',
     amount: amount,
   };
+
+  // Money grouped by the calendar date it was recorded on, so the desk screen
+  // can show a running total alongside a card per day.
+  const dayTotals = useMemo(() => {
+    const groups = new Map();
+    for (const t of transactions) {
+      const key = t.date;
+      if (!key) continue;
+      const existing = groups.get(key) || { date: key, total: 0, entries: 0 };
+      existing.total += parseFloat(t.amount) || 0;
+      existing.entries += 1;
+      groups.set(key, existing);
+    }
+    return [...groups.values()]
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((g) => ({
+        ...g,
+        dayNumber: computeEventDayFrom(g.date, activeDeployment?.start_date),
+      }));
+  }, [transactions, activeDeployment?.start_date]);
+
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayTotal = dayTotals.find((d) => d.date === todayKey);
 
   return (
     <div className="min-h-screen bg-brand-50 flex flex-col">
@@ -470,14 +548,44 @@ function RegistryConsole() {
                 </div>
               </div>
 
-              {/* Today's Total Summary - Full width after hero card */}
-              <div className="bg-gradient-to-r from-indigo-950 to-indigo-900 rounded-xl p-6 text-white">
-                <h4 className="text-sm font-medium opacity-80 mb-2">Today's Total</h4>
-                <p className="text-3xl font-bold">GH₵ {formatCedis(totalAmount)}</p>
-                <p className="text-sm opacity-80 mt-1">{entryCount} Entries processed</p>
-                <div className="flex items-center gap-1 mt-2 text-green-400">
-                  <ArrowUp size={16} />
-                  <span className="text-sm">Live tracking active</span>
+              {/* Summary row: total on the left, per calendar day to its right */}
+              <div className="flex flex-col gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                  <div className="lg:col-span-2 bg-gradient-to-r from-indigo-950 to-indigo-900 rounded-xl p-6 text-white flex flex-col justify-center">
+                    <h4 className="text-sm font-medium opacity-80 mb-2">Total Received</h4>
+                    <p className="text-4xl font-bold">GH₵ {formatCedis(totalAmount)}</p>
+                    <p className="text-sm opacity-80 mt-1">{entryCount} Entries processed</p>
+                    <div className="flex items-center gap-1 mt-2 text-green-400">
+                      <ArrowUp size={16} />
+                      <span className="text-sm">Live tracking active</span>
+                    </div>
+                  </div>
+
+                  {dayTotals.map((day) => {
+                    const isToday = day.date === todayKey;
+                    return (
+                      <div
+                        key={day.date}
+                        className={`lg:col-span-1 rounded-xl p-4 border flex flex-col justify-center ${
+                          isToday
+                            ? 'bg-indigo-50 border-indigo-300'
+                            : 'bg-white border-gray-200 shadow-sm'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                            isToday ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-800'
+                          }`}>
+                            Day {day.dayNumber}
+                          </span>
+                          {isToday && <span className="text-[10px] font-semibold text-indigo-600 uppercase">Today</span>}
+                        </div>
+                        <p className="text-xs text-gray-500">{formatDayLabel(day.date)}</p>
+                        <p className="text-xl font-bold text-gray-900 mt-1">GH₵ {formatCedis(day.total)}</p>
+                        <p className="text-xs text-gray-400 mt-1">{day.entries} entries</p>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
               </div>
@@ -525,10 +633,25 @@ function RegistryConsole() {
                       
                       <button
                         onClick={handlePrint}
-                        className="w-full bg-green-600 text-white py-4 rounded-lg font-medium hover:bg-green-700 flex items-center justify-center gap-2"
+                        disabled={savingEntry}
+                        className="w-full bg-green-600 text-white py-4 rounded-lg font-medium hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
-                        <Printer size={20} /> Print & Submit Receipt
+                        {savingEntry ? <Loader2 size={20} className="animate-spin" /> : <Printer size={20} />} {savingEntry ? 'Recording...' : 'Print & Submit Receipt'}
                       </button>
+
+                      {lastPrinted && (
+                        <button
+                          onClick={handleRetryPrint}
+                          className="w-full bg-white text-indigo-950 border border-indigo-200 py-3 rounded-lg font-medium hover:bg-indigo-50 flex items-center justify-center gap-2"
+                        >
+                          <Printer size={16} /> Reprint last receipt ({lastPrinted.donorName})
+                        </button>
+                      )}
+                      {lastPrinted && (
+                        <p className="text-xs text-gray-500 text-center m-0">
+                          Reprinting does not record a second donation.
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -587,6 +710,7 @@ function RegistryConsole() {
                 <table className="w-full min-w-[175px]">
                   <thead>
                     <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">#</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Receipt ID</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Donor's Name</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Time</th>
@@ -600,6 +724,7 @@ function RegistryConsole() {
                   <tbody>
                     {transactions.map((transaction) => (
                       <tr key={transaction.id} className="border-b border-gray-100">
+                        <td className="py-3 px-4 text-sm text-gray-500 whitespace-nowrap">{transaction.entry_number ?? '—'}</td>
                         <td className="py-3 px-4 text-sm font-medium text-gray-900 whitespace-nowrap">{transaction.receipt_id}</td>
                         <td className="py-3 px-4 whitespace-nowrap">
                           <div className="flex items-center gap-3">
@@ -614,7 +739,7 @@ function RegistryConsole() {
                         <td className="py-3 px-4 text-sm font-medium text-gray-900 whitespace-nowrap">GH₵ {(Math.round(transaction.amount * 100) / 100).toFixed(2)}</td>
                         <td className="py-3 px-4 text-sm text-gray-600 whitespace-nowrap">{transaction.operator_name || settings.donationOperatorName || 'Operator'}</td>
                         <td className="py-3 px-4 whitespace-nowrap">
-                          <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">{transaction.status}</span>
+                          <span className={`px-2 py-1 text-xs font-medium rounded ${statusBadgeClass(transaction.status)}`}>{transaction.status}</span>
                         </td>
                         <td className="py-3 px-4 whitespace-nowrap">
                           <div className="inline-flex items-center gap-2">
@@ -651,6 +776,7 @@ function RegistryConsole() {
                 <table className="w-full min-w-[150px] text-left text-sm">
                   <thead className="bg-gray-50">
                     <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Receipt ID</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Donor's Name</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
@@ -664,13 +790,14 @@ function RegistryConsole() {
                   <tbody className="divide-y divide-gray-200">
                     {transactions.map((transaction) => (
                       <tr key={transaction.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{transaction.entry_number ?? '—'}</td>
                         <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">{transaction.receipt_id}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">{transaction.donor_name}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{transaction.time}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{transaction.method}</td>
                         <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">GH₵ {(Math.round(transaction.amount * 100) / 100).toFixed(2)}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{transaction.operator_name || settings.donationOperatorName || 'Operator'}</td>
-                        <td className="px-4 py-3 text-sm whitespace-nowrap"><span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">{transaction.status}</span></td>
+                        <td className="px-4 py-3 text-sm whitespace-nowrap"><span className={`px-2 py-1 text-xs font-medium rounded-full ${statusBadgeClass(transaction.status)}`}>{transaction.status}</span></td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="inline-flex items-center gap-2">
                             <button
@@ -705,17 +832,23 @@ function RegistryConsole() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <p className="text-sm text-gray-600">Total Collected Today</p>
+                  <p className="text-sm text-gray-600">Total Received</p>
                   <p className="text-3xl font-bold text-gray-900">GH₵ {formatCedis(totalAmount)}</p>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <p className="text-sm text-gray-600">Received Today</p>
+                  <p className="text-3xl font-bold text-gray-900">GH₵ {formatCedis(todayTotal?.total || 0)}</p>
                 </div>
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <p className="text-sm text-gray-600">Total Entries</p>
                   <p className="text-3xl font-bold text-gray-900">{entryCount}</p>
                 </div>
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <p className="text-sm text-gray-600">Average Donation</p>
-                  <p className="text-3xl font-bold text-gray-900">GH₵ {formatCedis(totalAmount / entryCount)}</p>
-                </div>
+              </div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Average Donation</h3>
+                <p className="text-3xl font-bold text-gray-900">
+                  GH₵ {formatCedis(entryCount > 0 ? totalAmount / entryCount : 0)}
+                </p>
               </div>
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-bold text-gray-900 mb-4">Payment Method Distribution</h3>
@@ -989,6 +1122,16 @@ function RegistryConsole() {
                   onChange={(e) => setEditAmount(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-950"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date recorded</label>
+                <input
+                  type="date"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-950"
+                />
+                <p className="text-xs text-gray-500 mt-1">Change this only if the entry was logged on the wrong day.</p>
               </div>
               {editError && (
                 <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 m-0">
