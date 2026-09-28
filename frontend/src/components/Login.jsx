@@ -4,6 +4,7 @@ import { User, Lock, KeyRound, LogIn, Eye, EyeOff, X } from 'lucide-react';
 import logo from '/SolaceHubLogo.jpeg';
 import { useToast } from '../hooks/useToast.js';
 import { API_CONFIG } from '../config/api.js';
+import { useEvent } from '../contexts/EventContext.jsx';
 
 function Login() {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ function Login() {
   const [showAccessCodeModal, setShowAccessCodeModal] = useState(false);
   const [modalAccessCode, setModalAccessCode] = useState('');
   const { addToast } = useToast();
+  const { setActiveEventId } = useEvent();
 
   const handleSubmit = async (e, forcedAccessCode) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -47,8 +49,10 @@ function Login() {
         localStorage.setItem('user', JSON.stringify(data.user));
         if (data.event_id) {
           localStorage.setItem('activeEventId', data.event_id);
+          setActiveEventId(data.event_id);
         } else {
           localStorage.removeItem('activeEventId');
+          setActiveEventId(null);
         }
 
         const routeMap = {

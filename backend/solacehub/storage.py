@@ -49,14 +49,21 @@ class FallbackS3Storage(FileSystemStorage):
             return False
 
     def url(self, name):
-        if super().exists(name):
-            return super().url(name)
+        # S3 url() below signs or builds a URL locally, so no network HEAD is
+        # needed here. The previous s3.exists() check hit S3 on every call,
+        # which made list serializations that embed media URLs (e.g. a
+        # deceased_image on hundreds of donation rows) wait one round trip per
+        # row and time out the request.
         try:
-            if self.s3.exists(name):
-                return self.s3.url(name)
+            if super().exists(name):
+                return super().url(name)
+        except Exception:
+            logger.warning("Local url failed for %s, using S3 url", name)
+        try:
+            return self.s3.url(name)
         except Exception:
             logger.warning("S3 url failed for %s, using local url", name)
-        return super().url(name)
+            return super().url(name)
 
     def delete(self, name):
         try:

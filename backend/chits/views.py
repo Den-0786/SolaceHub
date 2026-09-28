@@ -19,9 +19,10 @@ class ChitListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         event_id = get_event_id(self.request)
+        qs = Chit.objects.select_related('issued_by', 'deployment')
         if event_id:
-            return Chit.objects.filter(event_id=event_id)
-        return Chit.objects.all()
+            qs = qs.filter(event_id=event_id)
+        return qs
 
     def perform_create(self, serializer):
         event_id = get_event_id(self.request)
@@ -38,6 +39,7 @@ class ChitDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         event_id = get_event_id(self.request)
+        qs = Chit.objects.select_related('issued_by', 'deployment')
         if event_id:
-            return Chit.objects.filter(event_id=event_id)
-        return Chit.objects.all()
+            qs = qs.filter(event_id=event_id)
+        return qs

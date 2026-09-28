@@ -28,9 +28,10 @@ class DonorListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         event_id = get_event_id(self.request)
+        qs = Donor.objects.select_related('logged_by', 'deployment')
         if event_id:
-            return Donor.objects.filter(event_id=event_id)
-        return Donor.objects.all()
+            qs = qs.filter(event_id=event_id)
+        return qs
 
     def perform_create(self, serializer):
         event_id = get_event_id(self.request)
@@ -54,6 +55,7 @@ class DonorDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         event_id = get_event_id(self.request)
+        qs = Donor.objects.select_related('logged_by', 'deployment')
         if event_id:
-            return Donor.objects.filter(event_id=event_id)
-        return Donor.objects.all()
+            qs = qs.filter(event_id=event_id)
+        return qs
