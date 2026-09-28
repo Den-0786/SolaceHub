@@ -91,13 +91,14 @@ def expire_deployment_session(event):
     Donor.objects.filter(event=event).delete()
     Chit.objects.filter(event=event).delete()
 
-    # Lock the session and credentials for this event
+    # Lock the session and credentials for this event. Credentials are only
+    # flagged, never deleted: removing them made an expired event impossible to
+    # recover, because only a logged-in client can provision a desk operator.
     SessionTimer.objects.filter(event=event).update(is_active=False)
-    client_cred = Credential.objects.filter(credential_type='client', event=event).first()
-    if client_cred:
-        client_cred.session_expired = True
-        client_cred.save()
-    Credential.objects.filter(credential_type='desk_operator', event=event).delete()
+    Credential.objects.filter(
+        event=event,
+        credential_type__in=('client', 'desk_operator'),
+    ).update(session_expired=True)
 
     return {
         'csv': csv_string,
@@ -121,31 +122,86 @@ def timer_expiry(timer):
     return timer.start_timestamp + duration
 
 
-def event_session_expired(event_id=None, timer=None):
-    """Return True when an event's session timer has elapsed.
-
-    This intentionally ignores the `is_active` flag so credentials stop working
-    the moment the computed expiry passes, even if the timer was marked inactive
-    without the credentials ever being locked.
-    """
-    if timer is None:
-        if not event_id:
-            return False
-        from .models import SessionTimer
-        timer = SessionTimer.objects.filter(event_id=event_id).order_by('-updated_at', '-start_timestamp').first()
-        if timer is None:
-            return False
+def timer_is_expired(timer):
+    """Return True when a single timer's own computed expiry has passed."""
     expiry = timer_expiry(timer)
     return expiry is not None and timezone.now() > expiry
 
 
-def find_expired_session(event_id=None):
-    """Return the first session timer whose computed expiry has passed."""
+def armed_timers(timers):
+    """Drop unarmed timers (zero duration) from an iterable of session timers.
+
+    Unarmed timers are the placeholder records created when a timer is first
+    fetched, and they never expire. They must not hold an event open either.
+    """
+    return [timer for timer in timers if timer_expiry(timer) is not None]
+
+
+def event_session_expired(event_id=None, timer=None):
+    """Return True when an event's session has ended.
+
+    Passing an explicit ``timer`` evaluates only that timer, which lets callers
+    reason about a single deployment's countdown.
+
+    With only ``event_id``, an event is expired once *every* armed timer it owns
+    has elapsed. An event can own several timers (one per deployment), so taking
+    only the most recently updated one let a stale sibling countdown override a
+    timer the owner had just extended. `is_active` is intentionally ignored so
+    credentials stop working the moment the computed expiry passes, even if the
+    timer was marked inactive without the credentials ever being locked.
+    """
+    if timer is not None:
+        return timer_is_expired(timer)
+    if not event_id:
+        return False
     from .models import SessionTimer
-    timers = SessionTimer.objects.all()
-    if event_id:
-        timers = timers.filter(event_id=event_id)
-    for timer in timers:
-        if event_session_expired(timer=timer):
-            return timer
+    armed = armed_timers(SessionTimer.objects.filter(event_id=event_id))
+    if not armed:
+        return False
+    return all(timer_is_expired(t) for t in armed)
+
+
+def find_expired_session(event_id=None):
+    """Return an expired session timer to drive the one-time lock, or None.
+
+    Timers are grouped per event and an event only counts as expired once all
+    of its armed timers have elapsed, so extending one deployment's timer
+    re-opens the event instead of being vetoed by a sibling.
+    """
+    from .models import SessionTimer
+    timers = SessionTimer.objects.filter(event_id=event_id) if event_id else SessionTimer.objects.all()
+
+    by_event = {}
+    for timer in armed_timers(timers):
+        by_event.setdefault(str(timer.event_id), []).append(timer)
+
+    for armed in by_event.values():
+        if all(timer_is_expired(t) for t in armed):
+            return next(t for t in armed if timer_is_expired(t))
     return None
+
+
+def rearm_event_session(event, timer=None):
+    """Re-open an event's session after the owner extends or unlocks it.
+
+    Extending a timer on its own left the credentials flagged as expired, so the
+    login gate kept rejecting the client with "Session expired" even though time
+    remained on the clock. Re-arming clears that flag and marks the timer active
+    again. The master fallback key is left alone: it is never flagged, and it is
+    the credential the owner relies on during a lockout.
+    """
+    from users.models import Credential
+    from .models import SessionTimer
+
+    if event is None:
+        return
+
+    if timer is not None:
+        SessionTimer.objects.filter(pk=timer.pk).update(is_active=True)
+    else:
+        SessionTimer.objects.filter(event=event).update(is_active=True)
+
+    Credential.objects.filter(
+        event=event,
+        credential_type__in=('client', 'desk_operator'),
+    ).update(session_expired=False)

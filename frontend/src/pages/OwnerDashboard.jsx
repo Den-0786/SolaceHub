@@ -263,6 +263,19 @@ function OwnerDashboard() {
     setDurationHours((prev) => prev + 24);
   };
 
+  // Re-open the event's session from now. Presets (24/48/72) must not only set
+  // the duration: they have to restart the countdown and clear the lock plus the
+  // session-expired flag, otherwise the client/desk-operator credentials stay
+  // flagged and the login gate keeps rejecting them immediately.
+  const handleRearmSession = (days, hours) => {
+    setStartTimestamp(new Date().toISOString().slice(0, 16));
+    setDurationDays(days);
+    setDurationHours(hours);
+    setIsLocked(false);
+    updateSettings({ sessionExpired: false });
+    addToast('Session re-opened. Client credentials re-armed.', 'success');
+  };
+
   const handleResetCredentials = () => {
     const now = new Date();
     setStartTimestamp(now.toISOString().slice(0, 16));
@@ -505,6 +518,7 @@ function OwnerDashboard() {
           onExpire={handleExpirationLock}
           onReset={handleReset}
           onExportCSV={handleExportCSV}
+          onRearm={handleRearmSession}
         />
       );
     }

@@ -13,10 +13,29 @@ export default function SessionTimerTab({
   setIsLocked,
   onExpire,
   onReset,
-  onExportCSV
+  onExportCSV,
+  onRearm
 }) {
 
+  const handlePreset = (days) => {
+    if (onRearm) {
+      onRearm(days, 0);
+    } else {
+      setDurationDays(days);
+      setDurationHours(0);
+    }
+  };
+
   const handleExtend24Hours = () => {
+    if (onRearm) {
+      const currentStart = new Date(startTimestamp).getTime();
+      const extraMs = 24 * 60 * 60 * 1000;
+      const newEnd = (isNaN(currentStart) ? Date.now() : currentStart) + ((durationDays * 24 + durationHours) * 60 * 60 * 1000) + extraMs;
+      if (newEnd <= Date.now() + 60 * 1000) {
+        onRearm(durationDays, durationHours + 24);
+        return;
+      }
+    }
     setDurationHours((prev) => prev + 24);
   };
 
@@ -123,7 +142,7 @@ export default function SessionTimerTab({
               <label className="block text-sm font-medium text-gray-700 mb-2">Duration Presets</label>
               <div className="flex gap-2">
                 <button
-                  onClick={() => { setDurationDays(1); setDurationHours(0); }}
+                  onClick={() => handlePreset(1)}
                   className={`flex-1 px-4 py-3 rounded-xl border font-medium transition-colors ${
                     durationDays === 1 && durationHours === 0
                       ? 'bg-indigo-950 text-white border-indigo-950'
@@ -133,7 +152,7 @@ export default function SessionTimerTab({
                   24 Hours
                 </button>
                 <button
-                  onClick={() => { setDurationDays(2); setDurationHours(0); }}
+                  onClick={() => handlePreset(2)}
                   className={`flex-1 px-4 py-3 rounded-xl border font-medium transition-colors ${
                     durationDays === 2 && durationHours === 0
                       ? 'bg-indigo-950 text-white border-indigo-950'
@@ -143,7 +162,7 @@ export default function SessionTimerTab({
                   48 Hours
                 </button>
                 <button
-                  onClick={() => { setDurationDays(3); setDurationHours(0); }}
+                  onClick={() => handlePreset(3)}
                   className={`flex-1 px-4 py-3 rounded-xl border font-medium transition-colors ${
                     durationDays === 3 && durationHours === 0
                       ? 'bg-indigo-950 text-white border-indigo-950'

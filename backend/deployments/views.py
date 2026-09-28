@@ -11,7 +11,7 @@ from .serializers import (
     SessionTimerSerializer,
     BackupSerializer,
 )
-from .utils import expire_deployment_session
+from .utils import expire_deployment_session, rearm_event_session, timer_is_expired
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,15 @@ class SessionTimerDetailView(generics.RetrieveUpdateAPIView):
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        timer = serializer.save()
+
+        # Extending or unlocking a session must also re-arm the credentials.
+        # Without this the client stays blocked by the stale `session_expired`
+        # flag even though the timer has time left on it.
+        event = timer.event or getattr(timer.deployment, 'event', None)
+        if timer.is_active and not timer_is_expired(timer):
+            rearm_event_session(event, timer=timer)
+
         return Response(serializer.data)
 
 
