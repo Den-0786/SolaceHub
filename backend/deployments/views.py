@@ -23,19 +23,37 @@ def get_event_id(request):
     )
 
 
+def scope_to_event(qs, request):
+    """Restrict a queryset to the request's event context.
+
+    Owners (managing every event) see everything when no event context is
+    present. Every other role is always locked to their own event so one
+    family can never see another family's records.
+    """
+    event_id = get_event_id(request)
+    if event_id:
+        return qs.filter(event_id=event_id)
+    user = request.user
+    if user and user.role not in ('owner', 'admin') and getattr(user, 'event_id', None):
+        return qs.filter(event_id=user.event_id)
+    return qs
+
+
 class DeploymentListCreateView(generics.ListCreateAPIView):
     serializer_class = DeploymentSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        event_id = get_event_id(self.request)
-        if event_id:
-            return Deployment.objects.filter(event_id=event_id)
-        return Deployment.objects.all()
+        return scope_to_event(Deployment.objects.all(), self.request)
 
     def perform_create(self, serializer):
-        event_id = get_event_id(self.request)
-        serializer.save(event_id=event_id)
+        # The event explicitly chosen in the form wins. Only fall back to the
+        # X-Event-ID header when the payload carries no event, so a stale
+        # header can never attach a funeral to the wrong family.
+        if not serializer.validated_data.get('event'):
+            serializer.save(event_id=get_event_id(self.request))
+        else:
+            serializer.save()
 
 
 class DeploymentDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -43,10 +61,7 @@ class DeploymentDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        event_id = get_event_id(self.request)
-        if event_id:
-            return Deployment.objects.filter(event_id=event_id)
-        return Deployment.objects.all()
+        return scope_to_event(Deployment.objects.all(), self.request)
 
 
 class SessionTimerDetailView(generics.RetrieveUpdateAPIView):

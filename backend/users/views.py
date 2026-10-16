@@ -154,9 +154,11 @@ def login_view(request):
                 # event-scoped one, then a global one.
                 preferred.sort(key=lambda c: (0 if c.event_id == event_id else 1 if c.event_id else 2))
 
-                # Same username exists for more than one event and no event context
-                # was provided, so we cannot determine which event to log into.
-                distinct_events = {c.event_id for c in preferred if c.event_id}
+                # Same username exists for more than one event (or for an event
+                # and a global scope) and no event context was provided, so we
+                # cannot determine which event to log into. Never silently pick
+                # one - that would land the user on another family's data.
+                distinct_events = {c.event_id for c in preferred}
                 if len(preferred) > 1 and not event_id and len(distinct_events) > 1:
                     return Response(
                         {

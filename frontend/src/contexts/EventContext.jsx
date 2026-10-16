@@ -45,7 +45,9 @@ export function EventProvider({ children }) {
 
   const refreshActiveEvent = useCallback((eventList) => {
     const list = eventList && eventList.length ? eventList : events;
-    const found = list.find((e) => e.id === activeEventId) || list[0] || null;
+    // Resolve strictly by id - never fall back to another event just because
+    // it happens to be first in the list.
+    const found = list.find((e) => e.id === activeEventId) || null;
     setActiveEvent(found);
   }, [events, activeEventId]);
 

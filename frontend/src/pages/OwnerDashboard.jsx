@@ -74,7 +74,7 @@ function OwnerDashboard() {
           const list = data.results || data || [];
           setDeployments(list);
           const deployment =
-            list.find((d) => String(d.event) === String(activeEventId)) || list[0] || null;
+            list.find((d) => String(d.event) === String(activeEventId)) || null;
           setActiveDeploymentData(deployment);
           if (deployment) {
             setActiveDeployment(deployment);
@@ -97,6 +97,11 @@ function OwnerDashboard() {
                 isLocked: loadedLocked,
               };
             }
+          } else {
+            // New event has no funeral yet - clear anything left over from
+            // the previously active family instead of showing its data.
+            setActiveDeployment(null);
+            timerPersistRef.current = null;
           }
         }
       } catch (err) {

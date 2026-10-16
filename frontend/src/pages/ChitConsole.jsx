@@ -232,9 +232,10 @@ function ChitConsole() {
       const response = await fetchWithAuth(API_CONFIG.ENDPOINTS.DEPLOYMENTS);
       if (response.ok) {
         const data = await response.json();
-        if (data.length > 0) {
-          setActiveDeployment(data[0]);
-        }
+        const list = data.results || data || [];
+        const forEvent = list.filter((d) => String(d.event) === String(activeEventId));
+        // Only ever surface this event's funeral - never another family's.
+        setActiveDeployment(forEvent[0] || null);
       }
     } catch (err) {
       console.error('Failed to fetch deployment:', err);

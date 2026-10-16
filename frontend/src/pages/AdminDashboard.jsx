@@ -49,9 +49,9 @@ function AdminDashboard() {
       if (deploymentResponse.ok) {
         const deploymentData = await deploymentResponse.json();
         const deployments = deploymentData.results || deploymentData || [];
-        if (deployments.length > 0) {
-          setActiveDeployment(deployments[0]);
-        }
+        const forEvent = deployments.filter((d) => String(d.event) === String(activeEventId));
+        // Only ever surface this event's funeral - never another family's.
+        setActiveDeployment(forEvent[0] || null);
       }
 
       // Fetch donors for donation ledger

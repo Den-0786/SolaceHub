@@ -8,7 +8,7 @@ import ManageDeploymentModal from './ManageDeploymentModal.jsx';
 
 export default function DeploymentTab({ deployments, setDeployments }) {
   const { setActiveDeployment } = useDeployment();
-  const { events } = useEvent();
+  const { events, activeEventId } = useEvent();
   const { addToast } = useToast();
   const [showModal, setShowModal] = useState(false);
   const [editingDeployment, setEditingDeployment] = useState(null);
@@ -242,7 +242,10 @@ export default function DeploymentTab({ deployments, setDeployments }) {
       {/* Action Bar */}
       <div className="mb-4 md:mb-6">
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+            setNewDeployment(prev => ({ ...prev, event: activeEventId || prev.event || '' }));
+            setShowModal(true);
+          }}
           className="bg-indigo-950 hover:bg-indigo-900 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2"
         >
           <Plus size={16} /> Register New Deployment
